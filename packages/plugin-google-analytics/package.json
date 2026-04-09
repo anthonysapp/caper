@@ -1,0 +1,43 @@
+{
+  "name": "@caper/plugin-google-analytics",
+  "version": "6.2.2",
+  "description": "Google Analytics",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "main": "lib/caper-plugin-google-analytics.mjs",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./lib/caper-plugin-google-analytics.mjs",
+      "types": "./lib/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run version && vite build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "version": "node generateVersion.mjs"
+  },
+  "keywords": [
+    "google",
+    "analytics",
+    "google-analytics",
+    "@caper/core",
+    "caper"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@caper/core": "workspace:*",
+    "vite": "^8.0.7",
+    "vite-plugin-dts": "^4.5.3"
+  },
+  "peerDependencies": {
+    "@caper/core": "workspace:*"
+  },
+  "dependencies": {
+    "@types/gtag.js": "^0.0.20"
+  }
+}

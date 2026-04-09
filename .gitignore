@@ -1,0 +1,27 @@
+
+# dependencies
+node_modules
+
+# production
+/deploy
+/dist
+
+# misc
+.DS_Store
+.idea
+*.iml
+
+.npmrc
+npm-debug.log*
+
+#lib folders
+lib
+
+apps/kitchen-sink/public/assets
+apps/kitchen-sink/node_modules
+
+.assetpack
+.cache
+.env
+.turbo
+.claude/settings.local.json

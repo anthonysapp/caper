@@ -1,0 +1,17 @@
+{
+  "name": "~NAME~",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.html",
+  "scripts": {
+    "clean": "rimraf .assetpack .cache dist",
+    "start": "~PACKAGE_MANAGER~ clean && caper start",
+    "dev": "~PACKAGE_MANAGER~ clean && caper dev",
+    "preview": "~PACKAGE_MANAGER~ clean && caper preview",
+    "build": "~PACKAGE_MANAGER~ clean && caper build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@caper/core": "latest"
+  }
+}

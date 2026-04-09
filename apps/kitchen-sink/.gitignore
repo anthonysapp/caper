@@ -1,0 +1,9 @@
+/dist
+/dev-dist
+/creds
+/creds/*
+.voiceover
+.env
+/.assetpack
+/.cache
+/public/assets

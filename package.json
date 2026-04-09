@@ -1,0 +1,46 @@
+{
+  "name": "caper-main",
+  "version": "6.2.3",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "kitchen-sink:build": "turbo build --filter={./apps/kitchen-sink}",
+    "kitchen-sink:dev": "turbo dev --filter={./apps/kitchen-sink}",
+    "framework:build": "turbo build --filter={./packages/core}",
+    "framework:publish": "cd packages/core && npm publish",
+    "framework:all": "pnpm framework:build && pnpm framework:publish",
+    "packages:update": "node ./scripts/update-package-versions.mjs",
+    "packages:build": "sh ./scripts/build-packages.sh",
+    "packages:publish": "node ./scripts/publish-packages.mjs packages/plugin-*",
+    "packages:all": "pnpm packages:update && pnpm packages:build && pnpm packages:publish",
+    "plugin:create": "node ./scripts/create-plugin.mjs",
+    "build-publish-all": "npm run packages:update && npm run framework:build && npm run framework:publish && npm run packages:build && npm run packages:publish",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cli:create": "node ./packages/core/cli.mjs create ../cli-test-app --use-pnpm"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@eslint/js": "^9.38.0",
+    "eslint": "^9.38.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-simple-import-sort": "^13.0.0",
+    "glob": "^10.4.1",
+    "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "turbo": "^2.0.4",
+    "typescript-eslint": "^8.58.1",
+    "vite": "^8.0.7"
+  },
+  "packageManager": "pnpm@9.3.0",
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "vite-plugin-pwa>vite": "^8.0.0"
+      }
+    }
+  }
+}

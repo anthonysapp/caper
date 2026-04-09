@@ -1,0 +1,127 @@
+{
+  "name": "@caper/core",
+  "version": "6.2.2",
+  "title": "Caper",
+  "description": "An opinionated HTML game framework built on PixiJS v8",
+  "bin": {
+    "caper": "./cli.mjs",
+    "create-caper": "./cli/create-caper.mjs"
+  },
+  "type": "module",
+  "files": [
+    "lib",
+    "src",
+    "cli",
+    "config/vite.mjs",
+    "config/assetpack.mjs",
+    "config/tsconfig.json",
+    "config/.prettierrc.json",
+    "extras/css/accessibility.css",
+    "extras/css/loader.css",
+    "extras/css/fullscreen.css",
+    "templates",
+    "types"
+  ],
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/caper.mjs"
+    },
+    "./config/assetpack": {
+      "default": "./config/assetpack.mjs"
+    },
+    "./config/vite": {
+      "default": "./config/vite.mjs"
+    },
+    "./extras/css/accessibility.css": {
+      "default": "./extras/css/accessibility.css"
+    },
+    "./extras/css/loader.css": {
+      "default": "./extras/css/loader.css"
+    },
+    "./extras/css/fullscreen.css": {
+      "default": "./extras/css/fullscreen.css"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "dev": "cd ./examples && pnpm dev",
+    "start": "cd ./examples && pnpm start",
+    "build": "pnpm generate-version && vite build",
+    "visualize:examples": "cd ./examples && npx vite-bundle-visualizer",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "docs": "pnpm build:docs",
+    "build:docs": "cd ./docs && pnpm build",
+    "dev:docs": "cd ./docs && pnpm dev",
+    "typedoc": "ppnpm generate-version && typedoc --out typedoc src",
+    "generate-version": "node ./scripts/generate-version.mjs",
+    "clean": "node ./scripts/clean.mjs",
+    "update-package-deps": "node ./scripts/update-package-deps.mjs",
+    "build-packages": "node ./scripts/build-packages.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anthonysapp/caper.git"
+  },
+  "keywords": [
+    "game",
+    "framework",
+    "html"
+  ],
+  "author": "Anthony Sapp <anthony@anthonysapp.dev>",
+  "license": "MIT",
+  "homepage": "https://github.com/anthonysapp/caper#readme",
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "happy-dom": "^15",
+    "standard-version": "^9.5.0",
+    "turbo": "^2.0.3",
+    "typedoc": "^0.28.1",
+    "vite-plugin-dts": "^4.5.3",
+    "vitest": "^3",
+    "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "@pixi/sound": "^6.0.1",
+    "gsap": "^3.13.0",
+    "pixi.js": "8.17.1"
+  },
+  "dependencies": {
+    "@assetpack/core": "^1.7.0",
+    "@clack/prompts": "^0.8.2",
+    "@esotericsoftware/spine-core": "~4.2.76",
+    "@pixi/devtools": "^2.0.1",
+    "@pixi/layout": "^3.2.0",
+    "@pixi/sound": "^6.0.1",
+    "@types/stats.js": "^0.17.3",
+    "@vite-pwa/assets-generator": "^1.0.0",
+    "csv-parse": "^5.5.5",
+    "gsap": "^3.13.0",
+    "kleur": "^4.1.5",
+    "npm-run-all": "^4.1.5",
+    "oxc-parser": "^0.124.0",
+    "pixi-filters": "^6.1.2",
+    "pixi.js": "8.17.1",
+    "prettier": "^3.2.5",
+    "rimraf": "^5.0.5",
+    "shelljs": "^0.8.5",
+    "stats.js": "^0.17.0",
+    "typed-signals": "^2.5.0",
+    "typescript": "^5.9.0",
+    "vite": "^8.0.7",
+    "vite-bundle-visualizer": "^1.2.1",
+    "vite-plugin-pwa": "^1.2.0",
+    "vite-plugin-singlefile": "^2.3.2",
+    "vite-plugin-static-copy": "^4.0.1",
+    "vite-plugin-wasm": "^3.6.0",
+    "workbox-cacheable-response": "^7.4.0",
+    "workbox-core": "^7.4.0",
+    "workbox-expiration": "^7.4.0",
+    "workbox-routing": "^7.4.0",
+    "workbox-strategies": "^7.4.0",
+    "workbox-window": "^7.4.0"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "@caper/plugin-colyseus",
+  "version": "6.2.2",
+  "description": "Colyseus",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "main": "lib/caper-plugin-colyseus.mjs",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./lib/caper-plugin-colyseus.mjs",
+      "types": "./lib/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "colyseus",
+    "colyseus.js",
+    "@caper/core",
+    "caper"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@caper/core": "workspace:*",
+    "vite": "^8.0.7",
+    "vite-plugin-dts": "^4.5.3"
+  },
+  "peerDependencies": {
+    "@caper/core": "workspace:*"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^2.0.34",
+    "colyseus.js": "^0.15.24"
+  }
+}

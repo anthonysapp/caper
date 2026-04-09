@@ -1,0 +1,42 @@
+{
+  "name": "@caper/plugin-rollbar",
+  "version": "6.2.2",
+  "description": "Rollbar",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "main": "lib/caper-plugin-rollbar.mjs",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./lib/caper-plugin-rollbar.mjs",
+      "types": "./lib/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run generate-version && vite build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate-version": "node generateVersion.mjs"
+  },
+  "keywords": [
+    "rollbar",
+    "rollbar.js",
+    "@caper/core",
+    "caper"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@caper/core": "workspace:*",
+    "vite": "^8.0.7",
+    "vite-plugin-dts": "^4.5.3"
+  },
+  "peerDependencies": {
+    "@caper/core": "workspace:*"
+  },
+  "dependencies": {
+    "rollbar": "^2.26.4"
+  }
+}

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link href="/favicon.ico" rel="icon" type="image/ico" />
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
+    <meta content="yes" name="mobile-web-app-capable" />
+    <meta content="yes" name="apple-mobile-web-app-capable" />
+    <title>~NAME~</title>
+    <style>
+      /* Imported CSS gets inlined */
+      /* Import the fullscreen.css file from caper. */
+      @import url('@caper/core/extras/css/fullscreen.css');
+
+      /* Importing the loader.css file from caper. */
+      /* A css overlay while application is in bootstrap */
+      /* requires the game container element to be present in the html. */
+      /* gets hidden when the initial scene is loaded */
+      @import url('@caper/core/extras/css/loader.css');
+    </style>
+  </head>
+  <body>
+    <script async defer src="src/index.ts" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "extends": "../../packages/core/config/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@caper/core/*": ["../../packages/core/src/*"],
+      "@caper/plugin-google-analytics/*": ["../../packages/plugin-google-analytics/src/*"],
+      "@caper/plugin-firebase/*": ["../../packages/plugin-firebase/src/*"]
+    },
+    "types": ["vite/client", "vite-plugin-pwa/client"]
+  },
+  "references": [
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/plugin-crunch"
+    },
+    {
+      "path": "../../packages/plugin-rive"
+    },
+    {
+      "path": "../../packages/plugin-google-analytics"
+    },
+    {
+      "path": "../../packages/plugin-firebase"
+    }
+  ],
+  "include": ["src", "caper.config.ts", "src/**/*.d.ts"],
+  "exclude": ["node_modules", "dist"]
+}

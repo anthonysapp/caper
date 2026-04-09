@@ -1,0 +1,33 @@
+{
+  "name": "@caper/plugin-@pluginName",
+  "version": "x.x.x",
+  "description": "",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "main": "lib/caper-plugin-@pluginName.mjs",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./lib/caper-plugin-@pluginName.mjs",
+      "types": "./lib/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@caper/core": "workspace:*",
+    "vite-plugin-dts": "^3.9.1"
+  },
+  "peerDependencies": {
+    "@caper/core": "next"
+  },
+  "dependencies": {}
+}

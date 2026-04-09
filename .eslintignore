@@ -1,0 +1,5 @@
+packages/framework/src/plugins/spine/pixi-spine/
+packages/framework/src/plugins/spine/spine-core/
+templates/
+templates/*
+templates/*/*

@@ -1,0 +1,45 @@
+{
+  "name": "@caper/plugin-rive",
+  "version": "6.2.2",
+  "description": "Rive",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "main": "lib/caper-plugin-rive.mjs",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./lib/caper-plugin-rive.mjs",
+      "types": "./lib/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run generate-version && vite build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate-version": "node generateVersion.mjs"
+  },
+  "keywords": [
+    "rive",
+    "rive.js",
+    "@caper/core",
+    "caper",
+    "animation",
+    "vector"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@caper/core": "workspace:*",
+    "vite": "^8.0.7",
+    "vite-plugin-dts": "^4.5.3"
+  },
+  "peerDependencies": {
+    "@caper/core": "workspace:*",
+    "pixi.js": "8.17.1"
+  },
+  "dependencies": {
+    "@rive-app/canvas-advanced-lite": "^2.26.1"
+  }
+}

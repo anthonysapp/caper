@@ -1,0 +1,10 @@
+---
+description: PixiJS API
+globs: **/*.{js,ts,jsx,tsx}
+alwaysApply: false
+---
+
+@https://pixijs.com/llms.txt---
+alwaysApply: true
+
+---
