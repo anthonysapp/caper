@@ -1,8 +1,9 @@
 import { Graphics, Sprite, Text, Texture } from 'pixi.js';
 
 import { CaperColors } from '@/theme';
-import { GUI } from 'dat.gui';
+import { FONT_BODY, FONT_DISPLAY } from '@/utils/Constants';
 import { FlexContainer, Scene, Size, defineScene } from '@caper/core';
+import { GUI } from 'dat.gui';
 
 export const scene = defineScene({
   id: 'base',
@@ -50,15 +51,13 @@ export default class BaseScene extends Scene {
     });
 
     this._title = this.titleContainer.add.text({
-      text: this.title ?? this.id,
-      style: { fontSize: 36 },
+      text: (this.title ?? this.id)?.toUpperCase(),
+      style: { fontFamily: FONT_DISPLAY, fontSize: 36 },
     });
 
     this._subtitle = this.titleContainer.add.text({
       text: this.subtitle,
-      style: {
-        fontSize: 16,
-      },
+      style: { fontFamily: FONT_BODY, fontSize: 16 },
     });
 
     if (this.config) {

@@ -1,9 +1,9 @@
-import { FlexContainer, defineScene } from '@caper/core';
-import { FONT_BODY, FONT_DISPLAY } from '@/utils/Constants';
 import { CaperColors } from '@/theme';
-import Base from './BaseScene';
+import { FONT_BODY, FONT_DISPLAY } from '@/utils/Constants';
+import { FlexContainer, defineScene } from '@caper/core';
 import { gsap } from 'gsap';
 import { Sprite } from 'pixi.js';
+import Base from './BaseScene';
 
 export const scene = defineScene({
   id: 'start',
@@ -29,7 +29,7 @@ export default class Start extends Base {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 16,
+        gap: 5,
       },
     });
 
@@ -57,13 +57,16 @@ export default class Start extends Base {
         fontSize: 42,
         fontWeight: 'bold',
         fill: CaperColors.text,
-        letterSpacing: 8,
+        letterSpacing: -1,
+      },
+      layout: {
+        marginTop: 100,
       },
     });
 
     // Tagline
     this.container.add.text({
-      text: 'HTML game framework built on PixiJS',
+      text: 'HTML game framework',
       style: {
         fontFamily: FONT_BODY,
         fontSize: 16,
@@ -73,7 +76,7 @@ export default class Start extends Base {
 
     // CTA
     const cta = this.container.add.text({
-      text: 'Pick a scene from the sidebar  →',
+      text: '←  Pick a scene from the sidebar',
       style: {
         fontFamily: FONT_BODY,
         fontSize: 14,
@@ -81,7 +84,7 @@ export default class Start extends Base {
         fontWeight: '500',
       },
       layout: {
-        marginTop: 24,
+        marginTop: 10,
       },
     });
 
@@ -90,7 +93,7 @@ export default class Start extends Base {
 
     // Gentle pulse on the CTA
     gsap.to(cta, {
-      alpha: 0.5,
+      alpha: 0.75,
       duration: 1.5,
       repeat: -1,
       yoyo: true,
@@ -103,9 +106,9 @@ export default class Start extends Base {
 
     // Breathing scale
     gsap.to(this.mascot.scale, {
-      x: 0.365,
-      y: 0.365,
-      duration: 2.5,
+      x: 0.36,
+      y: 0.36,
+      duration: 1.5,
       repeat: -1,
       yoyo: true,
       ease: 'sine.inOut',

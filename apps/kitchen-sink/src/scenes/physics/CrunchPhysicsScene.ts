@@ -1,16 +1,6 @@
 import BaseScene from '@/scenes/BaseScene';
 import { FONT_BODY } from '@/utils/Constants';
 import {
-  Actor,
-  ActorCollisionResult,
-  CollisionLayer,
-  CollisionResult,
-  Entity,
-  ICrunchPhysicsPlugin,
-  Sensor,
-  Solid,
-} from '@caper/plugin-crunch';
-import {
   ActionDetail,
   AnimatedSprite,
   Button,
@@ -22,6 +12,16 @@ import {
   Signal,
   UICanvas,
 } from '@caper/core';
+import {
+  Actor,
+  ActorCollisionResult,
+  CollisionLayer,
+  CollisionResult,
+  Entity,
+  ICrunchPhysicsPlugin,
+  Sensor,
+  Solid,
+} from '@caper/plugin-crunch';
 import gsap from 'gsap';
 
 import { FederatedPointerEvent, Point, Pool, Rectangle } from 'pixi.js';
@@ -33,7 +33,7 @@ export const scene = defineScene({
     label: 'Level & Camera',
     order: 6,
   },
-  plugins: ['crunch-physics'],
+  plugins: ['crunch'],
   assets: {
     preload: {
       bundles: ['kenney'],
@@ -397,7 +397,7 @@ export default class CrunchPhysicsScene extends BaseScene {
   ui: UICanvas;
 
   get physics(): ICrunchPhysicsPlugin {
-    return this.app.getPlugin('crunch-physics') as unknown as ICrunchPhysicsPlugin;
+    return this.app.getPlugin('crunch') as unknown as ICrunchPhysicsPlugin;
   }
 
   configureGUI() {

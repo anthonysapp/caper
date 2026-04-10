@@ -170,9 +170,9 @@ export class Sidebar {
     // j/k navigation (only when not in input)
     if (isInputFocused) return;
 
-    if (e.key === 'j' || e.key === 'k' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (e.key === 'j' || e.key === 'k') {
       e.preventDefault();
-      const direction = (e.key === 'j' || e.key === 'ArrowDown') ? 1 : -1;
+      const direction = e.key === 'j' ? 1 : -1;
       this.navigateScenes(direction, false);
       return;
     }

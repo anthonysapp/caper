@@ -81,7 +81,7 @@ export default class FocusScene extends BaseScene {
       scale: 0.5,
       layout: {
         width: 295,
-        height: 332,
+        height: 295,
         flexGrow: 0,
         flexShrink: 0,
         applySizeDirectly: true,
@@ -95,7 +95,7 @@ export default class FocusScene extends BaseScene {
       scale: 0.5,
       layout: {
         width: 295,
-        height: 332,
+        height: 295,
         flexGrow: 0,
         flexShrink: 0,
         applySizeDirectly: true,
@@ -109,7 +109,7 @@ export default class FocusScene extends BaseScene {
       scale: 0.5,
       layout: {
         width: 295,
-        height: 332,
+        height: 295,
         flexGrow: 0,
         flexShrink: 0,
         applySizeDirectly: true,
@@ -129,7 +129,7 @@ export default class FocusScene extends BaseScene {
         flexGrow: 0,
         flexShrink: 0,
         width: 295,
-        height: 332,
+        height: 295,
         transformOrigin: 'top left',
       },
     });

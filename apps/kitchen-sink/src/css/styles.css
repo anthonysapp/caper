@@ -352,7 +352,7 @@ nav.disabled {
   display: none;
   position: fixed;
   top: 0.75rem;
-  left: 0.75rem;
+  right: 0.75rem;
   z-index: 1000;
   width: 36px;
   height: 36px;
@@ -429,13 +429,13 @@ nav.disabled {
   #sidebar {
     position: fixed;
     top: 0;
-    left: 0;
+    right: 0;
     z-index: 99;
     height: 100%;
     width: 300px;
     min-width: 300px;
-    border-radius: 0 1rem 1rem 0;
-    transform: translateX(-100%);
+    border-radius: 1rem 0 0 1rem;
+    transform: translateX(100%);
     transition: transform 0.3s ease;
   }
 
@@ -480,13 +480,13 @@ nav.disabled {
   #sidebar {
     position: fixed;
     top: 0;
-    left: 0;
+    right: 0;
     z-index: 99;
     height: 100%;
     width: 280px;
     min-width: 280px;
-    border-radius: 0 1rem 1rem 0;
-    transform: translateX(-100%);
+    border-radius: 1rem 0 0 1rem;
+    transform: translateX(100%);
     transition: transform 0.3s ease;
   }
 
