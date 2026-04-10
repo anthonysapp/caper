@@ -141,16 +141,15 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped · `[!]` 
 > fuzzy filter makes the picker actually usable without breaking anything for
 > mouse users.
 
-- [ ] Add a tiny search input above the nav; `/` focuses it, `Esc` clears.
-      Client-side filter over `app.scenes.debugGroupsList`, pill shows
-      `{matched}/{total}`
-- [ ] Keyboard nav — `j`/`k` and arrow keys cycle scenes within the current
-      group; `J`/`K` jump groups. Hash stays source of truth; keys just mutate
-      `location.hash`
-- [ ] Hint row at the bottom of the sidebar: `j/k ↕   /  filter`
-- [ ] Don't break: existing `hashchange` listener, `onSceneChangeComplete`
-      disabled toggle
-- [ ] Commit: `feat(kitchen-sink): add keyboard nav and scene filter to sidebar`
+- [x] Search input above nav; `/` focuses, `Esc` clears + blurs. Filters
+      visible links by substring match. Count pill shows `{matched}/{total}`.
+      Groups with zero visible links are hidden entirely.
+- [x] Keyboard nav: `j`/`k`/ArrowDown/ArrowUp cycle within visible links;
+      `J`/`K` (shift) jump to first link of next/prev group. Wraps at boundaries.
+- [x] Hint row at sidebar bottom: `/ filter  j k navigate`
+- [x] Does not break: hashchange listener, onSceneChangeComplete disabled toggle
+- [x] `pnpm kitchen-sink:build` passes
+- [x] Commit: `feat(kitchen-sink): add keyboard nav and scene filter to sidebar`
 
 ## Phase 8 — Responsive overlay
 
