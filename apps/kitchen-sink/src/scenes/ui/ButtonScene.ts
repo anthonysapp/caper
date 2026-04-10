@@ -38,7 +38,7 @@ export default class ButtonScene extends BaseScene {
     // create 'play sound' button
     this.playSoundButton = this.container.add.button({
       textures: {
-        default: 'btn/green',
+        default: 'btn/blue',
         hover: 'btn/yellow',
         disabled: 'btn/red',
       },
@@ -59,7 +59,7 @@ export default class ButtonScene extends BaseScene {
     // create 'toggle enabled' button, which toggles the interactability of the 'play sound' button
     this.enabledButton = this.container.add.button({
       textures: {
-        default: 'btn/purple',
+        default: 'btn/red',
         hover: 'btn/yellow',
       },
       scale: 0.65,
@@ -78,7 +78,7 @@ export default class ButtonScene extends BaseScene {
     // create 'cycle listener' button, which cycles between different listener types for the 'play sound' button
     this.listenerButton = this.container.add.button({
       textures: {
-        default: 'btn/purple',
+        default: 'btn/red',
         hover: 'btn/yellow',
       },
       scale: 0.65,

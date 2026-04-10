@@ -125,7 +125,7 @@ export default class AssetScene extends BaseScene {
     super.resize();
     if (this.container) {
       this.container.size = [this.app.size.width, this.app.size.height - 120];
-      this.container.position.set(-this.app.size.width * 0.5, -this.app.size.height * 0.5 + 120);
+      this.container.position.set(-this.app.size.width * 0.5, -this.app.size.height * 0.5);
     }
   }
 }

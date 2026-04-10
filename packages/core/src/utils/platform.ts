@@ -7,17 +7,21 @@ import { isMobile as PIXIUtilsIsMobile } from 'pixi.js';
  * @type {boolean}
  */
 export const isRetina =
-  window.devicePixelRatio > 1 ||
-  (window.matchMedia &&
-    window.matchMedia(
-      '(-webkit-min-device-pixel-ratio: 1.5), (min--moz-device-pixel-ratio: 1.5), (-o-min-device-pixel-ratio: 3/2), (min-resolution: 1.5dppx)',
-    ).matches);
+  typeof window !== 'undefined'
+    ? window.devicePixelRatio > 1 ||
+      (window.matchMedia &&
+        window.matchMedia(
+          '(-webkit-min-device-pixel-ratio: 1.5), (min--moz-device-pixel-ratio: 1.5), (-o-min-device-pixel-ratio: 3/2), (min-resolution: 1.5dppx)',
+        ).matches)
+    : false;
 
 /**
  * Check if we're on a touch device
  */
 export const isTouch: boolean =
-  'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator?.maxTouchPoints > 0;
+  typeof window !== 'undefined'
+    ? 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator?.maxTouchPoints > 0
+    : false;
 
 /**
  * Checks if the device is a mobile device.

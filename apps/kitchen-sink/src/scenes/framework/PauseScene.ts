@@ -1,8 +1,11 @@
 import BaseScene from '@/scenes/BaseScene';
+import { CaperColors } from '@/theme';
+import { CaperPanel } from '@/ui/CaperPanel';
 import { FONT_BODY } from '@/utils/Constants';
 import { Button, defineScene, FlexContainer, formatTime, PauseConfig, type SceneAssets, UICanvas } from '@caper/core';
 import { gsap } from 'gsap';
-import { HTMLText, Sprite, Text } from 'pixi.js';
+import { Sprite, Text } from 'pixi.js';
+
 export const scene = defineScene({
   id: 'pause',
   debug: {
@@ -12,8 +15,8 @@ export const scene = defineScene({
 });
 
 export default class PauseScene extends BaseScene {
-  title = 'Pause Scene';
-  subtitle = 'Pause and resume the game, with different configurations';
+  title = 'Pause';
+  subtitle = 'Pause, resume, and observe different pause configurations';
   ui: UICanvas;
   container: FlexContainer;
   buttonContainer: FlexContainer;
@@ -22,15 +25,9 @@ export default class PauseScene extends BaseScene {
   tickerAnimated: Sprite;
   stopwatchDisplay: Text;
   countdownDisplay: Text;
-  pauseInfo: HTMLText;
+  pauseInfoText: Text;
 
-  tickerAnimationConfig: {
-    direction: number;
-    startX: number;
-  } = {
-    direction: 1,
-    startX: 0,
-  };
+  tickerAnimationConfig: { direction: number } = { direction: 1 };
 
   protected config = {
     pauseAudio: false,
@@ -43,12 +40,7 @@ export default class PauseScene extends BaseScene {
   public get assets(): SceneAssets {
     return {
       preload: {
-        assets: [
-          {
-            alias: 'staticCaperLogo',
-            src: '/static/caper.png',
-          },
-        ],
+        assets: [{ alias: 'staticCaperLogo', src: '/static/caper.png' }],
         bundles: ['audio', 'required'],
       },
     };
@@ -58,54 +50,59 @@ export default class PauseScene extends BaseScene {
     await super.initialize();
     this.ui = this.add.uiCanvas({ label: 'UI', useAppSize: true });
 
+    // Main content area
     this.container = this.ui.addElement(
       this.make.flexContainer({
         layout: {
           flexDirection: 'column',
           justifyContent: 'center',
-          width: 800,
-          gap: 20,
+          width: 700,
+          gap: 24,
         },
         label: 'Main Container',
       }),
       { align: 'center' },
     );
 
-    const animatedContainer = this.container.add.flexContainer({
-      layout: { gap: 50, width: 500, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' },
+    // ── Animation demos ──
+    const animPanel = new CaperPanel({ width: 660, height: 180, heading: 'Animations' });
+
+    const animContainer = this.make.flexContainer({
+      layout: { gap: 24, width: 600, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' },
     });
 
-    animatedContainer.add.text({
-      text: 'Animated with GSAP',
-      anchor: [1, 0.5],
-      pivot: [140, 0],
-      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 24, align: 'right' },
+    animContainer.add.text({
+      text: 'GSAP',
+      style: { fill: CaperColors.textDim, fontFamily: FONT_BODY, fontWeight: '500', fontSize: 16 },
     });
 
-    this.gsapAnimated = animatedContainer.add.sprite({
+    this.gsapAnimated = animContainer.add.sprite({
       asset: 'staticCaperLogo',
-      scale: 0.25,
+      scale: 0.2,
       anchor: 0.5,
       layout: { applySizeDirectly: true },
     });
 
-    animatedContainer.add.text({
-      text: 'Animated with Pixi Ticker',
-      anchor: [1, 0.5],
-      pivot: [140, 0],
-      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 24, align: 'right' },
+    animContainer.add.text({
+      text: 'Pixi Ticker',
+      style: { fill: CaperColors.textDim, fontFamily: FONT_BODY, fontWeight: '500', fontSize: 16 },
     });
 
-    this.tickerAnimated = animatedContainer.add.sprite({
+    this.tickerAnimated = animContainer.add.sprite({
       asset: 'staticCaperLogo',
-      scale: 0.25,
+      scale: 0.2,
       anchor: 0.5,
       layout: { applySizeDirectly: true },
+    });
+
+    animPanel.contentContainer.addChild(animContainer);
+    this.container.add.existing(animPanel, {
+      layout: { width: 660, height: 180, applySizeDirectly: true },
     });
 
     this.addAnimation(
       gsap.to(this.gsapAnimated, {
-        x: 200,
+        x: 180,
         duration: 1,
         ease: 'power2.inOut',
         yoyo: true,
@@ -113,43 +110,73 @@ export default class PauseScene extends BaseScene {
       }),
     );
 
-    // Add button container
+    // ── Timer displays ──
+    const timerRow = this.container.add.flexContainer({
+      layout: { gap: 24, justifyContent: 'center', flexWrap: 'wrap' },
+    });
+
+    // Stopwatch panel
+    const swPanel = new CaperPanel({ width: 318, height: 110, heading: 'Stopwatch' });
+    this.stopwatchDisplay = new Text({
+      text: '00:00:00',
+      style: { fill: CaperColors.text, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 32 },
+    });
+    this.stopwatchDisplay.position.set(10, 10);
+    swPanel.contentContainer.addChild(this.stopwatchDisplay);
+    timerRow.add.existing(swPanel, {
+      layout: { width: 318, height: 110, applySizeDirectly: true },
+    });
+
+    this.app.timers.createTimer({ autoStart: true, onTick: this._updateStopWatch });
+
+    // Countdown panel
+    const cdPanel = new CaperPanel({ width: 318, height: 110, heading: 'Countdown' });
+    this.countdownDisplay = new Text({
+      text: '00:00:00',
+      style: { fill: CaperColors.text, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 32 },
+    });
+    this.countdownDisplay.position.set(10, 10);
+    cdPanel.contentContainer.addChild(this.countdownDisplay);
+    timerRow.add.existing(cdPanel, {
+      layout: { width: 318, height: 110, applySizeDirectly: true },
+    });
+
+    this.app.timers.createTimer({
+      duration: 5000,
+      autoStart: true,
+      useWorker: true,
+      loop: true,
+      onTick: this._updateCountdown,
+    });
+
+    // ── Buttons ──
     this.buttonContainer = this.ui.addElement(
       this.make.flexContainer({
         label: 'Button Container',
-        x: -20,
         layout: {
           flexDirection: 'column',
-          gap: 20,
-
+          gap: 12,
           paddingBottom: 30,
-          paddingRight: 100,
-          width: 256,
+          paddingRight: 30,
+          width: 240,
         },
       }),
       { align: 'bottom right' },
     );
 
-    // Add music button
     const musicButton = this.buttonContainer.add.button({
       scale: 0.5,
       cursor: 'pointer',
       label: 'Music Button',
-      textures: {
-        default: 'btn/blue',
-        hover: 'btn/yellow',
-        disabled: 'btn/grey',
-        active: 'btn/red',
-      },
+      textures: { default: 'btn/blue', hover: 'btn/yellow', disabled: 'btn/grey', active: 'btn/red' },
       layout: { height: 70, width: 256 },
       sheet: 'ui',
       accessibleTitle: 'Toggle Music',
-      accessibleHint: 'Press to toggle background music',
       textLabel: {
         text: 'Toggle Music',
         anchor: 0.5,
         resolution: 2,
-        style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
+        style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 36, align: 'center' },
       },
     });
 
@@ -162,28 +189,21 @@ export default class PauseScene extends BaseScene {
       this.onMusicToggle(musicButton);
     });
 
-    // Add pause toggle button
     const pauseButton = this.buttonContainer.add.button({
       scale: 0.5,
       cursor: 'pointer',
       label: 'Pause Button',
-      textures: {
-        default: 'btn/blue',
-        hover: 'btn/yellow',
-        disabled: 'btn/grey',
-        active: 'btn/red',
-      },
-      layout: { height: 70 },
+      textures: { default: 'btn/blue', hover: 'btn/yellow', disabled: 'btn/grey', active: 'btn/red' },
+      layout: { height: 70, width: 256 },
       sheet: 'ui',
       accessibleTitle: 'Toggle Pause',
-      accessibleHint: 'Press to toggle pause state',
     });
 
     pauseButton.addLabel({
       text: 'Toggle Pause',
       anchor: 0.5,
       resolution: 2,
-      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 36, align: 'center' },
     });
 
     pauseButton.onClick.connect(() => {
@@ -200,127 +220,69 @@ export default class PauseScene extends BaseScene {
     this.onMusicToggle(musicButton);
     this.onPauseToggle(pauseButton);
 
-    // timers
-
-    // Create a count-up timer
-    const timerContainer = this.container.add.flexContainer({
-      layout: {
-        gap: 20,
-        width: 600,
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        paddingTop: 80,
-      },
+    // ── Pause info (replaces HTMLText) ──
+    const infoPanel = new CaperPanel({ width: 260, height: 160, heading: 'Pause State' });
+    this.pauseInfoText = new Text({
+      text: '',
+      style: { fill: CaperColors.textDim, fontFamily: FONT_BODY, fontSize: 13, lineHeight: 20 },
     });
+    this.pauseInfoText.position.set(0, 0);
+    infoPanel.contentContainer.addChild(this.pauseInfoText);
+    infoPanel.visible = false;
 
-    this.app.timers.createTimer({
-      autoStart: true,
-      onTick: this._updateStopWatch,
-    });
-
-    timerContainer.add.text({
-      text: 'Stopwatch (TimerPlugin)',
-      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 24, align: 'right' },
-      layout: true,
-    });
-
-    this.stopwatchDisplay = timerContainer.add.text({
-      text: '00:00:00',
-      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
-      layout: true,
-    });
-
-    // Create a countdown timer
-    this.app.timers.createTimer({
-      duration: 5000, // 5 seconds
-      autoStart: true,
-      useWorker: true,
-      loop: true,
-      onTick: this._updateCountdown,
-      onComplete: () => {
-        console.log('Timer completed!');
-      },
-    });
-
-    timerContainer.add.text({
-      text: 'Countdown (TimerPlugin)',
-      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 24, align: 'right' },
-    });
-
-    this.countdownDisplay = timerContainer.add.text({
-      text: '00:00:00',
-      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
-      layout: true,
-    });
-
-    this.pauseInfo = this.ui.addElement(
-      this.make.htmlText({
-        text: 'Pause information',
-        style: {
-          fill: 0xffffff,
-          fontFamily: FONT_BODY,
-          fontWeight: 'bold',
-          fontSize: 24,
-          align: 'left',
-        },
-      }),
-      { align: 'left' },
-    );
+    this.ui.addElement(infoPanel, { align: 'bottom left' });
+    // Store reference on the panel so we can toggle visibility
+    (this as any)._infoPanel = infoPanel;
   }
 
   _updatePauseInfo() {
-    this.pauseInfo.text = `<p style="background-color: #000000; backround-opacity: 0.5; padding: 10px; border-radius: 5px;">App is paused with the following configuration:<br><strong>Audio:</strong> <span style="color: #00ff00;">${this.config.pauseAudio}</span><br><strong>Animations:</strong> <span style="color: #00ff00;">${this.config.pauseAnimations}</span> <br><strong>Ticker:</strong> <span style="color: #00ff00;">${this.config.pauseTicker}</span> <br><strong>Timers:</strong> <span style="color: #00ff00;">${this.config.pauseTimers}</span></p>`;
-
-    this.pauseInfo.visible = this.app.paused;
-
+    const lines = [
+      `Audio: ${this.config.pauseAudio ? 'paused' : 'running'}`,
+      `Animations: ${this.config.pauseAnimations ? 'paused' : 'running'}`,
+      `Ticker: ${this.config.pauseTicker ? 'paused' : 'running'}`,
+      `Timers: ${this.config.pauseTimers ? 'paused' : 'running'}`,
+    ];
+    this.pauseInfoText.text = lines.join('\n');
+    const infoPanel = (this as any)._infoPanel as CaperPanel;
+    if (infoPanel) {
+      infoPanel.visible = this.app.paused;
+    }
     this.ui.updateLayout();
   }
 
   _updateStopWatch(elapsed: number) {
-    const timeString = formatTime(elapsed, 'ms');
-    this.stopwatchDisplay.text = timeString;
+    this.stopwatchDisplay.text = formatTime(elapsed, 'ms');
   }
 
   _updateCountdown(elapsed: number) {
-    const timeString = formatTime(elapsed, 'ms');
-    this.countdownDisplay.text = timeString;
+    this.countdownDisplay.text = formatTime(elapsed, 'ms');
     if (this.app.paused) {
-      this.app.render(); // needed to update the display
+      this.app.render();
     }
   }
 
   onPauseToggle(pauseButton: Button) {
     const text = pauseButton.getChildAt(1) as Text;
-    if (!text) {
-      return;
-    }
+    if (!text) return;
     text.text = this.config.isPaused ? 'Resume App' : 'Pause App';
     pauseButton.setTexture('default', this.config.isPaused ? 'btn/red' : 'btn/blue');
   }
 
   onPause(config: PauseConfig): void {
-    console.log('onPause', config);
     this._updatePauseInfo();
   }
 
   onResume(config: PauseConfig): void {
-    console.log('onResume', config);
     this._updatePauseInfo();
   }
 
   onMusicToggle(musicButton: Button) {
-    console.log('onMusicToggle', musicButton);
     const text = musicButton.getChildAt(1) as Text;
     if (this.app.audio.isPlaying('Night at the Beach', 'music')) {
-      if (text) {
-        text.text = 'Stop Music';
-      }
+      if (text) text.text = 'Stop Music';
       musicButton.setTexture('default', 'btn/red');
     } else {
-      if (text) {
-        text.text = 'Play Music';
-      }
+      if (text) text.text = 'Play Music';
       musicButton.setTexture('default', 'btn/blue');
     }
   }
@@ -345,9 +307,6 @@ export default class PauseScene extends BaseScene {
 
   resize() {
     super.resize();
-    this.container.x = 200;
-    this.pauseInfo.x = -this.app.size.width * 0.5 + 10;
-    this.pauseInfo.y = this.app.size.height * 0.5;
     this.ui.updateLayout();
   }
 
