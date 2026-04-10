@@ -12,6 +12,10 @@ export class Sidebar {
   private searchInput: HTMLInputElement | null = null;
   private searchCount: HTMLElement | null = null;
   private searchBar: HTMLElement | null = null;
+  private hamburger: HTMLElement | null = null;
+  private backdrop: HTMLElement | null = null;
+  private sidebar: HTMLElement | null = null;
+  private isOverlayOpen = false;
 
   constructor(app: KitchenSinkApplication) {
     this.app = app;
@@ -31,6 +35,7 @@ export class Sidebar {
     this.populateVersionMeta();
     this.setupSearch();
     this.setupKeyboardNav();
+    this.setupHamburger();
   }
 
   private populateNav(): void {
@@ -258,5 +263,43 @@ export class Sidebar {
       }
       return prevGroupLink;
     }
+  }
+
+  /* ── Hamburger / overlay toggle ── */
+
+  private setupHamburger(): void {
+    this.hamburger = document.getElementById('hamburger');
+    this.backdrop = document.getElementById('sidebar-backdrop');
+    this.sidebar = document.getElementById('sidebar');
+
+    if (!this.hamburger) return;
+
+    this.hamburger.addEventListener('click', () => this.toggleOverlay());
+    this.backdrop?.addEventListener('click', () => this.closeOverlay());
+
+    // Close overlay when a scene is selected
+    this.nav.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).tagName === 'A' && this.isOverlayOpen) {
+        this.closeOverlay();
+      }
+    });
+  }
+
+  private toggleOverlay(): void {
+    this.isOverlayOpen ? this.closeOverlay() : this.openOverlay();
+  }
+
+  private openOverlay(): void {
+    this.isOverlayOpen = true;
+    this.sidebar?.classList.add('open');
+    this.hamburger?.classList.add('open');
+    this.backdrop?.classList.add('visible');
+  }
+
+  private closeOverlay(): void {
+    this.isOverlayOpen = false;
+    this.sidebar?.classList.remove('open');
+    this.hamburger?.classList.remove('open');
+    this.backdrop?.classList.remove('visible');
   }
 }

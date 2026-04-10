@@ -157,14 +157,13 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped · `[!]` 
 > Below 480px the current behavior hides the sidebar entirely and we lose scene
 > selection. Hamburger overlay keeps the picker reachable at every size.
 
-- [ ] `<960px`: sidebar collapses to a top bar with wordmark + hamburger;
-      clicking hamburger slides nav in as an overlay with backdrop-blur on the
-      canvas column
-- [ ] `<480px` / `<480h`: canvas full-bleed as today, but hamburger stays
-      accessible in the top-left corner
-- [ ] `prefers-reduced-motion`: static noise overlay, instant slide-ins, no
-      active-bar animation
-- [ ] Commit: `feat(kitchen-sink): add mobile sidebar overlay`
+- [x] `<960px`: hamburger button (fixed top-left), sidebar slides in as overlay
+      with backdrop-blur. Clicking backdrop or selecting a scene closes it.
+- [x] `<480px` / `<480h`: same overlay behavior, narrower sidebar (280px)
+- [x] `prefers-reduced-motion`: all transitions disabled (sidebar, backdrop,
+      nav hover bars, noise overlay)
+- [x] Hamburger animates to X on open (3 spans rotate/fade)
+- [x] Commit: `feat(kitchen-sink): add mobile sidebar overlay`
 
 ## Phase 9 — Start scene + shared scene chrome
 
