@@ -1,4 +1,4 @@
-import { FONT_BODY, FONT_LEGACY_BITMAP } from '@/utils/Constants';
+import { FONT_BODY, FONT_DISPLAY_BITMAP } from '@/utils/Constants';
 import { FlexContainer, Size, defineScene } from '@caper/core';
 import BaseScene from '../BaseScene';
 
@@ -58,7 +58,7 @@ export default class TextScene extends BaseScene {
     this.textContainer.add.bitmapText({
       text: 'Bitmap Font',
       style: {
-        fontFamily: FONT_LEGACY_BITMAP,
+        fontFamily: FONT_DISPLAY_BITMAP,
         fontSize: 64,
       },
     });

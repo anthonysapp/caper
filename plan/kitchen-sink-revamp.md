@@ -84,14 +84,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped · `[!]` 
 > legacy `KumbhSansBlack.{png,fnt}` stays in place as the single allowed Kumbh
 > residue, gated behind `FONT_LEGACY_BITMAP`. Phases 5+ do NOT block on this.
 
-- [!] User generates `SyncopateBold.{png,fnt}` — same character set as the old
-      bitmap (A–Z, a–z, 0–9, punctuation, ℠), 128pt recommended, ~821×821 atlas
-- [ ] Drop into `apps/kitchen-sink/assets/required{m}/bitmap-fonts{copy}/`
-- [ ] Delete `KumbhSansBlack.{png,fnt}` from source and
-      `public/assets/required/bitmap-fonts/` output
-- [ ] Rename `FONT_LEGACY_BITMAP` → `FONT_DISPLAY_BITMAP` in
-      `Constants.ts`, point at `'SyncopateBold'`
-- [ ] Commit: `feat(kitchen-sink): replace legacy Kumbh bitmap font with Syncopate Bold`
+- [x] User delivered `Syncopate.{png,fnt}` (face name: `Syncopate Bold`, 128pt,
+      91 chars, 897×902 atlas) into `assets/required{m}/bitmap-fonts/`
+- [x] Old `KumbhSansBlack.{png,fnt}` already removed by user
+- [x] Renamed `FONT_LEGACY_BITMAP` → `FONT_DISPLAY_BITMAP = 'Syncopate Bold'`
+- [x] Updated TextScene.ts to import `FONT_DISPLAY_BITMAP`
+- [x] Rebuilt — AssetPack output shows Syncopate.{fnt,png,webp} with @0.5x variants
+- [x] Exit: `grep KumbhSans apps/kitchen-sink/src` returns empty
+- [x] Commit: `feat(kitchen-sink): replace legacy Kumbh bitmap font with Syncopate Bold`
 
 ## Phase 5 — Core template sync
 

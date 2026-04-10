@@ -22,7 +22,7 @@ export type AssetBundles =
  * const texture: AssetTextures = 'game/wordmark';
  */
 export type AssetTextures = 
-  | 'KumbhSansBlack.png'
+  | 'Syncopate.png'
   | 'bg_layer1'
   | 'bg_layer1.png'
   | 'bg_layer2'
@@ -43,7 +43,7 @@ export type AssetTextures =
   | 'kenney/background/bg_layer3.png'
   | 'kenney/background/bg_layer4'
   | 'kenney/background/bg_layer4.png'
-  | 'required/bitmap-fonts/KumbhSansBlack.png'
+  | 'required/bitmap-fonts/Syncopate.png'
   | 'required/caper'
   | 'required/caper.png'
   | 'wordmark'
@@ -57,7 +57,7 @@ export type AssetTextures =
 export type AssetTexturesByBundle = {
     game: 'game/wordmark' | 'game/wordmark.svg' | 'wordmark' | 'wordmark.svg';
     kenney: 'bg_layer1' | 'bg_layer1.png' | 'bg_layer2' | 'bg_layer2.png' | 'bg_layer3' | 'bg_layer3.png' | 'bg_layer4' | 'bg_layer4.png' | 'kenney/background/bg_layer1' | 'kenney/background/bg_layer1.png' | 'kenney/background/bg_layer2' | 'kenney/background/bg_layer2.png' | 'kenney/background/bg_layer3' | 'kenney/background/bg_layer3.png' | 'kenney/background/bg_layer4' | 'kenney/background/bg_layer4.png';
-    required: 'KumbhSansBlack.png' | 'caper' | 'caper.png' | 'required/bitmap-fonts/KumbhSansBlack.png' | 'required/caper' | 'required/caper.png';
+    required: 'Syncopate.png' | 'caper' | 'caper.png' | 'required/bitmap-fonts/Syncopate.png' | 'required/caper' | 'required/caper.png';
   };
 export type AssetTexturesIn<B extends AssetBundles> = B extends keyof AssetTexturesByBundle ? AssetTexturesByBundle[B] : never;
 
@@ -333,7 +333,7 @@ export type AssetTPSFramesIn<B extends AssetBundles> = B extends keyof AssetTPSF
 /**
  * Available font names in the asset manifest
  * @example
- * const font: AssetFonts = 'KumbhSans-Regular';
+ * const font: AssetFonts = 'SpaceGrotesk-Regular';
  */
 export type AssetFonts = 
   | 'SpaceGrotesk-Bold'
@@ -356,11 +356,11 @@ export type AssetFonts =
 /**
  * Available font names in the asset manifest
  * @example
- * const font: AssetFonts = 'KumbhSans-Regular';
+ * const font: AssetFonts = 'SpaceGrotesk-Regular';
  */
 export type AssetBitmapFonts = 
-  | 'KumbhSansBlack.fnt'
-  | 'required/bitmap-fonts/KumbhSansBlack.fnt';
+  | 'Syncopate.fnt'
+  | 'required/bitmap-fonts/Syncopate.fnt';
 
 /**
  * Available audio names in the asset manifest
@@ -466,7 +466,7 @@ export type AssetRive = never;
 /**
  * Available font family names
  * @example
- * const fontFamily: AssetFontFamilies = 'KumbhSans';
+ * const fontFamily: AssetFontFamilies = 'Space Grotesk';
  */
 export type AssetFontFamilies = 
   | 'SpaceGrotesk'
@@ -475,11 +475,11 @@ export type AssetFontFamilies =
 /**
  * Available font family names
  * @example
- * const fontFamily: AssetFontFamilies = 'KumbhSans';
+ * const fontFamily: AssetFontFamilies = 'Space Grotesk';
  */
 export type AssetBitmapFontFamilies = 
-  | 'KumbhSansBlack.fnt'
-  | 'required/bitmap-fonts/KumbhSansBlack.fnt';
+  | 'Syncopate.fnt'
+  | 'required/bitmap-fonts/Syncopate.fnt';
 
 /**
  * Union type of all asset names
