@@ -31,28 +31,24 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped · `[!]` 
 > Self-hosted throughout (no Google CDN) so offline dev and the PWA plugin
 > keep working.
 
-- [ ] Fetch ttf sources via `curl` (command shown before running):
-  - `Syncopate-Bold.ttf` from `github.com/google/fonts/raw/main/ofl/syncopate/`
-  - `SpaceGrotesk-{Regular,Medium,Bold}.ttf` from `github.com/google/fonts/raw/main/ofl/spacegrotesk/static/`
-    (variable font at the top of that ofl dir; prefer static subset unless
-    AssetPack's webfont transform handles variable axes cleanly — verify
-    on first build)
-- [ ] Drop into `apps/kitchen-sink/assets/splash{m}/fonts{fix}/` with AssetPack
-      tags: `Syncopate-Bold{family=Syncopate}{wf}.ttf`,
-      `SpaceGrotesk-Regular{family=Space Grotesk}{wf}.ttf`, etc.
-- [ ] Delete the four `KumbhSans-*{family=KumbhSans}{wf}.ttf` sources
-- [ ] Run `pnpm kitchen-sink:build` once — inspect `public/assets/splash/fonts/`
-      to learn AssetPack's output filename convention (hashed? plain?) and any
-      emitted CSS stub
-- [ ] Rewrite `src/css/styles.css` `@font-face` block to read from
-      `/assets/splash/fonts/...` (direct URLs, or `@import` a generated stub
-      if AssetPack hashes)
-- [ ] Grep for any remaining consumer of `public/fonts/` or
-      `public/static/fonts/` outside `styles.css`; migrate or note before deleting
-- [ ] Delete `apps/kitchen-sink/public/fonts/` entirely
-- [ ] Delete `apps/kitchen-sink/public/static/fonts/` entirely
-- [ ] `pnpm kitchen-sink:dev` — verify splash scene and HTML shell both render
-      in Space Grotesk / Syncopate (not a system fallback)
+- [x] Fetch ttf sources: Syncopate-Bold from `apache/syncopate/` on Google Fonts
+      GitHub; SpaceGrotesk-{Regular,Medium,Bold} static weights from the font's
+      own repo (`floriankarsten/space-grotesk/fonts/ttf/static/`). Note: Google
+      Fonts only ships a variable Space Grotesk — static weights sourced from
+      upstream. AssetPack webfont transform expects static ttfs (confirmed by
+      existing KumbhSans sources).
+- [x] Dropped into `assets/splash{m}/fonts{fix}/` with AssetPack tags
+- [x] Deleted the four `KumbhSans-*{family=KumbhSans}{wf}.ttf` sources
+- [x] `pnpm kitchen-sink:build` — AssetPack emits **plain (unhashed)** filenames:
+      `SpaceGrotesk-Bold.woff2`, `SpaceGrotesk-Medium.woff2`,
+      `SpaceGrotesk-Regular.woff2`, `Syncopate-Bold.woff2`. No CSS stub
+      generated; direct URL paths work.
+- [x] Rewrote `src/css/styles.css` `@font-face` to read from `/assets/splash/fonts/...`;
+      updated `font-family` on body from `'Kumbh Sans'` to `'Space Grotesk'`
+- [x] Grepped — only `styles.css` referenced `public/fonts/` or `public/static/fonts/`
+- [x] Deleted `apps/kitchen-sink/public/fonts/` entirely
+- [x] Deleted `apps/kitchen-sink/public/static/fonts/` entirely
+- [ ] `pnpm kitchen-sink:dev` — verify splash + shell render in new fonts
 - [ ] Commit: `feat(kitchen-sink): unify font pipeline on AssetPack with Syncopate + Space Grotesk`
 
 ## Phase 3 — Constants + fontFamily sweep

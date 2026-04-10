@@ -336,22 +336,22 @@ export type AssetTPSFramesIn<B extends AssetBundles> = B extends keyof AssetTPSF
  * const font: AssetFonts = 'KumbhSans-Regular';
  */
 export type AssetFonts = 
-  | 'KumbhSans-Bold'
-  | 'KumbhSans-Bold.ttf'
-  | 'KumbhSans-Medium'
-  | 'KumbhSans-Medium.ttf'
-  | 'KumbhSans-Regular'
-  | 'KumbhSans-Regular.ttf'
-  | 'KumbhSans-SemiBold'
-  | 'KumbhSans-SemiBold.ttf'
-  | 'splash/fonts/KumbhSans-Bold'
-  | 'splash/fonts/KumbhSans-Bold.ttf'
-  | 'splash/fonts/KumbhSans-Medium'
-  | 'splash/fonts/KumbhSans-Medium.ttf'
-  | 'splash/fonts/KumbhSans-Regular'
-  | 'splash/fonts/KumbhSans-Regular.ttf'
-  | 'splash/fonts/KumbhSans-SemiBold'
-  | 'splash/fonts/KumbhSans-SemiBold.ttf';
+  | 'SpaceGrotesk-Bold'
+  | 'SpaceGrotesk-Bold.ttf'
+  | 'SpaceGrotesk-Medium'
+  | 'SpaceGrotesk-Medium.ttf'
+  | 'SpaceGrotesk-Regular'
+  | 'SpaceGrotesk-Regular.ttf'
+  | 'Syncopate-Bold'
+  | 'Syncopate-Bold.ttf'
+  | 'splash/fonts/SpaceGrotesk-Bold'
+  | 'splash/fonts/SpaceGrotesk-Bold.ttf'
+  | 'splash/fonts/SpaceGrotesk-Medium'
+  | 'splash/fonts/SpaceGrotesk-Medium.ttf'
+  | 'splash/fonts/SpaceGrotesk-Regular'
+  | 'splash/fonts/SpaceGrotesk-Regular.ttf'
+  | 'splash/fonts/Syncopate-Bold'
+  | 'splash/fonts/Syncopate-Bold.ttf';
 
 /**
  * Available font names in the asset manifest
@@ -469,7 +469,8 @@ export type AssetRive = never;
  * const fontFamily: AssetFontFamilies = 'KumbhSans';
  */
 export type AssetFontFamilies = 
-  | 'KumbhSans';
+  | 'SpaceGrotesk'
+  | 'Syncopate';
 
 /**
  * Available font family names

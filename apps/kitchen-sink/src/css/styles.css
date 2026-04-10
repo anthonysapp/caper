@@ -1,35 +1,32 @@
-/** For use on index.html side nav only **/
-/** Loaded via pixi.js asset loader for use inside app **/
+/** Fonts loaded from AssetPack output (single source of truth). **/
+/** The same woff2s are also loaded by the PixiJS splash bundle. **/
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Kumbh Sans';
-  font-style: normal;
-  font-weight: 400;
-  src: url('./fonts/KumbhSans-Regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
-/* kumbh-sans-600 - latin */
-@font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Kumbh Sans';
-  font-style: normal;
-  font-weight: 600;
-  src: url('./fonts/KumbhSans-Medium.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
-/* kumbh-sans-700 - latin */
-@font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Kumbh Sans';
+  font-display: swap;
+  font-family: 'Syncopate';
   font-style: normal;
   font-weight: 700;
-  src: url('./fonts/KumbhSans-Bold.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+  src: url('/assets/splash/fonts/Syncopate-Bold.woff2') format('woff2');
 }
-/* kumbh-sans-800 - latin */
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Kumbh Sans';
+  font-display: swap;
+  font-family: 'Space Grotesk';
   font-style: normal;
-  font-weight: 800;
-  src: url('./fonts/KumbhSans-SemiBold.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+  font-weight: 400;
+  src: url('/assets/splash/fonts/SpaceGrotesk-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-display: swap;
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/assets/splash/fonts/SpaceGrotesk-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-display: swap;
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 700;
+  src: url('/assets/splash/fonts/SpaceGrotesk-Bold.woff2') format('woff2');
 }
 
 :root {
@@ -50,7 +47,7 @@ html {
   height: var(--app-height, 100%);
   background-color: var(--color-bg);
   overflow: hidden;
-  font-family: 'Kumbh Sans', 'sans-serif';
+  font-family: 'Space Grotesk', sans-serif;
   color: #fff;
 }
 
