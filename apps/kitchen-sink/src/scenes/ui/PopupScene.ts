@@ -1,3 +1,4 @@
+import { FONT_BODY } from '@/utils/Constants';
 import { ActionDetail, Button, FlexContainer, PopupConfig, defineScene } from '@caper/core';
 
 import { ExamplePopup } from '@/popups/ExamplePopup';
@@ -91,7 +92,7 @@ export default class PopupScene extends BaseScene {
       text: label,
       anchor: 0.5,
       resolution: 2,
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 48, align: 'center' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
     });
 
     this.addSignalConnection(btn.onClick.connect(callback));

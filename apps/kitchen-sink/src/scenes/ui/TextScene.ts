@@ -1,4 +1,4 @@
-import { FONT_KUMBH_SANS, FONT_KUMBH_SANS_BLACK } from '@/utils/Constants';
+import { FONT_BODY, FONT_LEGACY_BITMAP } from '@/utils/Constants';
 import { FlexContainer, Size, defineScene } from '@caper/core';
 import BaseScene from '../BaseScene';
 
@@ -32,7 +32,7 @@ export default class TextScene extends BaseScene {
     const text = this.textContainer.add.text({
       text: 'Text (using a web font)',
       style: {
-        fontFamily: FONT_KUMBH_SANS,
+        fontFamily: FONT_BODY,
         fontSize: 48,
         leading: -10,
         textBaseline: 'bottom',
@@ -46,7 +46,7 @@ export default class TextScene extends BaseScene {
       text: 'HTML text with <strong>bold</strong>, <em>italic</em>, <u>underline</u>, <s>strikethrough</s>, and <span style="color:white; background-color: black">some</span> <span style="color: #8ac733">different</span> <span style="color: pink">colors</span>.',
       style: {
         align: 'center',
-        fontFamily: FONT_KUMBH_SANS,
+        fontFamily: FONT_BODY,
         wordWrapWidth: 500,
         wordWrap: true,
         fontSize: 32,
@@ -58,7 +58,7 @@ export default class TextScene extends BaseScene {
     this.textContainer.add.bitmapText({
       text: 'Bitmap Font',
       style: {
-        fontFamily: FONT_KUMBH_SANS_BLACK,
+        fontFamily: FONT_LEGACY_BITMAP,
         fontSize: 64,
       },
     });

@@ -1,5 +1,6 @@
 import { Actor } from '@/entities/Actor';
 import BaseScene from '@/scenes/BaseScene';
+import { FONT_BODY } from '@/utils/Constants';
 import { Button, defineScene, FlexContainer, Logger, scaleToWidth } from '@caper/core';
 import { Text } from 'pixi.js';
 
@@ -33,7 +34,7 @@ export default class FocusScene extends BaseScene {
     this._focusLayerLabel = this.add.text({
       text: 'Focus layer:',
       resolution: 2,
-      style: { fill: 'white', fontFamily: 'KumbhSans' },
+      style: { fill: 'white', fontFamily: FONT_BODY },
       x: -this.app.center.x + 30,
       y: this.app.center.y - 100,
     });

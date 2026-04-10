@@ -1,6 +1,7 @@
 import { ActionDetail, Button, ButtonAction, ButtonConfig, FlexContainer, defineScene } from '@caper/core';
 
 import BaseScene from '@/scenes/BaseScene';
+import { FONT_BODY } from '@/utils/Constants';
 
 export const scene = defineScene({
   id: 'music',
@@ -56,7 +57,7 @@ export default class AudioScene extends BaseScene {
     this.musicButtons.add.text({
       text: 'MUSIC',
       resolution: 2,
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontSize: 36, fontWeight: 'bold', align: 'center' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontSize: 36, fontWeight: 'bold', align: 'center' },
       layout: { height: 70 },
     });
 
@@ -105,7 +106,7 @@ export default class AudioScene extends BaseScene {
       text: label,
       anchor: 0.5,
       resolution: 2,
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 48, align: 'center' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
     });
 
     if (callback) {

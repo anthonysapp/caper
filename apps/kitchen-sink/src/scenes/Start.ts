@@ -1,4 +1,5 @@
 import { FlexContainer, defineScene } from '@caper/core';
+import { FONT_BODY } from '@/utils/Constants';
 import Base from './BaseScene';
 
 export const scene = defineScene({
@@ -32,7 +33,7 @@ export default class Start extends Base {
     // some title text
     this.container.add.text({
       text: 'Hello Caper',
-      style: { fontFamily: 'KumbhSans', fontSize: 48, fill: 0xffffff },
+      style: { fontFamily: FONT_BODY, fontSize: 48, fill: 0xffffff },
     });
 
     // from src/assets.json
@@ -56,7 +57,7 @@ export default class Start extends Base {
       },
       textLabel: {
         text: 'Go to Assets',
-        style: { fontFamily: 'KumbhSans', fontSize: 32, fill: 0xffffff },
+        style: { fontFamily: FONT_BODY, fontSize: 32, fill: 0xffffff },
       },
       layout: {
         transformOrigin: 'top left',

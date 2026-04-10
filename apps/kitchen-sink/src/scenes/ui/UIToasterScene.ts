@@ -1,4 +1,5 @@
 import BaseScene from '@/scenes/BaseScene';
+import { FONT_BODY } from '@/utils/Constants';
 import {
   Application,
   Button,
@@ -55,7 +56,7 @@ class ToastCloseButton extends Button {
     this.add.text({
       text: '×',
       style: {
-        fontFamily: 'KumbhSans',
+        fontFamily: FONT_BODY,
         fontSize: 20,
         fill: 0x0,
         fontWeight: 'bold',
@@ -78,7 +79,7 @@ class ToastCloseButton extends Button {
 }
 
 const whiteTextStyle = (size: number): Partial<TextStyleOptions> => ({
-  fontFamily: 'KumbhSans',
+  fontFamily: FONT_BODY,
   fontWeight: 'bold',
   fill: 0xffffff,
   fontSize: size ?? 24,
@@ -301,7 +302,7 @@ export default class UIToasterScene extends BaseScene {
       style: {
         fontSize: this.config.toast.fontSize,
         fill: this.config.toast.textColor,
-        fontFamily: 'KumbhSans',
+        fontFamily: FONT_BODY,
         fontWeight: 'bold',
         wordWrap: true,
       },
@@ -406,7 +407,7 @@ export default class UIToasterScene extends BaseScene {
           style: {
             fontSize: 24,
             fill: this.config.toast.textColor,
-            fontFamily: 'KumbhSans',
+            fontFamily: FONT_BODY,
             fontWeight: 'bold',
           },
         };

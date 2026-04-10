@@ -1,4 +1,5 @@
 import BaseScene from '@/scenes/BaseScene';
+import { FONT_BODY } from '@/utils/Constants';
 import { Button, defineScene, FlexContainer, formatTime, PauseConfig, type SceneAssets, UICanvas } from '@caper/core';
 import { gsap } from 'gsap';
 import { HTMLText, Sprite, Text } from 'pixi.js';
@@ -78,7 +79,7 @@ export default class PauseScene extends BaseScene {
       text: 'Animated with GSAP',
       anchor: [1, 0.5],
       pivot: [140, 0],
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 24, align: 'right' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 24, align: 'right' },
     });
 
     this.gsapAnimated = animatedContainer.add.sprite({
@@ -92,7 +93,7 @@ export default class PauseScene extends BaseScene {
       text: 'Animated with Pixi Ticker',
       anchor: [1, 0.5],
       pivot: [140, 0],
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 24, align: 'right' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 24, align: 'right' },
     });
 
     this.tickerAnimated = animatedContainer.add.sprite({
@@ -148,7 +149,7 @@ export default class PauseScene extends BaseScene {
         text: 'Toggle Music',
         anchor: 0.5,
         resolution: 2,
-        style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 48, align: 'center' },
+        style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
       },
     });
 
@@ -182,7 +183,7 @@ export default class PauseScene extends BaseScene {
       text: 'Toggle Pause',
       anchor: 0.5,
       resolution: 2,
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 48, align: 'center' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
     });
 
     pauseButton.onClick.connect(() => {
@@ -220,13 +221,13 @@ export default class PauseScene extends BaseScene {
 
     timerContainer.add.text({
       text: 'Stopwatch (TimerPlugin)',
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 24, align: 'right' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 24, align: 'right' },
       layout: true,
     });
 
     this.stopwatchDisplay = timerContainer.add.text({
       text: '00:00:00',
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 48, align: 'center' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
       layout: true,
     });
 
@@ -244,12 +245,12 @@ export default class PauseScene extends BaseScene {
 
     timerContainer.add.text({
       text: 'Countdown (TimerPlugin)',
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 24, align: 'right' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 24, align: 'right' },
     });
 
     this.countdownDisplay = timerContainer.add.text({
       text: '00:00:00',
-      style: { fill: 0xffffff, fontFamily: 'KumbhSans', fontWeight: 'bold', fontSize: 48, align: 'center' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 48, align: 'center' },
       layout: true,
     });
 
@@ -258,7 +259,7 @@ export default class PauseScene extends BaseScene {
         text: 'Pause information',
         style: {
           fill: 0xffffff,
-          fontFamily: 'KumbhSans',
+          fontFamily: FONT_BODY,
           fontWeight: 'bold',
           fontSize: 24,
           align: 'left',

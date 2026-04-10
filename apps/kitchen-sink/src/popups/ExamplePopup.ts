@@ -1,7 +1,7 @@
 import { Container, definePopup, Focusable, Interactive, IPopup, Popup } from '@caper/core';
 import { Graphics, Text } from 'pixi.js';
 
-import { FONT_KUMBH_SANS } from '@/utils/Constants';
+import { FONT_BODY } from '@/utils/Constants';
 import { gsap } from 'gsap';
 
 export const popup = definePopup({
@@ -48,7 +48,7 @@ export class ExamplePopup extends Popup implements IPopup {
         resolution: 2,
         roundPixels: true,
         style: {
-          fontFamily: FONT_KUMBH_SANS,
+          fontFamily: FONT_BODY,
           fill: 'white',
           fontWeight: 'bold',
         },

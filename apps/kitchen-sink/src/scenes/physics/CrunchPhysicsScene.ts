@@ -1,5 +1,5 @@
 import BaseScene from '@/scenes/BaseScene';
-import { FONT_KUMBH_SANS } from '@/utils/Constants';
+import { FONT_BODY } from '@/utils/Constants';
 import {
   Actor,
   ActorCollisionResult,
@@ -323,7 +323,7 @@ class Portal extends Sensor {
       container.add.text({
         text: (this._config as any).text,
         style: {
-          fontFamily: FONT_KUMBH_SANS,
+          fontFamily: FONT_BODY,
           fontSize: 32,
           fill: 0x000000,
         },

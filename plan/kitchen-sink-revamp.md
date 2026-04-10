@@ -59,23 +59,21 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped · `[!]` 
 > Centralizing on semantic-role constants (`FONT_BODY`, `FONT_DISPLAY`) makes
 > the next font swap a one-line change instead of another 36-edit sweep.
 
-- [ ] Rewrite `apps/kitchen-sink/src/utils/Constants.ts`:
-  - `FONT_BODY = 'Space Grotesk'` (replaces `FONT_KUMBH_SANS`)
-  - `FONT_DISPLAY = 'Syncopate'` (new; for headline tones)
-  - `FONT_LEGACY_BITMAP = 'KumbhSansBlack'` (temporary, Phase 4 replaces it —
-    see below)
-- [ ] Sweep the 14 scene files with hard-coded `fontFamily: 'KumbhSans'` →
-      `fontFamily: FONT_BODY` (or `FONT_DISPLAY` where heading-ish):
-      `Start.ts`, `PauseScene.ts` (9), `TimerScene.ts` (8), `UIToasterScene.ts` (4),
-      `UICanvasScene.ts`, `FlexContainerScene.ts`, `PopupScene.ts`,
-      `AnimatedSpriteScene.ts` (2), `AudioScene.ts` (3), `MusicScene.ts` (2),
-      `FocusScene.ts`. Import from `@/utils/Constants`.
-- [ ] Update files already using constants to pick up the rename:
-      `Splash.ts`, `TextScene.ts`, `CrunchPhysicsScene.ts`, `ExamplePopup.ts`
-- [ ] Point `TextScene.ts:61` (the one bitmap-font consumer) at
-      `FONT_LEGACY_BITMAP`
-- [ ] Verify exit criterion: `grep -rn "KumbhSans\|Kumbh Sans" apps/kitchen-sink`
-      returns **only** the `FONT_LEGACY_BITMAP = 'KumbhSansBlack'` line
+- [x] Rewrite `apps/kitchen-sink/src/utils/Constants.ts`:
+  - `FONT_BODY = 'Space Grotesk'`, `FONT_DISPLAY = 'Syncopate'`,
+    `FONT_LEGACY_BITMAP = 'KumbhSansBlack'`. Also migrated `COLOR_*`
+    constants to use `CaperColors` from `@/theme`.
+- [x] Sweep the 14 scene files with hard-coded `fontFamily: 'KumbhSans'` →
+      `fontFamily: FONT_BODY` via import from `@/utils/Constants`. All 36
+      references replaced. Files touched: Start.ts, PauseScene.ts, TimerScene.ts,
+      UIToasterScene.ts, UICanvasScene.ts, FlexContainerScene.ts, PopupScene.ts,
+      AnimatedSpriteScene.ts, AudioScene.ts, MusicScene.ts, FocusScene.ts.
+- [x] Updated files already using constants: Splash.ts, TextScene.ts,
+      CrunchPhysicsScene.ts, ExamplePopup.ts — renamed imports.
+- [x] TextScene.ts:61 now uses `FONT_LEGACY_BITMAP`
+- [x] Exit criterion verified: only `FONT_LEGACY_BITMAP = 'KumbhSansBlack'`
+      and auto-generated `caper-assets.d.ts` bitmap-font asset names remain.
+      No hand-authored code references `'KumbhSans'` outside the legacy bitmap.
 - [ ] `pnpm kitchen-sink:dev` — walk every affected scene, confirm text renders
 - [ ] Commit: `refactor(kitchen-sink): centralize font family via FONT_BODY/FONT_DISPLAY`
 

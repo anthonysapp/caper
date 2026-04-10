@@ -1,4 +1,5 @@
 import BaseScene from '@/scenes/BaseScene';
+import { FONT_BODY } from '@/utils/Constants';
 import { TextStyle, UICanvas, defineScene } from '@caper/core';
 
 export const scene = defineScene({
@@ -11,7 +12,7 @@ export const scene = defineScene({
 });
 
 const whiteTextStyle = (size: number): Partial<TextStyle> => ({
-  fontFamily: 'KumbhSans',
+  fontFamily: FONT_BODY,
   fontWeight: 'bold',
   fill: 0xffffff,
   fontSize: size ?? 24,

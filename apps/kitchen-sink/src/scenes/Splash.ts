@@ -1,7 +1,7 @@
 import { FlexContainer, SceneTransition } from '@caper/core';
 import { gsap } from 'gsap';
 import { Sprite, Text } from 'pixi.js';
-import { FONT_KUMBH_SANS } from '../utils/Constants';
+import { FONT_BODY } from '../utils/Constants';
 
 export class Splash extends SceneTransition {
   private _labelPercent: Text;
@@ -31,7 +31,7 @@ export class Splash extends SceneTransition {
     this._textContainer.add.text({
       text: 'Loading...',
       style: {
-        fontFamily: FONT_KUMBH_SANS,
+        fontFamily: FONT_BODY,
         dropShadow: {
           color: 0x000000,
           blur: 0,

@@ -1,3 +1,4 @@
+import { FONT_BODY } from '@/utils/Constants';
 import { AlignItems, clamp, FlexContainer, FlexDirection, FlexWrap, JustifyContent, defineScene } from '@caper/core';
 import { Graphics, TextStyleOptions } from 'pixi.js';
 
@@ -14,7 +15,7 @@ export const scene = defineScene({
 });
 
 const whiteTextStyle = (size: number): Partial<TextStyleOptions> => ({
-  fontFamily: 'KumbhSans',
+  fontFamily: FONT_BODY,
   fontWeight: 'bold',
   fill: 0xffffff,
   fontSize: size ?? 24,
