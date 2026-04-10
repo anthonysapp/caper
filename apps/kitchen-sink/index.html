@@ -8,23 +8,20 @@
     <meta content="yes" name="apple-mobile-web-app-capable" />
     <title>Caper - Examples</title>
     <style>
-      /* Imported CSS gets inlined */
-      /* Load our index.css file */
       @import url('./src/css/styles.css');
-      /* Importing the loader.css file from caper. Uses a css overlay while Application is in bootstrap */
-      /* requires the game container element to be present in the html */
       @import url('../../packages/core/extras/css/loader.css');
-      /*@import url('../src/css/accessibility.css');*/
     </style>
   </head>
   <body>
     <script type="module" src="src/index.ts" async defer></script>
     <div id="sidebar">
       <div class="inner">
-        <a class="header" href="https://github.com/anthonysapp/caper">
-          <img alt="caper logo" class="logo" src="/static/caper.png" />
-          <h1>Caper</h1>
+        <a class="header" href="https://github.com/anthonysapp/caper" target="_blank" rel="noopener">
+          <img alt="Caper" class="logo" src="/static/caper.svg" width="44" height="44" />
+          <img alt="CAPER" class="wordmark" src="/static/caper-text.svg" height="20" />
         </a>
+        <div class="meta" id="version-meta"></div>
+        <div class="divider"></div>
         <h2>Examples</h2>
         <nav></nav>
       </div>

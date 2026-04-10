@@ -117,24 +117,22 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped · `[!]` 
 > scene picker + canvas). Explicit non-goal: don't break the hash-based scene
 > routing that already works.
 
-- [ ] Rewrite `apps/kitchen-sink/src/css/styles.css` — full palette + typography
-      pass, new sidebar states, custom scrollbar, subtle noise overlay
-- [ ] Rewrite `apps/kitchen-sink/index.html` header — inline
-      `public/static/caper.svg` (mascot) + `caper-text.svg` (wordmark) side by
-      side, drop the old `caper.png` img reference, add version meta slot
-      (`v{version} · pixi {pixiVersion}` from `import.meta.env`), add hamburger
-      button (hidden until Phase 8 media queries kick in)
-- [ ] Extract sidebar DOM building from `main.ts` into a new
-      `apps/kitchen-sink/src/ui/sidebar.ts` `Sidebar` class. Constructor takes
-      the app, owns active-state tracking. `main.ts` becomes `new Sidebar(app).mount()`
-- [ ] Replace the `while (!nav)` busy-wait at `main.ts:12-16` with a fail-loud
-      assert — `nav` is static in `index.html`, so a missing element is a bug
-      (aligns with the fail-loud-over-silent-fallbacks principle)
-- [ ] Swap `innerHTML` → `textContent` for group labels and scene names — no
-      reason to keep the XSS vector when plain text suffices
-- [ ] `pnpm kitchen-sink:dev` — verify sidebar populates, hash routing still
-      works, active state tracks, scene transitions still disable the nav
-- [ ] Commit: `feat(kitchen-sink): redesign shell around Caper brand`
+- [x] Full rewrite of `styles.css` — Caper palette as CSS custom properties,
+      noise texture overlay, olive-tinted canvas shadow, Syncopate headers,
+      Space Grotesk body, custom scrollbar, olive inset-bar hover states,
+      active state with box-shadow + glow bar, prefers-reduced-motion guards
+- [x] Rewrote `index.html` header — mascot SVG (44px) + wordmark SVG side by
+      side via `<img>`, version meta slot (#version-meta), olive divider,
+      Syncopate "EXAMPLES" label. SVGs referenced as img src (too large to inline
+      at 18KB + 8KB). Hamburger deferred to Phase 8.
+- [x] Extracted sidebar DOM into `src/ui/sidebar.ts` `Sidebar` class — owns
+      nav population, active-state sync, hash binding, version meta population.
+      `main.ts` reduced to `new Sidebar(app).mount()`.
+- [x] Replaced `while (!nav)` busy-wait with `throw new Error(...)` — fail-loud
+- [x] All `innerHTML` → `textContent` for group labels and scene names
+- [x] `pnpm kitchen-sink:build` passes
+- [ ] `pnpm kitchen-sink:dev` — visual verification
+- [x] Commit: `feat(kitchen-sink): redesign shell around Caper brand`
 
 ## Phase 7 — Sidebar interactions
 
