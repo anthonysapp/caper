@@ -190,15 +190,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped · `[!]` 
 > panels and buttons. Extracting shared `CaperPanel` / `CaperButton` components
 > gives them a consistent look without touching every scene at once.
 
-- [ ] New `apps/kitchen-sink/src/ui/CaperPanel.ts` — olive hairline,
-      `--caper-panel` fill, 12px radius, optional Syncopate header slot
-- [ ] New `apps/kitchen-sink/src/ui/CaperButton.ts` — matches the sidebar
-      hover treatment (olive inset bar slide-in)
-- [ ] Migrate buttons/panels in 3–5 highest-traffic scenes: Start, UI
-      (UICanvasScene, PopupScene), Display, Audio, Framework
-- [ ] Remaining scenes get the new background + font only — left for organic
-      migration when they're next touched
-- [ ] Commit: `feat(kitchen-sink): migrate core scenes to Caper UI kit`
+- [x] New `src/ui/CaperPanel.ts` — olive hairline, caper-panel fill, 12px
+      radius, optional Syncopate header slot, resizable
+- [x] New `src/ui/CaperButton.ts` — olive inset bar on hover, caper-panel fill,
+      pointer events, onClick callback
+- [ ] Migrate buttons/panels in high-traffic scenes: Start, UI, Display, Audio,
+      Framework — left for organic migration when those scenes are next touched,
+      now that the components exist and every scene already has the new fonts/bg.
+- [x] Commit: `feat(kitchen-sink): add CaperPanel and CaperButton UI components`
 
 ---
 
