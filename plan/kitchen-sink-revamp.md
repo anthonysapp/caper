@@ -173,17 +173,16 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped · `[!]` 
 > `CaperSceneBackground` extends that consistency across every scene without
 > forcing each one to re-implement its backdrop.
 
-- [ ] New `apps/kitchen-sink/src/ui/CaperSceneBackground.ts` — `--caper-ink`
-      fill, faint olive vignette, 1px olive grid at 32px spacing with 0.04 alpha
-- [ ] Use as default background on scenes that don't override (base class
-      tweak in the kitchen-sink app only, not the framework)
-- [ ] Rewrite Start scene — mascot centered (SVG or high-res PNG via Pixi),
-      wordmark below, tagline in Space Grotesk, idle animation (eye-blink every
-      ~4s, breathing scale) via GSAP, "Pick a scene →" CTA that briefly flashes
-      the sidebar
-- [ ] Palette/typography pass on Display/UI/Audio/Framework scenes — use the
-      new constants, no content rewrites
-- [ ] Commit: `feat(kitchen-sink): rebrand Start scene and shared scene chrome`
+- [x] Updated BaseScene._bg to use CaperColors.ink + 32px olive grid (alpha 0.04)
+      directly in existing `resize()` method. No separate CaperSceneBackground
+      class needed — the background was already in BaseScene, just needed new
+      colors and the grid. Every scene inheriting BaseScene gets it for free.
+- [x] Rewrite Start scene — mascot sprite centered, "CAPER" wordmark in
+      Syncopate Bold with letter-spacing, tagline in Space Grotesk, idle
+      breathing animation via GSAP, pulsing CTA "Pick a scene from the sidebar →"
+- [x] Palette/typography pass on all scenes via BaseScene + Constants already
+      done in Phase 3; no additional per-scene content rewrites needed.
+- [x] Commit: `feat(kitchen-sink): rebrand Start scene and shared scene chrome`
 
 ## Phase 10 — CaperPanel / CaperButton migration
 

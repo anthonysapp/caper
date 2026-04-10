@@ -1,90 +1,121 @@
 import { FlexContainer, defineScene } from '@caper/core';
-import { FONT_BODY } from '@/utils/Constants';
+import { FONT_BODY, FONT_DISPLAY } from '@/utils/Constants';
+import { CaperColors } from '@/theme';
 import Base from './BaseScene';
+import { gsap } from 'gsap';
+import { Sprite } from 'pixi.js';
 
 export const scene = defineScene({
   id: 'start',
   debug: {
-    label: 'Hello World',
+    label: 'Start',
     group: 'Start',
   },
 });
 
 export default class Start extends Base {
-  title = 'Hello World';
+  title = 'Caper';
   private container: FlexContainer;
+  private mascot: Sprite;
 
   async initialize() {
     await super.initialize();
     this.app.focus.addFocusLayer(this.id);
 
-    // a layout container
     this.container = this.add.flexContainer({
-      label: 'Main Container',
+      label: 'Start Container',
       bindToAppSize: true,
       layout: {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 20,
+        gap: 16,
       },
     });
 
-    // some title text
-    this.container.add.text({
-      text: 'Hello Caper',
-      style: { fontFamily: FONT_BODY, fontSize: 48, fill: 0xffffff },
-    });
-
-    // from src/assets.json
-    this.container.add.sprite({
+    // Mascot logo
+    this.mascot = this.container.add.sprite({
       asset: 'caper',
-      label: 'Caper Logo',
-      scale: 0.5,
+      label: 'Caper Mascot',
+      scale: 0.35,
       anchor: 0.5,
-      layout: { applySizeDirectly: true, width: 150, height: 150, aspectRatio: 1, flexGrow: 0, flexShrink: 0 },
+      layout: {
+        applySizeDirectly: true,
+        width: 120,
+        height: 120,
+        aspectRatio: 1,
+        flexGrow: 0,
+        flexShrink: 0,
+      },
     });
 
-    const btn = this.container.add.button({
-      label: 'Button',
-      cursor: 'pointer',
-      y: 50,
-      textures: {
-        default: 'btn/blue',
-        hover: 'btn/yellow',
-        disabled: 'btn/grey',
-        active: 'btn/red',
+    // Wordmark
+    this.container.add.text({
+      text: 'CAPER',
+      style: {
+        fontFamily: FONT_DISPLAY,
+        fontSize: 42,
+        fontWeight: 'bold',
+        fill: CaperColors.text,
+        letterSpacing: 8,
       },
-      textLabel: {
-        text: 'Go to Assets',
-        style: { fontFamily: FONT_BODY, fontSize: 32, fill: 0xffffff },
+    });
+
+    // Tagline
+    this.container.add.text({
+      text: 'HTML game framework built on PixiJS',
+      style: {
+        fontFamily: FONT_BODY,
+        fontSize: 16,
+        fill: CaperColors.textDim,
+      },
+    });
+
+    // CTA
+    const cta = this.container.add.text({
+      text: 'Pick a scene from the sidebar  →',
+      style: {
+        fontFamily: FONT_BODY,
+        fontSize: 14,
+        fill: CaperColors.olive,
+        fontWeight: '500',
       },
       layout: {
-        transformOrigin: 'top left',
-        width: 256,
-        height: 70,
-        applySizeDirectly: true,
-        isLeaf: true,
-      },
-      sounds: {
-        click: 'click',
-        hover: 'hover',
+        marginTop: 24,
       },
     });
 
-    btn.onClick.connectOnce(() => {
-      this.app.scenes.loadScene('assets');
-    });
+    // Subtle idle animation on the mascot
+    this.startIdleAnimation();
 
-    this.app.focus.add(btn);
+    // Gentle pulse on the CTA
+    gsap.to(cta, {
+      alpha: 0.5,
+      duration: 1.5,
+      repeat: -1,
+      yoyo: true,
+      ease: 'sine.inOut',
+    });
+  }
+
+  private startIdleAnimation(): void {
+    if (!this.mascot) return;
+
+    // Breathing scale
+    gsap.to(this.mascot.scale, {
+      x: 0.365,
+      y: 0.365,
+      duration: 2.5,
+      repeat: -1,
+      yoyo: true,
+      ease: 'sine.inOut',
+    });
   }
 
   start() {}
 
   resize() {
     super.resize();
-    // the layout container binds to the app size,
-    // but we still need to center it
     this.container.position.set(-this.app.size.width * 0.5, -this.app.size.height * 0.5);
   }
 }

@@ -1,6 +1,6 @@
 import { Graphics, Sprite, Text, Texture } from 'pixi.js';
 
-import { COLOR_SLATE } from '@/utils/Constants';
+import { CaperColors } from '@/theme';
 import { GUI } from 'dat.gui';
 import { FlexContainer, Scene, Size, defineScene } from '@caper/core';
 
@@ -78,12 +78,22 @@ export default class BaseScene extends Scene {
   resize(size?: Size) {
     super.resize(size);
     if (this._bg) {
+      const x0 = -this.app.size.width * 0.5;
+      const y0 = -this.app.size.height * 0.5;
+      const w = this.app.size.width;
+      const h = this.app.screen.height;
       this._bg.clear();
-      this._bg
-        .rect(-this.app.size.width * 0.5, -this.app.size.height * 0.5, this.app.size.width, this.app.screen.height)
-        .fill({
-          color: COLOR_SLATE,
-        });
+      // Base fill
+      this._bg.rect(x0, y0, w, h).fill({ color: CaperColors.ink });
+      // Subtle grid (32px, very low alpha)
+      this._bg.setStrokeStyle({ width: 1, color: CaperColors.olive, alpha: 0.04 });
+      for (let gx = x0 - (x0 % 32); gx < x0 + w; gx += 32) {
+        this._bg.moveTo(gx, y0).lineTo(gx, y0 + h);
+      }
+      for (let gy = y0 - (y0 % 32); gy < y0 + h; gy += 32) {
+        this._bg.moveTo(x0, gy).lineTo(x0 + w, gy);
+      }
+      this._bg.stroke();
     }
 
     if (this.titleContainer) {
