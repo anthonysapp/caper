@@ -54,7 +54,7 @@ export class Sidebar {
       Array.from(group.children as any).forEach((child: any) => {
         const li = document.createElement('li');
         const a = document.createElement('a');
-        a.textContent = child.innerHTML;
+        a.innerHTML = child.innerHTML;
         a.href = `#${child.value}`;
         a.dataset.scene = child.value;
         li.appendChild(a);
@@ -220,11 +220,7 @@ export class Sidebar {
     }
   }
 
-  private findNextGroupStart(
-    visible: HTMLAnchorElement[],
-    currentIndex: number,
-    direction: number,
-  ): number {
+  private findNextGroupStart(visible: HTMLAnchorElement[], currentIndex: number, direction: number): number {
     if (visible.length === 0) return 0;
     if (currentIndex === -1) return 0;
 
@@ -250,7 +246,10 @@ export class Sidebar {
         // Wrap to last group
         const lastGroup = visible[visible.length - 1]?.closest('.nav-group');
         for (let i = 0; i < visible.length; i++) {
-          if (visible[i].closest('.nav-group') === lastGroup && (i === 0 || visible[i - 1].closest('.nav-group') !== lastGroup)) {
+          if (
+            visible[i].closest('.nav-group') === lastGroup &&
+            (i === 0 || visible[i - 1].closest('.nav-group') !== lastGroup)
+          ) {
             return i;
           }
         }
@@ -286,7 +285,11 @@ export class Sidebar {
   }
 
   private toggleOverlay(): void {
-    this.isOverlayOpen ? this.closeOverlay() : this.openOverlay();
+    if (this.isOverlayOpen) {
+      this.closeOverlay();
+    } else {
+      this.openOverlay();
+    }
   }
 
   private openOverlay(): void {

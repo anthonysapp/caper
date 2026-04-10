@@ -46,7 +46,8 @@ export class CaperPanel extends Container {
           letterSpacing: 3,
         },
       });
-      this.headingText.position.set(16, 14);
+      this.headingText.anchor.set(0.5, 0);
+      this.headingText.position.set(this._panelWidth / 2, 14);
       this.addChild(this.headingText);
     }
 
@@ -66,6 +67,9 @@ export class CaperPanel extends Container {
   resize(width: number, height: number): void {
     this._panelWidth = width;
     this._panelHeight = height;
+    if (this.headingText) {
+      this.headingText.position.x = this._panelWidth / 2;
+    }
     this.draw();
   }
 }

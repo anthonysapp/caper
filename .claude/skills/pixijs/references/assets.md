@@ -11,15 +11,11 @@ const manifest = {
   bundles: [
     {
       name: 'home-screen',
-      assets: [
-        { alias: 'flowerTop', src: 'https://pixijs.com/assets/flowerTop.png' },
-      ],
+      assets: [{ alias: 'flowerTop', src: 'https://pixijs.com/assets/flowerTop.png' }],
     },
     {
       name: 'game-screen',
-      assets: [
-        { alias: 'eggHead', src: 'https://pixijs.com/assets/eggHead.png' },
-      ],
+      assets: [{ alias: 'eggHead', src: 'https://pixijs.com/assets/eggHead.png' }],
     },
   ],
 };
@@ -60,7 +56,6 @@ Assets.backgroundLoad({
 ---
 
 ## Compressed Textures
-
 
 ---
 
@@ -227,7 +222,6 @@ You can read more about these features in the rest of the documentation:
 
 ## Manifests & Bundles
 
-
 ---
 
 # Manifests & Bundles
@@ -329,7 +323,6 @@ You can integrate AssetPack into your build pipeline to generate the manifest fi
 
 ## Resolver
 
-
 ---
 
 # Resolver
@@ -424,12 +417,11 @@ PixiJS will select the best match depending on runtime capabilities (e.g. choose
 
 ---
 
-## SVG's
-
+## SVGs
 
 ---
 
-# SVG's
+# SVGs
 
 ### Overview
 
@@ -500,10 +492,7 @@ import { Application, Assets, Graphics } from 'pixi.js';
   // line it up as this svg is not centered
   const bounds = graphics.getLocalBounds();
 
-  graphics.pivot.set(
-    (bounds.x + bounds.width) / 2,
-    (bounds.y + bounds.height) / 2,
-  );
+  graphics.pivot.set((bounds.x + bounds.width) / 2, (bounds.y + bounds.height) / 2);
 
   graphics.position.set(app.screen.width / 2, app.screen.height / 2);
 
@@ -578,10 +567,7 @@ import { Application, Assets, Sprite } from 'pixi.js';
   // line it up as this svg is not centered
   const bounds = sprite.getLocalBounds();
 
-  sprite.pivot.set(
-    (bounds.x + bounds.width) / 2,
-    (bounds.y + bounds.height) / 2,
-  );
+  sprite.pivot.set((bounds.x + bounds.width) / 2, (bounds.y + bounds.height) / 2);
 
   sprite.position.set(app.screen.width / 2, app.screen.height / 2);
 
@@ -620,10 +606,7 @@ import { Application, Assets, Sprite } from 'pixi.js';
   // line it up as this svg is not centered
   const bounds = sprite.getLocalBounds();
 
-  sprite.pivot.set(
-    (bounds.x + bounds.width) / 2,
-    (bounds.y + bounds.height) / 2,
-  );
+  sprite.pivot.set((bounds.x + bounds.width) / 2, (bounds.y + bounds.height) / 2);
 
   sprite.position.set(app.screen.width / 2, app.screen.height / 2);
 
