@@ -27,7 +27,7 @@ export default class Start extends Base {
     // some title text
     this.container.add.text({
       text: 'Hello Caper',
-      style: { fontFamily: 'KumbhSans', fontSize: 48, fill: 0xffffff },
+      style: { fontFamily: 'Space Grotesk', fontSize: 48, fill: 0xffffff },
     });
 
     // from src/assets.json
@@ -53,7 +53,7 @@ export default class Start extends Base {
       },
       textLabel: {
         text: 'Play',
-        style: { fontFamily: 'KumbhSans', fontSize: 32, fill: 0xffffff },
+        style: { fontFamily: 'Space Grotesk', fontSize: 32, fill: 0xffffff },
       },
       layout: {
         transformOrigin: 'top left',

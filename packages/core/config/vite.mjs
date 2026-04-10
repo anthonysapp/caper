@@ -366,14 +366,14 @@ export type AssetTPSFramesIn<B extends AssetBundles> = B extends keyof AssetTPSF
 /**
  * Available font names in the asset manifest
  * @example
- * const font: AssetFonts = 'KumbhSans-Regular';
+ * const font: AssetFonts = 'SpaceGrotesk-Regular';
  */
 export type AssetFonts = ${types.fonts.length ? `\n  | '${types.fonts.join("'\n  | '")}'` : 'never'};
 
 /**
  * Available font names in the asset manifest
  * @example
- * const font: AssetFonts = 'KumbhSans-Regular';
+ * const font: AssetFonts = 'SpaceGrotesk-Regular';
  */
 export type AssetBitmapFonts = ${types.bitmapFonts.length ? `\n  | '${types.bitmapFonts.join("'\n  | '")}'` : 'never'};
 
@@ -411,14 +411,14 @@ export type AssetRive = ${types.rive.length ? `\n  | '${types.rive.join("'\n  | 
 /**
  * Available font family names
  * @example
- * const fontFamily: AssetFontFamilies = 'KumbhSans';
+ * const fontFamily: AssetFontFamilies = 'Space Grotesk';
  */
 export type AssetFontFamilies = ${types.fontFamilies.length ? `\n  | '${types.fontFamilies.join("'\n  | '")}'` : 'never'};
 
 /**
  * Available font family names
  * @example
- * const fontFamily: AssetFontFamilies = 'KumbhSans';
+ * const fontFamily: AssetFontFamilies = 'Space Grotesk';
  */
 export type AssetBitmapFontFamilies = ${types.bitmapFontFamilies.length ? `\n  | '${types.bitmapFontFamilies.join("'\n  | '")}'` : 'never'};
 

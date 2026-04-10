@@ -11,7 +11,7 @@ export default class Game extends Base {
     this.add.text({
       text: 'My Game',
       anchor: 0.5,
-      style: { align: 'center', fontFamily: 'KumbhSans', fontSize: 48, fill: 0xffffff },
+      style: { align: 'center', fontFamily: 'Space Grotesk', fontSize: 48, fill: 0xffffff },
     });
   }
 

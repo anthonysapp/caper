@@ -100,16 +100,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped · `[!]` 
 > `caper create` scaffolds new apps branded to the old fork. Migrating it in
 > the same revamp keeps the template on-brand for future users.
 
-- [ ] Replace `packages/core/templates/app/default/assets/required{m}/fonts{fix}/KumbhSans-*.ttf`
-      with matching Syncopate-Bold + SpaceGrotesk ttfs (same tags as Phase 2)
-- [ ] Sweep `fontFamily: 'KumbhSans'` in
-      `packages/core/templates/app/default/src/scenes/Start.ts` (lines 30, 56)
-      and `Game.ts` (line 14) → Space Grotesk literal (template has no
-      Constants.ts to centralize through; keep it inline for minimal template
-      surface)
-- [ ] `pnpm cli:create` smoke test — scaffolds `../cli-test-app`, verify the
-      scaffolded Start scene renders text correctly
-- [ ] Commit: `feat(core): update default template to Syncopate + Space Grotesk`
+- [x] Replaced template font TTFs with Syncopate-Bold + SpaceGrotesk (same tags)
+- [x] Swept `fontFamily: 'KumbhSans'` → `'Space Grotesk'` in template Start.ts
+      and Game.ts (inline, no Constants.ts in template)
+- [x] Updated JSDoc @example strings in `packages/core/config/vite.mjs` codegen
+      (`'KumbhSans-Regular'` → `'SpaceGrotesk-Regular'`, etc.)
+- [x] `pnpm framework:build` passes
+- [ ] `pnpm cli:create` smoke test (deferred — scaffolds to `../cli-test-app`)
+- [x] Commit: `feat(core): update default template to Syncopate + Space Grotesk`
 
 ## Phase 6 — Shell rewrite
 
