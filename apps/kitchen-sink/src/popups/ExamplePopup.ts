@@ -2,6 +2,7 @@ import { Container, definePopup, Focusable, Interactive, IPopup, Popup } from '@
 import { Graphics, Text } from 'pixi.js';
 
 import { FONT_BODY } from '@/utils/Constants';
+import { CaperPanel } from '@/ui/CaperPanel';
 import { gsap } from 'gsap';
 
 export const popup = definePopup({
@@ -29,7 +30,7 @@ class FocusableText extends Focusable(Text) {}
 
 export class ExamplePopup extends Popup implements IPopup {
   window: Container;
-  windowBacking: Graphics;
+  panel: CaperPanel;
   title: FocusableText;
   closeButton: SimpleButton;
 
@@ -37,10 +38,13 @@ export class ExamplePopup extends Popup implements IPopup {
 
   initialize() {
     this.window = this.view.add.container({ x: -300, y: -200 });
-    this.windowBacking = this.window.add
-      .graphics()
-      .roundRect(0, 0, Math.min(this.app.size.width - 40, 600), 400, 10)
-      .fill({ color: 0x000fff });
+    this.panel = this.window.add.existing(
+      new CaperPanel({
+        width: Math.min(this.app.size.width - 40, 600),
+        height: 400,
+        heading: this.config.data?.title ?? 'Example Popup',
+      }),
+    );
 
     this.title = this.window.add.existing(
       new FocusableText({
@@ -62,7 +66,7 @@ export class ExamplePopup extends Popup implements IPopup {
       },
     );
 
-    this.closeButton = this.window.add.existing(new SimpleButton(), { x: this.windowBacking.width - 70, y: 10 });
+    this.closeButton = this.window.add.existing(new SimpleButton(), { x: this.panel.width - 70, y: 10 });
     this.closeButton.accessibleTitle = 'Close button';
     this.closeButton.accessibleHint = 'Click to close popup';
 
@@ -99,14 +103,11 @@ export class ExamplePopup extends Popup implements IPopup {
 
   resize() {
     super.resize();
-    if (
-      this.windowBacking.width > this.app.size.width ||
-      (this.app.size.width > 600 && this.windowBacking.width < 600)
-    ) {
-      this.windowBacking.clear();
-      this.windowBacking.roundRect(0, 0, Math.min(this.app.size.width - 40, 600), 400, 10).fill({ color: 0x000fff });
+    const targetWidth = Math.min(this.app.size.width - 40, 600);
+    if (this.panel.width !== targetWidth) {
+      this.panel.resize(targetWidth, 400);
     }
-    this.closeButton.x = this.windowBacking.width - 70;
+    this.closeButton.x = this.panel.width - 70;
     this.window.x = -this.window.width * 0.5;
   }
 }
