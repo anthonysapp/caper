@@ -34,19 +34,12 @@ export default class Start extends Base {
     });
 
     // Mascot logo
-    this.mascot = this.container.add.sprite({
+    this.mascot = this.add.sprite({
       asset: 'caper',
       label: 'Caper Mascot',
       scale: 0.35,
       anchor: 0.5,
-      layout: {
-        applySizeDirectly: true,
-        width: 120,
-        height: 120,
-        aspectRatio: 1,
-        flexGrow: 0,
-        flexShrink: 0,
-      },
+      y: -150,
     });
 
     // Wordmark
@@ -119,6 +112,6 @@ export default class Start extends Base {
 
   resize() {
     super.resize();
-    this.container.position.set(-this.app.size.width * 0.5, -this.app.size.height * 0.5);
+    this.container.position.set(-this.app.size.width * 0.5, -this.app.size.height * 0.5 + 50);
   }
 }

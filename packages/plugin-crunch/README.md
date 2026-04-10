@@ -26,19 +26,19 @@ npm install @caper/physics-crunch
 // in caper.config.ts
 defineConfig({
   //... other config
-  plugins: ['crunch-physics', { autoLoad: false }],
+  plugins: ['crunch', { autoLoad: false }],
 });
 
 // in your scene file
 import { Scene } from '@caper/core';
 
 // exports
-export const plugins = ['crunch-physics']; // loads the plugin for your scene
+export const plugins = ['crunch']; // loads the plugin for your scene
 
 // in your scene class
 export default class MyCrunchScene extends Scene {
   get physics() {
-    return this.app.getPlugin('crunch-physics') as ICrunchPhysicsPlugin;
+    return this.app.getPlugin('crunch') as ICrunchPhysicsPlugin;
   }
 
   async initialize() {

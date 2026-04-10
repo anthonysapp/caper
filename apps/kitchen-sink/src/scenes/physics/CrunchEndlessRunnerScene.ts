@@ -1,4 +1,5 @@
 import BaseScene from '@/scenes/BaseScene';
+import { bool, Container, defineScene, PointLike, Signal } from '@caper/core';
 import {
   Actor,
   CollisionLayer,
@@ -8,7 +9,6 @@ import {
   Sensor,
   Solid,
 } from '@caper/plugin-crunch';
-import { bool, Container, defineScene, PointLike, Signal } from '@caper/core';
 import gsap from 'gsap';
 import { Graphics, Rectangle, Ticker } from 'pixi.js';
 
@@ -19,7 +19,7 @@ export const scene = defineScene({
     label: 'Endless Runner',
     order: 7,
   },
-  plugins: ['crunch-physics'],
+  plugins: ['crunch'],
 });
 
 class Runner extends Actor {
@@ -378,7 +378,7 @@ export default class CrunchEndlessRunnerScene extends BaseScene {
   };
 
   get physics(): ICrunchPhysicsPlugin {
-    return this.app.getPlugin('crunch-physics') as unknown as ICrunchPhysicsPlugin;
+    return this.app.getPlugin('crunch') as unknown as ICrunchPhysicsPlugin;
   }
 
   configureGUI() {

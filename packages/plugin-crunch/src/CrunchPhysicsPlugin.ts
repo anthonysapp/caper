@@ -23,7 +23,7 @@ import {
  * @example
  * ```typescript
  * // Initialize the physics system
- * const physics = this.app.getPlugin('crunch-physics') as ICrunchPhysicsPlugin;
+ * const physics = this.app.getPlugin('crunch') as ICrunchPhysicsPlugin;
  *
  * const physics = await this.physics.initialize({
  *   gravity: 900,
@@ -473,7 +473,7 @@ export default class CrunchPhysicsPlugin extends Plugin<CrunchPhysicsOptions> im
   private actorCollisionResolver?: (collisions: ActorCollision[]) => void;
 
   constructor() {
-    super('crunch-physics');
+    super('crunch');
   }
 
   private hello() {

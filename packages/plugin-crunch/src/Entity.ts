@@ -1,8 +1,8 @@
 import {
   Application,
-  type AppTypeOverrides,
   bindAllMethods,
   defaultFactoryMethods,
+  IApplication,
   PointLike,
   randomUUID,
   resolvePointLike,
@@ -244,13 +244,13 @@ export class Entity<D extends EntityData = EntityData> {
   }
 
   /** Reference to the main application instance */
-  get app(): AppTypeOverrides['App'] {
+  get app(): IApplication {
     return Application.getInstance();
   }
 
   /** Reference to the physics plugin */
   get physics(): CrunchPhysicsPlugin {
-    return this.app.getPlugin('crunch-physics') as CrunchPhysicsPlugin;
+    return this.app.getPlugin('crunch') as CrunchPhysicsPlugin;
   }
 
   /**
