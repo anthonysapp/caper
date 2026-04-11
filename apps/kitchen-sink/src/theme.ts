@@ -6,31 +6,36 @@
  *
  * Values are `0x`-prefixed numbers (Pixi's native form). The matching hex
  * strings live in `styles.css`; keep both in sync on any change.
+ *
+ * v2.1 — Pro-Retro Style Guide palette. Brighter Caper Green primary,
+ * neutral charcoal chrome, Deep Coral accent for destructive/cancel.
  */
 export const CaperColors = {
-  /** Primary olive — mid tone from the logo body. */
-  olive: 0x6fa83a,
-  /** Highlight olive — active states, wordmark accent, hover glows. */
-  oliveHi: 0x8fc94b,
-  /** Deep shadow olive — darker half of the logo, strokes under pressure. */
-  oliveLo: 0x3b5e1c,
+  /** Primary "Caper Green" — brighter, more saturated than v1 olive. */
+  olive: 0xa4d65e,
+  /** Highlight green — hover/active states, wordmark accent. */
+  oliveHi: 0xb9e378,
+  /** Deep shadow green — pressed state, stroke under pressure. */
+  oliveLo: 0x4e7a23,
 
-  /** App background — near-black with a warm green undertone. */
-  ink: 0x0e1410,
-  /** Sidebar + panel surface. */
-  panel: 0x18201a,
+  /** App background — Deep Charcoal, warm but neutral. */
+  ink: 0x1a1a1b,
+  /** Panel/sidebar surface — slightly lighter than ink. */
+  panel: 0x222224,
   /** Raised surfaces, hover states, active nav item. */
-  panel2: 0x222c23,
-  /** Hairlines, dividers, 1px outlines. */
-  line: 0x2e3a2f,
+  panel2: 0x2b2b2d,
+  /** Hairlines, dividers, 1px outlines — neutral grey. */
+  line: 0x353537,
 
   /** Primary text — warm off-white. */
-  text: 0xe8eee4,
+  text: 0xe8e8e6,
   /** Secondary text — nav default, meta rows, captions. */
-  textDim: 0x8a9588,
+  textDim: 0x888889,
 
-  /** Error / fail-loud surfaces. */
-  danger: 0xe06b5a,
+  /** Deep Coral accent — cancel, destructive, secondary highlight. */
+  coral: 0xf28b82,
+  /** Coral hover tone. */
+  coralHi: 0xf6a49d,
 } as const;
 
 export type CaperColorName = keyof typeof CaperColors;

@@ -1,78 +1,116 @@
 import type { KitchenSinkApplication } from '@/KitchenSinkApplication';
 
 /**
- * Sidebar scene-picker for the kitchen-sink demo.
- * Owns the DOM nav, active-state tracking, hash-based scene selection,
- * fuzzy filtering, and keyboard navigation.
+ * Scene reel — horizontal bottom-drawer scene picker for the kitchen-sink
+ * demo. Owns the DOM nav (a horizontal strip of scene cards grouped by
+ * inline dividers), active-state tracking, hash-based scene selection,
+ * fuzzy filtering, keyboard navigation, and the collapse/expand toggle.
+ *
+ * Class name stays `Sidebar` for import-stability; the behavior is a
+ * horizontal reel, not a vertical sidebar.
  */
 export class Sidebar {
   private app: KitchenSinkApplication;
   private nav: HTMLElement;
-  private allLinks: HTMLAnchorElement[] = [];
+  private scroll: HTMLElement | null = null;
+  private allCards: HTMLAnchorElement[] = [];
   private searchInput: HTMLInputElement | null = null;
   private searchCount: HTMLElement | null = null;
   private searchBar: HTMLElement | null = null;
-  private hamburger: HTMLElement | null = null;
-  private backdrop: HTMLElement | null = null;
-  private sidebar: HTMLElement | null = null;
-  private isOverlayOpen = false;
+  private toggleBtn: HTMLElement | null = null;
+  private reel: HTMLElement | null = null;
+  private isOpen = false;
 
   constructor(app: KitchenSinkApplication) {
     this.app = app;
 
-    const sidebar = document.getElementById('sidebar');
-    const nav = sidebar?.querySelector('nav');
+    const reel = document.getElementById('reel');
+    const nav = reel?.querySelector<HTMLElement>('nav.reel-nav');
     if (!nav) {
-      throw new Error('[Sidebar] <nav> element not found in #sidebar — check index.html');
+      throw new Error('[Sidebar] nav.reel-nav not found in #reel — check index.html');
     }
     this.nav = nav;
+    this.reel = reel;
+    this.scroll = reel?.querySelector<HTMLElement>('.reel-scroll') ?? null;
   }
 
   mount(): void {
     this.populateNav();
     this.bindEvents();
     this.syncActiveFromHash();
+    this.scrollActiveIntoView();
     this.populateVersionMeta();
     this.setupSearch();
     this.setupKeyboardNav();
-    this.setupHamburger();
+    this.setupToggle();
   }
+
+  /* ── Nav population ── */
 
   private populateNav(): void {
     const groups = this.app.scenes.debugGroupsList;
 
     groups.forEach((group: HTMLOptGroupElement) => {
-      const section = document.createElement('div');
-      section.classList.add('nav-group');
+      const groupEl = document.createElement('div');
+      groupEl.classList.add('reel-group');
+      groupEl.dataset.group = group.label;
 
-      const heading = document.createElement('h3');
-      heading.textContent = group.label;
-      section.appendChild(heading);
+      const label = document.createElement('div');
+      label.classList.add('reel-group-label');
+      label.textContent = group.label;
+      groupEl.appendChild(label);
 
-      const ul = document.createElement('ul');
+      const cardsRow = document.createElement('div');
+      cardsRow.classList.add('reel-group-cards');
 
       Array.from(group.children as any).forEach((child: any) => {
-        const li = document.createElement('li');
-        const a = document.createElement('a');
-        a.innerHTML = child.innerHTML;
-        a.href = `#${child.value}`;
-        a.dataset.scene = child.value;
-        li.appendChild(a);
-        ul.appendChild(li);
-        this.allLinks.push(a);
+        const card = this.createCard(group.label, child);
+        cardsRow.appendChild(card);
+        this.allCards.push(card);
       });
 
-      section.appendChild(ul);
-      this.nav.appendChild(section);
+      groupEl.appendChild(cardsRow);
+      this.nav.appendChild(groupEl);
     });
   }
+
+  private createCard(groupLabel: string, sceneOpt: HTMLOptionElement): HTMLAnchorElement {
+    const card = document.createElement('a');
+    card.classList.add('scene-card');
+    card.href = `#${sceneOpt.value}`;
+    card.dataset.scene = sceneOpt.value;
+    card.dataset.group = groupLabel;
+
+    const thumb = document.createElement('div');
+    thumb.classList.add('scene-card-thumb');
+
+    // Placeholder: first letter of scene name over grid
+    const sceneName = sceneOpt.textContent ?? sceneOpt.value;
+    const initial = document.createElement('span');
+    initial.classList.add('scene-card-thumb-initial');
+    initial.textContent = sceneName.charAt(0).toUpperCase();
+    thumb.appendChild(initial);
+    card.appendChild(thumb);
+
+    const label = document.createElement('div');
+    label.classList.add('scene-card-label');
+    label.textContent = sceneName;
+    card.appendChild(label);
+
+    return card;
+  }
+
+  /* ── Events ── */
 
   private bindEvents(): void {
     this.app.signal.onSceneChangeComplete.connect(() => {
       this.nav.classList.remove('disabled');
     });
 
-    window.addEventListener('hashchange', () => this.syncActiveFromHash());
+    window.addEventListener('hashchange', () => {
+      this.syncActiveFromHash();
+      this.scrollActiveIntoView();
+    });
   }
 
   private syncActiveFromHash(): void {
@@ -83,8 +121,15 @@ export class Sidebar {
     const current = this.nav.querySelector('.active');
     if (current) current.classList.remove('active');
 
-    const link = this.nav.querySelector(`a[href="#${target}"]`);
-    if (link) link.classList.add('active');
+    const card = this.nav.querySelector(`a[href="#${target}"]`);
+    if (card) card.classList.add('active');
+  }
+
+  private scrollActiveIntoView(): void {
+    if (!this.scroll) return;
+    const active = this.nav.querySelector<HTMLElement>('.scene-card.active');
+    if (!active) return;
+    active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }
 
   private populateVersionMeta(): void {
@@ -112,26 +157,25 @@ export class Sidebar {
     this.searchBar?.classList.toggle('empty', isEmpty);
 
     let visibleCount = 0;
-    const groups = this.nav.querySelectorAll<HTMLElement>('.nav-group');
+    const groupEls = this.nav.querySelectorAll<HTMLElement>('.reel-group');
 
-    groups.forEach((group) => {
-      const links = group.querySelectorAll<HTMLAnchorElement>('a');
+    groupEls.forEach((groupEl) => {
+      const cards = groupEl.querySelectorAll<HTMLAnchorElement>('.scene-card');
       let groupVisible = 0;
 
-      links.forEach((a) => {
-        const text = (a.textContent ?? '').toLowerCase();
+      cards.forEach((card) => {
+        const text = (card.textContent ?? '').toLowerCase();
         const matches = isEmpty || text.includes(query);
-        const li = a.parentElement;
-        if (li) li.style.display = matches ? '' : 'none';
+        card.style.display = matches ? '' : 'none';
         if (matches) groupVisible++;
       });
 
-      group.style.display = groupVisible > 0 || isEmpty ? '' : 'none';
+      groupEl.style.display = groupVisible > 0 || isEmpty ? '' : 'none';
       visibleCount += groupVisible;
     });
 
     if (this.searchCount) {
-      this.searchCount.textContent = isEmpty ? '' : `${visibleCount} / ${this.allLinks.length}`;
+      this.searchCount.textContent = isEmpty ? '' : `${visibleCount} / ${this.allCards.length}`;
     }
   }
 
@@ -153,21 +197,19 @@ export class Sidebar {
     const target = e.target as HTMLElement;
     const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
-    // '/' focuses the search input (unless already in an input)
     if (e.key === '/' && !isInputFocused) {
       e.preventDefault();
+      if (!this.isOpen) this.openReel();
       this.searchInput?.focus();
       return;
     }
 
-    // Escape clears filter and blurs
     if (e.key === 'Escape' && isInputFocused) {
       e.preventDefault();
       this.clearFilter();
       return;
     }
 
-    // j/k navigation (only when not in input)
     if (isInputFocused) return;
 
     if (e.key === 'j' || e.key === 'k') {
@@ -177,7 +219,6 @@ export class Sidebar {
       return;
     }
 
-    // J/K (shift) jumps groups
     if (e.key === 'J' || e.key === 'K') {
       e.preventDefault();
       const direction = e.key === 'J' ? 1 : -1;
@@ -186,19 +227,16 @@ export class Sidebar {
     }
   }
 
-  private getVisibleLinks(): HTMLAnchorElement[] {
-    return this.allLinks.filter((a) => {
-      const li = a.parentElement;
-      return li && li.style.display !== 'none';
-    });
+  private getVisibleCards(): HTMLAnchorElement[] {
+    return this.allCards.filter((c) => c.style.display !== 'none');
   }
 
   private navigateScenes(direction: number, jumpGroup: boolean): void {
-    const visible = this.getVisibleLinks();
+    const visible = this.getVisibleCards();
     if (visible.length === 0) return;
 
-    const activeLink = this.nav.querySelector('a.active') as HTMLAnchorElement | null;
-    const currentIndex = activeLink ? visible.indexOf(activeLink) : -1;
+    const activeCard = this.nav.querySelector('.scene-card.active') as HTMLAnchorElement | null;
+    const currentIndex = activeCard ? visible.indexOf(activeCard) : -1;
 
     let nextIndex: number;
 
@@ -220,89 +258,76 @@ export class Sidebar {
     }
   }
 
-  private findNextGroupStart(visible: HTMLAnchorElement[], currentIndex: number, direction: number): number {
+  private findNextGroupStart(
+    visible: HTMLAnchorElement[],
+    currentIndex: number,
+    direction: number,
+  ): number {
     if (visible.length === 0) return 0;
     if (currentIndex === -1) return 0;
 
-    const currentGroup = visible[currentIndex]?.closest('.nav-group');
+    const currentGroup = visible[currentIndex]?.dataset.group;
 
     if (direction === 1) {
-      // Find first link in the next group
       for (let i = currentIndex + 1; i < visible.length; i++) {
-        if (visible[i].closest('.nav-group') !== currentGroup) return i;
+        if (visible[i].dataset.group !== currentGroup) return i;
       }
-      return 0; // wrap to beginning
+      return 0;
     } else {
-      // Find first link in the previous group
-      // First, step back to find a different group
-      let prevGroupLink = -1;
+      let prevGroupCard = -1;
       for (let i = currentIndex - 1; i >= 0; i--) {
-        if (visible[i].closest('.nav-group') !== currentGroup) {
-          prevGroupLink = i;
+        if (visible[i].dataset.group !== currentGroup) {
+          prevGroupCard = i;
           break;
         }
       }
-      if (prevGroupLink === -1) {
-        // Wrap to last group
-        const lastGroup = visible[visible.length - 1]?.closest('.nav-group');
+      if (prevGroupCard === -1) {
+        const lastGroup = visible[visible.length - 1]?.dataset.group;
         for (let i = 0; i < visible.length; i++) {
-          if (
-            visible[i].closest('.nav-group') === lastGroup &&
-            (i === 0 || visible[i - 1].closest('.nav-group') !== lastGroup)
-          ) {
+          if (visible[i].dataset.group === lastGroup && (i === 0 || visible[i - 1].dataset.group !== lastGroup)) {
             return i;
           }
         }
         return visible.length - 1;
       }
-      // Find the start of that group
-      const targetGroup = visible[prevGroupLink].closest('.nav-group');
-      for (let i = 0; i <= prevGroupLink; i++) {
-        if (visible[i].closest('.nav-group') === targetGroup) return i;
+      const targetGroup = visible[prevGroupCard].dataset.group;
+      for (let i = 0; i <= prevGroupCard; i++) {
+        if (visible[i].dataset.group === targetGroup) return i;
       }
-      return prevGroupLink;
+      return prevGroupCard;
     }
   }
 
-  /* ── Hamburger / overlay toggle ── */
+  /* ── Reel toggle ── */
 
-  private setupHamburger(): void {
-    this.hamburger = document.getElementById('hamburger');
-    this.backdrop = document.getElementById('sidebar-backdrop');
-    this.sidebar = document.getElementById('sidebar');
+  private setupToggle(): void {
+    this.toggleBtn = document.getElementById('reel-toggle');
+    if (!this.toggleBtn) return;
 
-    if (!this.hamburger) return;
+    this.toggleBtn.addEventListener('click', () => this.toggleReel());
 
-    this.hamburger.addEventListener('click', () => this.toggleOverlay());
-    this.backdrop?.addEventListener('click', () => this.closeOverlay());
-
-    // Close overlay when a scene is selected
+    // Close reel when a card is clicked (optional — improves canvas visibility after pick)
     this.nav.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).tagName === 'A' && this.isOverlayOpen) {
-        this.closeOverlay();
+      const target = (e.target as HTMLElement).closest('.scene-card');
+      if (target) {
+        // Keep the reel open after selection; user can close manually.
       }
     });
   }
 
-  private toggleOverlay(): void {
-    if (this.isOverlayOpen) {
-      this.closeOverlay();
-    } else {
-      this.openOverlay();
-    }
+  private toggleReel(): void {
+    if (this.isOpen) this.closeReel();
+    else this.openReel();
   }
 
-  private openOverlay(): void {
-    this.isOverlayOpen = true;
-    this.sidebar?.classList.add('open');
-    this.hamburger?.classList.add('open');
-    this.backdrop?.classList.add('visible');
+  private openReel(): void {
+    this.isOpen = true;
+    document.body.classList.add('reel-open');
+    this.scrollActiveIntoView();
   }
 
-  private closeOverlay(): void {
-    this.isOverlayOpen = false;
-    this.sidebar?.classList.remove('open');
-    this.hamburger?.classList.remove('open');
-    this.backdrop?.classList.remove('visible');
+  private closeReel(): void {
+    this.isOpen = false;
+    document.body.classList.remove('reel-open');
   }
 }

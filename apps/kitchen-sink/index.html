@@ -14,29 +14,40 @@
   </head>
   <body>
     <script type="module" src="src/index.ts" async defer></script>
-    <button id="hamburger" class="hamburger" aria-label="Toggle sidebar">
-      <span></span><span></span><span></span>
+
+    <!-- Top-left brand mark -->
+    <a class="brand" href="https://github.com/anthonysapp/caper" target="_blank" rel="noopener">
+      <img alt="Caper" class="brand-logo" src="/static/caper.svg" width="36" height="36" />
+      <img alt="CAPER" class="brand-wordmark" src="/static/caper-text.svg" height="16" />
+    </a>
+
+    <!-- Canvas container — fills the viewport -->
+    <div id="caper-game-container"></div>
+
+    <!-- Scene reel — bottom drawer, horizontally scrollable -->
+    <button id="reel-toggle" class="reel-toggle" aria-label="Toggle scene reel">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path
+          class="reel-chevron"
+          d="M2 5 L7 10 L12 5"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
     </button>
-    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
-    <div id="sidebar">
-      <div class="inner">
-        <a class="header" href="https://github.com/anthonysapp/caper" target="_blank" rel="noopener">
-          <img alt="Caper" class="logo" src="/static/caper.svg" width="44" height="44" />
-          <img alt="CAPER" class="wordmark" src="/static/caper-text.svg" height="20" />
-        </a>
-        <div class="meta" id="version-meta"></div>
-        <div class="divider"></div>
-        <h2>Examples</h2>
-        <div class="search-bar" id="search-bar">
+    <div id="reel" class="reel">
+      <div class="reel-header">
+        <div class="reel-search" id="search-bar">
           <input type="text" id="search-input" placeholder="Filter scenes…" autocomplete="off" />
           <span class="search-count" id="search-count"></span>
         </div>
-        <nav></nav>
-        <div class="sidebar-hint" id="sidebar-hint">
-          <kbd>/</kbd> filter &nbsp; <kbd>j</kbd><kbd>k</kbd> navigate
-        </div>
+        <div class="reel-meta" id="version-meta"></div>
+      </div>
+      <div class="reel-scroll">
+        <nav class="reel-nav"></nav>
       </div>
     </div>
-    <div id="caper-game-container"></div>
   </body>
 </html>

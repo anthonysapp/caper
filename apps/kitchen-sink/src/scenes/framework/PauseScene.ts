@@ -65,44 +65,67 @@ export default class PauseScene extends BaseScene {
     );
 
     // ── Animation demos ──
-    const animPanel = new CaperPanel({ width: 660, height: 180, heading: 'Animations' });
+    const PANEL_W = 660;
+    const ANIM_PANEL_H = 210;
+    const CONTENT_H = ANIM_PANEL_H - 40; // subtract heading area
+    const animPanel = new CaperPanel({ width: PANEL_W, height: ANIM_PANEL_H, heading: 'Animations' });
+    // Clip so animated sprites don't overflow the panel
+    animPanel.contentContainer.mask = this.make.graphics()
+      .rect(0, 0, PANEL_W - 32, CONTENT_H)
+      .fill({ color: 0xffffff });
+    animPanel.contentContainer.addChild(animPanel.contentContainer.mask as any);
 
-    const animContainer = this.make.flexContainer({
-      layout: { gap: 24, width: 600, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' },
+    const animRow = this.make.flexContainer({
+      layout: {
+        gap: 16,
+        width: PANEL_W - 32,
+        alignItems: 'center',
+        flexDirection: 'column',
+      },
     });
 
-    animContainer.add.text({
+    // GSAP row
+    const gsapRow = animRow.add.flexContainer({
+      layout: { gap: 16, width: PANEL_W - 32, alignItems: 'center' },
+    });
+    gsapRow.add.text({
       text: 'GSAP',
-      style: { fill: CaperColors.textDim, fontFamily: FONT_BODY, fontWeight: '500', fontSize: 16 },
+      style: { fill: CaperColors.textDim, fontFamily: FONT_BODY, fontWeight: '500', fontSize: 14 },
+      layout: { width: 80 },
     });
-
-    this.gsapAnimated = animContainer.add.sprite({
+    this.gsapAnimated = gsapRow.add.sprite({
       asset: 'staticCaperLogo',
-      scale: 0.2,
+      scale: 0.07,
       anchor: 0.5,
       layout: { applySizeDirectly: true },
     });
 
-    animContainer.add.text({
-      text: 'Pixi Ticker',
-      style: { fill: CaperColors.textDim, fontFamily: FONT_BODY, fontWeight: '500', fontSize: 16 },
+    // Ticker row
+    const tickerRow = animRow.add.flexContainer({
+      layout: { gap: 16, width: PANEL_W - 32, alignItems: 'center' },
     });
-
-    this.tickerAnimated = animContainer.add.sprite({
+    tickerRow.add.text({
+      text: 'Ticker',
+      style: { fill: CaperColors.textDim, fontFamily: FONT_BODY, fontWeight: '500', fontSize: 14 },
+      layout: { width: 80 },
+    });
+    this.tickerAnimated = tickerRow.add.sprite({
       asset: 'staticCaperLogo',
-      scale: 0.2,
+      scale: 0.07,
       anchor: 0.5,
       layout: { applySizeDirectly: true },
     });
 
-    animPanel.contentContainer.addChild(animContainer);
+    animPanel.contentContainer.addChild(animRow);
     this.container.add.existing(animPanel, {
-      layout: { width: 660, height: 180, applySizeDirectly: true },
+      layout: { width: PANEL_W, height: ANIM_PANEL_H, applySizeDirectly: true },
     });
 
+    // Constrain animation range to panel interior
+    const ANIM_RANGE = PANEL_W - 32 - 100; // panel inner width minus sprite room
     this.addAnimation(
       gsap.to(this.gsapAnimated, {
-        x: 180,
+        x: ANIM_RANGE,
         duration: 1,
         ease: 'power2.inOut',
         yoyo: true,
@@ -111,12 +134,14 @@ export default class PauseScene extends BaseScene {
     );
 
     // ── Timer displays ──
+    const TIMER_GAP = 24;
+    const TIMER_W = (PANEL_W - TIMER_GAP) / 2; // each timer panel = half the animation panel width
     const timerRow = this.container.add.flexContainer({
-      layout: { gap: 24, justifyContent: 'center', flexWrap: 'wrap' },
+      layout: { gap: TIMER_GAP, width: PANEL_W, justifyContent: 'space-between', flexWrap: 'wrap' },
     });
 
     // Stopwatch panel
-    const swPanel = new CaperPanel({ width: 318, height: 110, heading: 'Stopwatch' });
+    const swPanel = new CaperPanel({ width: TIMER_W, height: 110, heading: 'Stopwatch' });
     this.stopwatchDisplay = new Text({
       text: '00:00:00',
       style: { fill: CaperColors.text, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 32 },
@@ -124,13 +149,13 @@ export default class PauseScene extends BaseScene {
     this.stopwatchDisplay.position.set(10, 10);
     swPanel.contentContainer.addChild(this.stopwatchDisplay);
     timerRow.add.existing(swPanel, {
-      layout: { width: 318, height: 110, applySizeDirectly: true },
+      layout: { width: TIMER_W, height: 110, applySizeDirectly: true },
     });
 
     this.app.timers.createTimer({ autoStart: true, onTick: this._updateStopWatch });
 
     // Countdown panel
-    const cdPanel = new CaperPanel({ width: 318, height: 110, heading: 'Countdown' });
+    const cdPanel = new CaperPanel({ width: TIMER_W, height: 110, heading: 'Countdown' });
     this.countdownDisplay = new Text({
       text: '00:00:00',
       style: { fill: CaperColors.text, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 32 },
@@ -138,7 +163,7 @@ export default class PauseScene extends BaseScene {
     this.countdownDisplay.position.set(10, 10);
     cdPanel.contentContainer.addChild(this.countdownDisplay);
     timerRow.add.existing(cdPanel, {
-      layout: { width: 318, height: 110, applySizeDirectly: true },
+      layout: { width: TIMER_W, height: 110, applySizeDirectly: true },
     });
 
     this.app.timers.createTimer({
@@ -150,33 +175,37 @@ export default class PauseScene extends BaseScene {
     });
 
     // ── Buttons ──
+    const BTN_SCALE = 0.45;
+    const BTN_W = Math.round(512 * BTN_SCALE);  // ~230
+    const BTN_H = Math.round(140 * BTN_SCALE);  // ~63
+
     this.buttonContainer = this.ui.addElement(
       this.make.flexContainer({
         label: 'Button Container',
         layout: {
           flexDirection: 'column',
-          gap: 12,
-          paddingBottom: 30,
-          paddingRight: 30,
-          width: 240,
+          gap: 10,
+          paddingBottom: 20,
+          paddingRight: 20,
+          width: BTN_W + 40,
         },
       }),
       { align: 'bottom right' },
     );
 
     const musicButton = this.buttonContainer.add.button({
-      scale: 0.5,
+      scale: BTN_SCALE,
       cursor: 'pointer',
       label: 'Music Button',
       textures: { default: 'btn/blue', hover: 'btn/yellow', disabled: 'btn/grey', active: 'btn/red' },
-      layout: { height: 70, width: 256 },
+      layout: { height: BTN_H, width: BTN_W },
       sheet: 'ui',
       accessibleTitle: 'Toggle Music',
       textLabel: {
         text: 'Toggle Music',
         anchor: 0.5,
         resolution: 2,
-        style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 36, align: 'center' },
+        style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 32, align: 'center' },
       },
     });
 
@@ -190,11 +219,11 @@ export default class PauseScene extends BaseScene {
     });
 
     const pauseButton = this.buttonContainer.add.button({
-      scale: 0.5,
+      scale: BTN_SCALE,
       cursor: 'pointer',
       label: 'Pause Button',
       textures: { default: 'btn/blue', hover: 'btn/yellow', disabled: 'btn/grey', active: 'btn/red' },
-      layout: { height: 70, width: 256 },
+      layout: { height: BTN_H, width: BTN_W },
       sheet: 'ui',
       accessibleTitle: 'Toggle Pause',
     });
@@ -203,7 +232,7 @@ export default class PauseScene extends BaseScene {
       text: 'Toggle Pause',
       anchor: 0.5,
       resolution: 2,
-      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 36, align: 'center' },
+      style: { fill: 0xffffff, fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 32, align: 'center' },
     });
 
     pauseButton.onClick.connect(() => {
@@ -297,8 +326,9 @@ export default class PauseScene extends BaseScene {
   }
 
   update() {
+    const range = 660 - 32 - 100; // PANEL_W - padding - sprite room, matches GSAP range
     this.tickerAnimated.x += 3 * this.tickerAnimationConfig.direction;
-    if (this.tickerAnimated.x >= 200) {
+    if (this.tickerAnimated.x >= range) {
       this.tickerAnimationConfig.direction = -1;
     } else if (this.tickerAnimated.x <= 0) {
       this.tickerAnimationConfig.direction = 1;

@@ -69,7 +69,7 @@ export default class Start extends Base {
 
     // CTA
     const cta = this.container.add.text({
-      text: '←  Pick a scene from the sidebar',
+      text: 'Pick a scene from the reel below.',
       style: {
         fontFamily: FONT_BODY,
         fontSize: 14,

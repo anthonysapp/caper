@@ -1,21 +1,35 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { CaperColors } from '@/theme';
-import { FONT_DISPLAY, FONT_BODY } from '@/utils/Constants';
+import { FONT_BODY } from '@/utils/Constants';
 
 export interface CaperPanelOptions {
   width: number;
   height: number;
+  /**
+   * Optional panel heading — rendered inside a green "Floating Slab" tab that
+   * hangs off the top-left corner of the panel. Pass the panel title (e.g.
+   * `'Animations'`, `'Stopwatch'`). Omit for an untitled panel.
+   */
   heading?: string;
+  /**
+   * @deprecated Use `heading` directly. Kept for backwards compat;
+   * when `true`, renders the heading even if the string form is omitted.
+   */
+  slab?: boolean | string;
+  /** Corner radius for the panel body. Defaults to 12. */
   radius?: number;
 }
 
 /**
- * Branded container panel with olive hairline border,
- * caper-panel fill, rounded corners, and optional Syncopate heading.
+ * Branded container panel with neutral hairline border, caper-panel fill,
+ * rounded corners, and an optional "Floating Slab" heading tab — a small
+ * green pill hanging off the top-left corner containing the panel title
+ * in Space Grotesk Bold. Matches the Pro-Retro v2.1 style guide.
  */
 export class CaperPanel extends Container {
   private bg: Graphics;
-  private headingText?: Text;
+  private slabBg?: Graphics;
+  private slabText?: Text;
   readonly contentContainer: Container;
   private _panelWidth: number;
   private _panelHeight: number;
@@ -30,28 +44,40 @@ export class CaperPanel extends Container {
     this.bg = new Graphics();
     this.addChild(this.bg);
 
-    const contentY = options.heading ? 40 : 12;
+    // Resolve heading text: prefer `heading`, fall back to `slab` string.
+    const headingText =
+      options.heading ?? (typeof options.slab === 'string' ? options.slab : undefined);
+
+    // Slab tab — green pill with the panel title, hangs off top-left
+    if (headingText) {
+      this.slabBg = new Graphics();
+      this.addChild(this.slabBg);
+
+      this.slabText = new Text({
+        text: headingText,
+        style: {
+          fontFamily: FONT_BODY,
+          fontSize: 12,
+          fontWeight: '700',
+          fill: CaperColors.ink,
+        },
+      });
+      this.addChild(this.slabText);
+    }
+
+    // Content starts below the slab so it doesn't overlap
+    const contentY = headingText ? 20 : 12;
     this.contentContainer = new Container();
     this.contentContainer.position.set(16, contentY);
     this.addChild(this.contentContainer);
 
-    if (options.heading) {
-      this.headingText = new Text({
-        text: options.heading.toUpperCase(),
-        style: {
-          fontFamily: FONT_DISPLAY,
-          fontSize: 11,
-          fontWeight: 'bold',
-          fill: CaperColors.oliveHi,
-          letterSpacing: 3,
-        },
-      });
-      this.headingText.anchor.set(0.5, 0);
-      this.headingText.position.set(this._panelWidth / 2, 14);
-      this.addChild(this.headingText);
-    }
-
     this.draw();
+
+    // Fonts may still be loading when draw() first runs. Redraw once they're
+    // ready so the slab backing correctly matches the final text width.
+    if (this.slabText && typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(() => this.draw());
+    }
   }
 
   private draw(): void {
@@ -62,14 +88,30 @@ export class CaperPanel extends Container {
     this.bg
       .roundRect(0, 0, this._panelWidth, this._panelHeight, this._radius)
       .stroke({ color: CaperColors.line, width: 1 });
+
+    if (this.slabBg && this.slabText) {
+      // Slab pill — green fill with dark text, hangs off top-left
+      const padX = 10;
+      const padY = 4;
+      const textW = this.slabText.width;
+      const textH = this.slabText.height;
+      const slabW = textW + padX * 2;
+      const slabH = textH + padY * 2;
+      const slabX = 12;
+      const slabY = -Math.round(slabH / 2);
+
+      this.slabBg.clear();
+      this.slabBg
+        .roundRect(slabX, slabY, slabW, slabH, 4)
+        .fill({ color: CaperColors.olive });
+
+      this.slabText.position.set(slabX + padX, slabY + padY);
+    }
   }
 
   resize(width: number, height: number): void {
     this._panelWidth = width;
     this._panelHeight = height;
-    if (this.headingText) {
-      this.headingText.position.x = this._panelWidth / 2;
-    }
     this.draw();
   }
 }

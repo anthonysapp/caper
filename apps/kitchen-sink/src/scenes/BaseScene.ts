@@ -46,7 +46,7 @@ export default class BaseScene extends Scene {
       alignItems: 'flex-start',
       justifyContent: 'flex-start',
       x: -this.app.size.width * 0.5,
-      y: -this.app.size.height * 0.5,
+      y: -this.app.size.height * 0.5 + 50,
       label: 'Header',
     });
 
@@ -97,8 +97,8 @@ export default class BaseScene extends Scene {
 
     if (this.titleContainer) {
       this.titleContainer.layoutWidth = this.app.size.width;
-      this.titleContainer.x = -this.app.size.width * 0.5;
-      this.titleContainer.y = -this.app.size.height * 0.5 + 20;
+      this.titleContainer.x = -this.app.size.width * 0.5 - 10;
+      this.titleContainer.y = -this.app.size.height * 0.5 + 60;
     }
 
     if (this._title) {
