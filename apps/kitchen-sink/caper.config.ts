@@ -2,6 +2,7 @@ import { KitchenSinkApplication } from '@/KitchenSinkApplication';
 import EN from '@/locales/en';
 import { Transition } from '@/scenes/Transition';
 import { ExampleOutliner } from '@/ui/ExampleOutliner';
+import { FONT_BODY } from '@/utils/Constants';
 import { CustomEases } from '@/utils/Easing';
 import { defineActions, defineButtons, defineConfig, defineContexts, defineControls, defineData } from '@caper/core';
 
@@ -106,7 +107,7 @@ export default defineConfig({
   useVoiceover: true,
   defaultScene: 'start',
   defaultTextStyle: {
-    fontFamily: 'KumbhSans',
+    fontFamily: FONT_BODY,
     fontSize: 24,
     fill: 0xffffff,
   },

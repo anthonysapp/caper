@@ -1,6 +1,9 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { CaperColors } from '@/theme';
 import { FONT_BODY } from '@/utils/Constants';
+import { defineUI } from '@caper/core';
+
+export const ui = defineUI({ id: 'caper-panel' });
 
 export interface CaperPanelOptions {
   width: number;
@@ -26,7 +29,7 @@ export interface CaperPanelOptions {
  * green pill hanging off the top-left corner containing the panel title
  * in Space Grotesk Bold. Matches the Pro-Retro v2.1 style guide.
  */
-export class CaperPanel extends Container {
+export default class CaperPanel extends Container {
   private bg: Graphics;
   private slabBg?: Graphics;
   private slabText?: Text;

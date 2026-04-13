@@ -6,14 +6,18 @@ export const entity = defineEntity({
   active: true,
 });
 
+export type ActorProps = { color?: number };
+
 const _Actor = Focusable(Interactive(Container));
 
 export class Actor extends _Actor {
   private _view: Graphics;
   private _originalY: number;
+  private color: number;
 
-  constructor(private color: number = 0xffffff) {
+  constructor(props?: ActorProps) {
     super();
+    this.color = props?.color ?? 0xffffff;
   }
 
   focusIn() {

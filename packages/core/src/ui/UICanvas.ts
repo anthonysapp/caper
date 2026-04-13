@@ -1,10 +1,21 @@
 import type { LayoutOptions } from '@pixi/layout';
-import { ContainerChild, Graphics, RenderLayer, Container as PIXIContainer, Rectangle } from 'pixi.js';
+import { ContainerChild, Graphics, RenderLayer, Container as PIXIContainer, Text } from 'pixi.js';
 import { Application } from '../core/Application';
 import { Container } from '../display';
 import { Factory, WithSignals } from '../mixins';
 import type { AppTypeOverrides, Padding, PointLike, Size, SizeLike } from '../utils';
-import { bindAllMethods, ensurePadding, Logger, resolveSizeLike } from '../utils';
+import {
+  bindAllMethods,
+  createDebugGraphics,
+  createDebugLabel,
+  DebugAlpha,
+  DebugColors,
+  ensurePadding,
+  Logger,
+  registerDebug,
+  resolveSizeLike,
+  unregisterDebug,
+} from '../utils';
 import { FlexContainer } from './FlexContainer';
 
 export type UICanvasEdge =
@@ -66,12 +77,11 @@ const _UICanvas = WithSignals(Factory());
 
 export class UICanvas extends _UICanvas {
   public config: UICanvasConfig;
-  protected _outerBounds: Rectangle;
-  protected _displayBounds: Rectangle;
   protected settingsMap = new Map<PIXIContainer, UICanvasChildSettings>();
   protected _childMap = new Map<PIXIContainer, PIXIContainer>();
-  protected _debugGraphics: Graphics;
-  private _reparentAddedChild: boolean = true;
+  protected _debugGraphics: Graphics | null = null;
+  protected _debugLabel: Text | null = null;
+  protected _regionLabels: Text[] = [];
   private _disableAddChildError: boolean = false;
   private _positionContainers: Map<UICanvasEdge, Container>;
 
@@ -117,15 +127,17 @@ export class UICanvas extends _UICanvas {
       ...(typeof this.config.layout === 'object' ? this.config.layout : {}),
     };
 
-    // Position the container to account for padding
     this.on('childRemoved', this._childRemoved);
-    this.on('childAdded', this._childAdded);
     this.once('added', this._added);
 
     this.addSignalConnection(this.app.onResize.connect(this.resize));
 
     this._initializeLayout();
     this._updateLayout();
+
+    if (this.config.debug) {
+      registerDebug(`UICanvas:${this.uid}`, this.label || 'UICanvas', DebugColors.outerBounds);
+    }
   }
 
   private _updateLayout() {
@@ -328,6 +340,27 @@ export class UICanvas extends _UICanvas {
   }
 
   destroy() {
+    // Must be set before any child.destroy() call — PixiJS's destroy cascade
+    // calls child.removeFromParent() → parent.removeChild() internally.
+    this._disableAddChildError = true;
+
+    // Clean up debug
+    if (this.config.debug) {
+      unregisterDebug(`UICanvas:${this.uid}`);
+    }
+    if (this._debugGraphics) {
+      this._debugGraphics.destroy();
+      this._debugGraphics = null;
+    }
+    if (this._debugLabel) {
+      this._debugLabel.destroy();
+      this._debugLabel = null;
+    }
+    for (const rl of this._regionLabels) {
+      rl.destroy();
+    }
+    this._regionLabels = [];
+
     this.canvasChildren?.forEach((child) => {
       child.off('layout', this._updateLayout);
     });
@@ -388,12 +421,11 @@ export class UICanvas extends _UICanvas {
   /**
    * Adds a child to the container at the specified index
    */
-  public addChildAt = <U extends PIXIContainer | RenderLayer>(child: U, index: number): U => {
-    const newChild = this.add.existing(child);
-    if ((newChild as unknown) instanceof PIXIContainer) {
-      super.setChildIndex(newChild as PIXIContainer, index);
-    }
-    return newChild as U;
+  public addChildAt = <U extends PIXIContainer | RenderLayer>(_child: U, _index: number): U => {
+    throw new Error(
+      `UICanvas: Do not call addChildAt() directly. Use addElement(child, { align }) instead.\n` +
+        `Example: uiCanvas.addElement(myChild, { align: 'top right' })`,
+    );
   };
 
   /**
@@ -422,30 +454,20 @@ export class UICanvas extends _UICanvas {
     if (this._disableAddChildError) {
       return super.addChild(...children);
     }
-    Logger.warn(
-      `UICanvas:: You probably shouldn't add children directly to UICanvas. Use .addElement(child, settings) instead, so you can pass alignment settings.`,
-      children,
-      `will be added using the default 'top left' alignment'.`,
+    throw new Error(
+      `UICanvas: Do not call addChild() directly. Use addElement(child, { align }) instead.\n` +
+        `Example: uiCanvas.addElement(myChild, { align: 'top right' })`,
     );
-    return super.addChild(...children);
   }
 
   /**
    * Removes one or more children from the container
    */
-  public removeChild(...children: (PIXIContainer | RenderLayer)[]): PIXIContainer {
-    if (this._reparentAddedChild) {
-      children.forEach((child) => {
-        const actualChild = this._childMap.get(child as PIXIContainer) as PIXIContainer;
-        if (actualChild) {
-          return super.removeChild(actualChild);
-        }
-        return undefined;
-      });
-    } else {
-      return super.removeChild(...(children as PIXIContainer[]));
+  public removeChild(..._children: (PIXIContainer | RenderLayer)[]): PIXIContainer {
+    if (this._disableAddChildError) {
+      return super.removeChild(...(_children as PIXIContainer[]));
     }
-    return children[0] as PIXIContainer;
+    throw new Error(`UICanvas: Do not call removeChild() directly. Use removeElement(child) instead.`);
   }
 
   public resize() {
@@ -458,7 +480,7 @@ export class UICanvas extends _UICanvas {
   }
 
   public updateLayout() {
-    if (!this.app.renderer.layout) return;
+    if (this.destroyed || !this.layout || !this.app?.renderer.layout) return;
     this.app.renderer.layout.update(this);
 
     this._positionContainers.forEach((container) => {
@@ -504,6 +526,24 @@ export class UICanvas extends _UICanvas {
     return child as U;
   }
 
+  public removeElement(child: PIXIContainer): PIXIContainer {
+    const container = this._childMap.get(child);
+    if (!container) {
+      throw new Error(
+        `UICanvas: Cannot remove element — it was not added via addElement().\n` +
+          `Child label: "${child.label ?? '(unlabeled)'}"`,
+      );
+    }
+
+    container.removeChild(child);
+    child.off('layout', this._updateLayout);
+    this.settingsMap.delete(child);
+    this._childMap.delete(child);
+    this._canvasChildren = Array.from(this._childMap.keys());
+    this._updateLayout();
+    return child;
+  }
+
   private _childAdded(child: PIXIContainer) {
     if (this.config.autoLayoutChildren) {
       if (!child.layout) {
@@ -532,64 +572,155 @@ export class UICanvas extends _UICanvas {
     this._updateLayout();
   }
 
+  // --- Debug visualization ---
+  get debug(): boolean {
+    return this.config.debug;
+  }
+
+  set debug(value: boolean) {
+    this.config.debug = value;
+    if (value) {
+      const uid = `UICanvas:${this.uid}`;
+      registerDebug(uid, this.label || 'UICanvas', DebugColors.outerBounds);
+      this.drawDebug();
+    } else {
+      unregisterDebug(`UICanvas:${this.uid}`);
+      if (this._debugGraphics) {
+        this._debugGraphics.clear();
+      }
+      if (this._debugLabel) {
+        this._debugLabel.visible = false;
+      }
+      for (const rl of this._regionLabels) {
+        rl.visible = false;
+      }
+    }
+  }
+
   private drawDebug() {
-    if (!this._debugGraphics && this.parent) {
-      this._debugGraphics = this.make.graphics({
-        layout: false,
-        eventMode: 'none',
-      });
-      this.parent.addChild(this._debugGraphics);
+    // Lazily create debug graphics as a child of this canvas
+    if (!this._debugGraphics) {
+      this._disableAddChildError = true;
+      this._debugGraphics = createDebugGraphics(`${this.label ?? 'UICanvas'}:debug`);
+      super.addChild(this._debugGraphics);
       this._debugGraphics.layout = false;
-    }
-    this._outerBounds = new Rectangle(0, 0, this.config.size.width, this.config.size.height);
-
-    if (this._debugGraphics) {
-      this._debugGraphics.position.set(this.position.x, this.position.y);
+      this._disableAddChildError = false;
     }
 
-    this._displayBounds = new Rectangle(
-      this.config.padding.left,
-      this.config.padding.top,
-      this.config.size.width - this.config.padding.right - this.config.padding.left,
-      this.config.size.height - this.config.padding.bottom - this.config.padding.top,
-    );
+    if (!this._debugLabel) {
+      this._disableAddChildError = true;
+      this._debugLabel = createDebugLabel(this.label || 'UICanvas', DebugColors.outerBounds);
+      super.addChild(this._debugLabel);
+      this._debugLabel.layout = false;
+      this._disableAddChildError = false;
+    }
 
-    const centerX = this._outerBounds.x + this._outerBounds.width / 2;
-    const centerY = this._outerBounds.y + this._outerBounds.height / 2;
+    this._debugLabel.text = this.label || 'UICanvas';
+    this._debugLabel.visible = true;
+    this._debugLabel.position.set(2, 2);
 
+    this._debugGraphics.clear();
+
+    const w = this.config.size.width;
+    const h = this.config.size.height;
+    const pad = this.config.padding;
+
+    // 1. Outer bounds (red)
     this._debugGraphics
-      .clear()
-      // Outer area
-      .rect(this._outerBounds.x, this._outerBounds.y, this._outerBounds.width, this._outerBounds.height)
-      .stroke({
-        width: 1,
-        color: 0xff0000,
-        alpha: 0.5,
-        pixelLine: true,
-      })
-      // Inner area
-      .rect(this._displayBounds.x, this._displayBounds.y, this._displayBounds.width, this._displayBounds.height)
-      .stroke({
-        width: 1,
-        color: 0x00ff00,
-        alpha: 0.5,
-        pixelLine: true,
-      })
-      // Center crosshairs
+      .rect(0, 0, w, h)
+      .stroke({ width: 1, color: DebugColors.outerBounds, alpha: DebugAlpha.stroke, pixelLine: true });
+
+    // 2. Padding areas (red subtle fill)
+    if (pad.top > 0) {
+      this._debugGraphics.rect(0, 0, w, pad.top).fill({ color: DebugColors.outerBounds, alpha: DebugAlpha.fill });
+    }
+    if (pad.bottom > 0) {
+      this._debugGraphics
+        .rect(0, h - pad.bottom, w, pad.bottom)
+        .fill({ color: DebugColors.outerBounds, alpha: DebugAlpha.fill });
+    }
+    if (pad.left > 0) {
+      this._debugGraphics
+        .rect(0, pad.top, pad.left, h - pad.top - pad.bottom)
+        .fill({ color: DebugColors.outerBounds, alpha: DebugAlpha.fill });
+    }
+    if (pad.right > 0) {
+      this._debugGraphics
+        .rect(w - pad.right, pad.top, pad.right, h - pad.top - pad.bottom)
+        .fill({ color: DebugColors.outerBounds, alpha: DebugAlpha.fill });
+    }
+
+    // 3. Inner bounds (green)
+    const innerX = pad.left;
+    const innerY = pad.top;
+    const innerW = w - pad.left - pad.right;
+    const innerH = h - pad.top - pad.bottom;
+    this._debugGraphics
+      .rect(innerX, innerY, innerW, innerH)
+      .stroke({ width: 1, color: DebugColors.innerBounds, alpha: DebugAlpha.stroke, pixelLine: true });
+
+    // 4. 9-grid region visualization
+    // Build a name map from edge → container for labeling
+    const edgeNames = new Map<Container, string>();
+    this._positionContainers.forEach((container, edge) => {
+      // Use the shortest edge name for each unique container
+      if (!edgeNames.has(container) || edge.length < edgeNames.get(container)!.length) {
+        edgeNames.set(container, edge);
+      }
+    });
+
+    const uniqueContainers = [...new Set(this._positionContainers.values())];
+
+    // Ensure we have enough region labels
+    while (this._regionLabels.length < uniqueContainers.length) {
+      this._disableAddChildError = true;
+      const rl = createDebugLabel('', DebugColors.region);
+      super.addChild(rl);
+      rl.layout = false;
+      this._regionLabels.push(rl);
+      this._disableAddChildError = false;
+    }
+
+    uniqueContainers.forEach((container, i) => {
+      if (!container.layout?.computedLayout) return;
+      const cl = container.layout.computedLayout;
+      const parent = container.parent;
+      if (!parent?.layout?.computedLayout) return;
+      const parentCL = parent.layout.computedLayout;
+
+      const rx = parentCL.left + cl.left;
+      const ry = parentCL.top + cl.top;
+      const rw = cl.width;
+      const rh = cl.height;
+      const hasChildren = container.children.length > 0;
+
+      // Region fill (different alpha for occupied vs empty)
+      this._debugGraphics!
+        .rect(rx, ry, rw, rh)
+        .fill({ color: DebugColors.region, alpha: hasChildren ? DebugAlpha.fillActive : DebugAlpha.fill })
+        .stroke({ width: 1, color: DebugColors.region, alpha: 0.3, pixelLine: true });
+
+      // Region label
+      const rl = this._regionLabels[i];
+      rl.text = edgeNames.get(container) ?? '';
+      rl.visible = true;
+      rl.position.set(rx + 2, ry + 2);
+    });
+
+    // Hide unused region labels
+    for (let i = uniqueContainers.length; i < this._regionLabels.length; i++) {
+      this._regionLabels[i].visible = false;
+    }
+
+    // 5. Center crosshairs
+    const centerX = w / 2;
+    const centerY = h / 2;
+    this._debugGraphics
       .moveTo(centerX, centerY - 10)
       .lineTo(centerX, centerY + 10)
-      .stroke({
-        width: 1,
-        color: 0xff0000,
-        alpha: 0.5,
-        pixelLine: true,
-      })
+      .stroke({ width: 1, color: DebugColors.outerBounds, alpha: DebugAlpha.crosshair, pixelLine: true })
       .moveTo(centerX - 10, centerY)
       .lineTo(centerX + 10, centerY)
-      .stroke({
-        width: 1,
-        color: 0xff0000,
-        alpha: 0.5,
-      });
+      .stroke({ width: 1, color: DebugColors.outerBounds, alpha: DebugAlpha.crosshair, pixelLine: true });
   }
 }

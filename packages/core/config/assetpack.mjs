@@ -33,6 +33,34 @@ async function loadUserAssetpackConfig() {
 
 const cwd = process.cwd();
 
+/**
+ * AssetPack pipe that reads a {weight=<value>} filename tag and converts
+ * it into the `weights` array that PixiJS's loadWebFont expects.
+ *
+ * Usage: name the font file with both tags, e.g.
+ *   SpaceGrotesk-Bold{family=SpaceGrotesk}{weight=bold}{wf}.ttf
+ *
+ * AssetPack extracts `weight` as a scalar; PixiJS needs `weights` as a
+ * string[].  This pipe bridges the two.  Runs before the webfont pipe so
+ * the metadata is in place before any transform.
+ */
+function fontWeights() {
+  return {
+    folder: false,
+    name: 'font-weights',
+    defaultOptions: null,
+    tags: { weight: 'weight' },
+    test(asset) {
+      return asset.allMetaData[this.tags.weight] !== undefined;
+    },
+    async transform(asset) {
+      const raw = asset.allMetaData[this.tags.weight];
+      asset.metaData.weights = (Array.isArray(raw) ? raw : [raw]).map(String);
+      return [asset];
+    },
+  };
+}
+
 const defaultManifestUrl = 'assets.json';
 
 const env = process.env.NODE_ENV;
@@ -58,15 +86,18 @@ export const assetpackConfig = (manifestUrl = defaultManifestUrl, pixiPipesConfi
   if (cacheBust !== undefined) {
     pixiPipesConfig.cacheBust = cacheBust;
   }
+  const pipes = pixiPipes({ ...pixiPipesConfig });
+
+  // Insert fontWeights before the webfont pipe so that the {weight} tag
+  // is converted to a weights[] array before webfont processes the asset.
+  const wfIdx = pipes.findIndex((p) => p.name === 'webfont');
+  pipes.splice(wfIdx >= 0 ? wfIdx : 0, 0, fontWeights());
+
   return {
     manifestUrl,
     entry: './assets',
     logLevel: 'info',
-    pipes: [
-      ...pixiPipes({
-        ...pixiPipesConfig,
-      }),
-    ],
+    pipes,
   };
 };
 

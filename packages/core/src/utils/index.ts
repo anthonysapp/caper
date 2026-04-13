@@ -3,6 +3,7 @@ export * from './bind';
 export * from './canvas';
 export * from './color';
 export * from './console';
+export * from './debug';
 export * from './define';
 export * from './env';
 export * from './events';

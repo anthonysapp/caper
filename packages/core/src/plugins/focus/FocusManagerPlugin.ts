@@ -1,7 +1,7 @@
 import { Bounds, Container, Point, PointerEvents } from 'pixi.js';
 import { IApplication } from '../../core';
 import { Signal } from '../../signals';
-import type { Constructor, PointLike as CaperPointLike } from '../../utils';
+import type { PointLike as CaperPointLike, Constructor } from '../../utils';
 import { bindMethods, getLastMapEntry, getPreviousMapEntry, Logger } from '../../utils';
 import type { IPlugin } from '../Plugin';
 import { Plugin } from '../Plugin';
@@ -450,7 +450,7 @@ export class FocusManagerPlugin extends Plugin<FocusManagerPluginOptions> implem
       return this._removeTopLayer();
     }
     if (!this._layers.has(layerId!)) {
-      throw new Error(`Layer with ID ${layerId} does not exist.`);
+      Logger.warn(`Layer with ID ${layerId} does not exist.`);
     }
     const nextLayerId = getPreviousMapEntry(this._layers, layerId)?.[0];
     this._layers.delete(layerId!);

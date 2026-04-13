@@ -1,4 +1,4 @@
-import { Actor } from '@/entities/Actor';
+import type { Actor } from '@/entities/Actor';
 import BaseScene from '@/scenes/BaseScene';
 import { FONT_BODY } from '@/utils/Constants';
 import { Button, defineScene, FlexContainer, Logger, scaleToWidth } from '@caper/core';
@@ -48,17 +48,15 @@ export default class FocusScene extends BaseScene {
       layout: { width: this.app.size.width },
     });
 
-    this.actor1 = this.actorList.add.existing<Actor>(new Actor(), {
-      accessibleTitle: 'Actor  1',
-      accessibleHint: 'one',
-      layout: { isLeaf: true, width: 100, height: 100, transformOrigin: 'center center' },
-    });
+    this.actor1 = this.actorList.add.entity('actor');
+    this.actor1.accessibleTitle = 'Actor  1';
+    this.actor1.accessibleHint = 'one';
+    this.actor1.layout = { isLeaf: true, width: 100, height: 100, transformOrigin: 'center center' };
 
-    this.actor2 = this.actorList.add.existing<Actor>(new Actor(0x00fff0), {
-      accessibleTitle: 'Actor 2',
-      accessibleHint: 'two',
-      layout: { isLeaf: true, width: 100, height: 100 },
-    });
+    this.actor2 = this.actorList.add.entity('actor', { color: 0x00fff0 });
+    this.actor2.accessibleTitle = 'Actor 2';
+    this.actor2.accessibleHint = 'two';
+    this.actor2.layout = { isLeaf: true, width: 100, height: 100 };
 
     this.actor1.onInteraction('pointerdown').connect(() => {
       Logger.log('actor 1 clicked');

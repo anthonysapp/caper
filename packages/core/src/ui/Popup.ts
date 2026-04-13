@@ -93,14 +93,17 @@ export class Popup<T = any> extends Container implements IPopup<T> {
   /**
    * Create a new Popup
    * @param id - The unique identifier for the popup
-   * @param config - The configuration for the popup
+   * @param config - The configuration for the popup. The `data` field is
+   *   narrowed to `T` when the subclass declares its generic parameter
+   *   (e.g. `class MyPopup extends Popup<MyData>`), which flows through to
+   *   the typed `app.popups.show('id', { data })` call site.
    */
   constructor(
     public readonly id: string | number,
-    config: Partial<PopupConfig> = {},
+    config: Partial<PopupConfig<T>> = {},
   ) {
     super();
-    this.config = Object.assign({ id, ...defaultPopupConfig }, config);
+    this.config = Object.assign({ id, ...defaultPopupConfig }, config) as PopupConfig<T>;
 
     this._initialize();
   }

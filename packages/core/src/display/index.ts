@@ -1,5 +1,6 @@
 // top level
 export * from './Container';
+export * from './Entity';
 export * from './ParticleContainer';
 export * from './Scene';
 export * from './SceneTransition';

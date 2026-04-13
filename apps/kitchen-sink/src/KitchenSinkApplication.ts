@@ -1,6 +1,6 @@
+import { Application, PopupId } from '@caper/core';
 import { IFirebasePlugin } from '@caper/plugin-firebase';
 import { IGoogleAnalyticsPlugin } from '@caper/plugin-google-analytics/GoogleAnalyticsPlugin';
-import { Application } from '@caper/core';
 import { AnalyticsEvents } from 'caper.config';
 
 export class KitchenSinkApplication extends Application {
@@ -14,6 +14,6 @@ export class KitchenSinkApplication extends Application {
 
   setup() {
     this.actions('toggle_pause').connect((detail) => this.togglePause(detail.data), 'highest');
-    this.actions('show_popup').connect((detail) => this.popups.showPopup(detail.id, detail.data));
+    this.actions('show_popup').connect((detail) => this.popups.showPopup(detail.data.id as PopupId, detail.data));
   }
 }

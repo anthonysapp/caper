@@ -23,14 +23,21 @@ import type {
   AssetInitOptions,
   AssetsManifest,
   DestroyOptions,
-  Container as PIXIContainer,
   RendererDestroyOptions,
 } from 'pixi.js';
-import { Assets, isMobile, Application as PIXIPApplication, Point, TextStyle } from 'pixi.js';
+import { Assets, Container as PIXIContainer, isMobile, Application as PIXIPApplication, Point, TextStyle } from 'pixi.js';
 import type { IDataAdapter } from '../plugins/DataAdapter';
 import type { IStore } from '../store';
 import { Store } from '../store';
-import type { AppTypeOverrides, Eases, ImportList, ImportListItem, Size } from '../utils';
+import type {
+  AppTypeOverrides,
+  Eases,
+  ImportList,
+  ImportListItem,
+  SceneId,
+  SceneLoadArgs,
+  Size,
+} from '../utils';
 import { bindAllMethods, deepMerge, getDynamicModuleFromImportListItem, isDev, isPromise, Logger } from '../utils';
 
 import { createFactoryMethods, defaultFactoryMethods } from '../mixins';
@@ -125,6 +132,9 @@ export class Application extends PIXIPApplication implements IApplication {
   // method binding root
   private readonly __dill_pixel_method_binding_root = true;
 
+  // debug overlay (lazy, see getter)
+  private _debugContainer: PIXIContainer;
+
   // config
   public config: Partial<IApplicationOptions>;
   public plugins: ImportList<IPlugin>;
@@ -173,6 +183,17 @@ export class Application extends PIXIPApplication implements IApplication {
 
   get env() {
     return this._env;
+  }
+
+  get debugContainer(): PIXIContainer {
+    if (!this._debugContainer) {
+      this._debugContainer = new PIXIContainer();
+      this._debugContainer.label = 'DebugOverlay';
+      this._debugContainer.eventMode = 'none';
+      this._debugContainer.interactiveChildren = false;
+      this.stage.addChild(this._debugContainer);
+    }
+    return this._debugContainer;
   }
 
   protected _paused: boolean = false;
@@ -421,8 +442,11 @@ export class Application extends PIXIPApplication implements IApplication {
     return this._sceneManager;
   }
 
-  public loadScene(scene: LoadSceneConfig | AppScenes) {
-    this.scenes.loadScene(scene);
+  public loadScene<K extends SceneId>(id: K, ...args: SceneLoadArgs<K>): void;
+  public loadScene(scene: LoadSceneConfig | AppScenes): void;
+  public loadScene(sceneOrId: LoadSceneConfig | AppScenes | SceneId, ...args: unknown[]): void {
+    // The plugin's `loadScene` is overloaded — forward args directly.
+    (this.scenes.loadScene as (...a: unknown[]) => unknown)(sceneOrId, ...args);
   }
 
   public get webEvents(): IWebEventsPlugin {

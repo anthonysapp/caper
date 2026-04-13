@@ -22,6 +22,7 @@ type AppScenes =
   | 'animated-sprites'
   | 'spine'
   | 'assets'
+  | 'level'
   | 'pause'
   | 'timer'
   | 'endless-runner'
@@ -57,6 +58,59 @@ type AppEntities =
   | 'dragon'
   | 'player';
 
+// UI Elements
+type AppUIs = 
+  | 'CaperButton'
+  | 'CaperPanel'
+  | 'CloseButton';
+
+// Class maps — typeof-import pointers to the real discovered classes. The
+// framework uses these with ConstructorParameters<> + InstanceType<> + infer
+// to derive typed props and return types for this.add.entity / popups.show /
+// scenes.load without any AST type extraction.
+type AppSceneClasses = {
+  "start": typeof import('@/scenes/Start').default;
+  "focus": typeof import('@/scenes/accessibility/FocusScene').default;
+  "voiceover": typeof import('@/scenes/accessibility/VoiceoverScene').default;
+  "audio": typeof import('@/scenes/audio/AudioScene').default;
+  "music": typeof import('@/scenes/audio/MusicScene').default;
+  "animated-sprites": typeof import('@/scenes/display/AnimatedSpriteScene').default;
+  "spine": typeof import('@/scenes/display/SpineScene').default;
+  "assets": typeof import('@/scenes/framework/AssetScene').default;
+  "level": typeof import('@/scenes/framework/LevelScene').default;
+  "pause": typeof import('@/scenes/framework/PauseScene').default;
+  "timer": typeof import('@/scenes/framework/TimerScene').default;
+  "endless-runner": typeof import('@/scenes/physics/CrunchEndlessRunnerScene').default;
+  "crunch-physics": typeof import('@/scenes/physics/CrunchPhysicsScene').default;
+  "rive": typeof import('@/scenes/rive/RiveScene').default;
+  "firebase": typeof import('@/scenes/store/FirebaseAdapterScene').default;
+  "buttons": typeof import('@/scenes/ui/ButtonScene').default;
+  "flex-container": typeof import('@/scenes/ui/FlexContainerScene').default;
+  "ui-popup": typeof import('@/scenes/ui/PopupScene').default;
+  "text": typeof import('@/scenes/ui/TextScene').default;
+  "ui-canvas": typeof import('@/scenes/ui/UICanvasScene').default;
+  "ui-input": typeof import('@/scenes/ui/UIInputScene').default;
+  "ui-toaster": typeof import('@/scenes/ui/UIToasterScene').default;
+};
+
+type AppPopupClasses = {
+  "example": typeof import('@/popups/ExamplePopup').default;
+  "confirm": typeof import('@/popups/confirm/ConfirmPopup').default;
+};
+
+type AppEntityClasses = {
+  "actor": typeof import('@/entities/Actor').default;
+  "boy": typeof import('@/entities/Boy').default;
+  "dragon": typeof import('@/entities/Dragon').default;
+  "player": typeof import('@/entities/Player').default;
+};
+
+type AppUIClasses = {
+  "CaperButton": typeof import('@/ui/CaperButton').default;
+  "CaperPanel": typeof import('@/ui/CaperPanel').default;
+  "CloseButton": typeof import('@/ui/CloseButton').default;
+};
+
 // Locale keys (flattened dot-paths from src/locales/<reference>.ts)
 type AppLocaleKeys = 
   | 'foo'
@@ -80,6 +134,11 @@ declare module '@caper/core' {
     Plugins: AppPlugins;
     Popups: AppPopups;
     Entities: AppEntities;
+    SceneClasses: AppSceneClasses;
+    PopupClasses: AppPopupClasses;
+    EntityClasses: AppEntityClasses;
+    UIs: AppUIs;
+    UIClasses: AppUIClasses;
     LocaleKeys: AppLocaleKeys;
     Eases: Eases;
   }

@@ -74,7 +74,6 @@ export default class Start extends Base {
         fontFamily: FONT_BODY,
         fontSize: 14,
         fill: CaperColors.olive,
-        fontWeight: '500',
       },
       layout: {
         marginTop: 10,

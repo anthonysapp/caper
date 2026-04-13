@@ -90,6 +90,15 @@ export interface EntityConfigInput {
   dynamic?: boolean;
 }
 
+export interface UIConfigInput {
+  /** Unique UI element ID used in `this.add.ui(id)`. */
+  id: string;
+  /** Defaults to `true`. Set `false` to hide from discovery without deleting the file. */
+  active?: boolean;
+  /** Defaults to `false` (static import). Set `true` to code-split. */
+  dynamic?: boolean;
+}
+
 export function defineScene<T extends SceneConfigInput>(config: T): T {
   return config;
 }
@@ -103,5 +112,9 @@ export function definePopup<T extends PopupConfigInput>(config: T): T {
 }
 
 export function defineEntity<T extends EntityConfigInput>(config: T): T {
+  return config;
+}
+
+export function defineUI<T extends UIConfigInput>(config: T): T {
   return config;
 }

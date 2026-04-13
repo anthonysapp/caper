@@ -1,8 +1,9 @@
-import { Container, definePopup, Focusable, Interactive, IPopup, Popup } from '@caper/core';
-import { Graphics, Text } from 'pixi.js';
+import { Container, definePopup, Focusable, IPopup, Popup } from '@caper/core';
+import { Text } from 'pixi.js';
 
 import { FONT_BODY } from '@/utils/Constants';
-import { CaperPanel } from '@/ui/CaperPanel';
+import CaperPanel from '@/ui/CaperPanel';
+import CloseButton from '@/ui/CloseButton';
 import { gsap } from 'gsap';
 
 export const popup = definePopup({
@@ -10,29 +11,13 @@ export const popup = definePopup({
   active: true,
 });
 
-const _Button = Focusable(Interactive(Container));
-
-export class SimpleButton extends _Button {
-  view: Graphics;
-
-  constructor() {
-    super();
-    this.init();
-  }
-
-  init() {
-    this.view = this.add.graphics().roundRect(0, 0, 60, 40).fill(0xff0000);
-    this.cursor = 'pointer';
-  }
-}
-
 class FocusableText extends Focusable(Text) {}
 
 export class ExamplePopup extends Popup implements IPopup {
   window: Container;
   panel: CaperPanel;
   title: FocusableText;
-  closeButton: SimpleButton;
+  closeButton: CloseButton;
 
   protected _showAnimation: gsap.core.Timeline;
 
@@ -66,7 +51,10 @@ export class ExamplePopup extends Popup implements IPopup {
       },
     );
 
-    this.closeButton = this.window.add.existing(new SimpleButton(), { x: this.panel.width - 70, y: 10 });
+    this.closeButton = this.window.add.existing(new CloseButton(32), {
+      x: this.panel.width - 44,
+      y: 12,
+    });
     this.closeButton.accessibleTitle = 'Close button';
     this.closeButton.accessibleHint = 'Click to close popup';
 
@@ -107,7 +95,7 @@ export class ExamplePopup extends Popup implements IPopup {
     if (this.panel.width !== targetWidth) {
       this.panel.resize(targetWidth, 400);
     }
-    this.closeButton.x = this.panel.width - 70;
+    this.closeButton.x = this.panel.width - 44;
     this.window.x = -this.window.width * 0.5;
   }
 }

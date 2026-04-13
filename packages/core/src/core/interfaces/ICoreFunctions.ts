@@ -10,9 +10,16 @@ import type {
   LoadSceneConfig,
 } from '../../plugins';
 import { InputController } from '../../plugins';
-import type { IPopup, PopupConfig, PopupConstructor } from '../../ui';
+import type { IPopup } from '../../ui';
 
-import { type AppTypeOverrides } from '../../utils';
+import {
+  type AppTypeOverrides,
+  type PopupId,
+  type PopupInstance,
+  type PopupProps,
+  type SceneId,
+  type SceneLoadArgs,
+} from '../../utils';
 
 type AppContexts = AppTypeOverrides['Contexts'];
 type AppActions = AppTypeOverrides['Actions'];
@@ -55,12 +62,12 @@ export interface ICoreFunctions {
   isKeyDown(key: string): boolean;
 
   // PopupManagerPlugin
-  addPopup<T = any>(id: string | number, popup: PopupConstructor<T>): void;
-  showPopup<T = any>(id: string | number, config?: Partial<PopupConfig<T>>): Promise<IPopup<T> | undefined>;
+  showPopup<K extends PopupId>(id: K, config?: PopupProps<K>): Promise<PopupInstance<K> | undefined>;
   hidePopup<T = any>(id: string | number, data?: T): Promise<IPopup<T> | undefined>;
   removeAllPopups(animate?: boolean): void;
 
   // SceneManagerPlugin
+  loadScene<K extends SceneId>(id: K, ...args: SceneLoadArgs<K>): Promise<void>;
   loadScene(sceneIdOrLoadSceneConfig: LoadSceneConfig | AppScenes): Promise<void>;
 
   // AssetsPlugin

@@ -49,6 +49,17 @@ export interface LayoutProps {
 
 export interface ExistingProps extends AbstractProps, PositionProps, ScaleProps, VisibilityProps, LayoutProps {}
 
+/**
+ * Layout-ish props the `this.add.entity(id, props)` factory applies after
+ * construction — intentionally narrow (no `AbstractProps` index signature)
+ * so TypeScript can still narrow entity-specific props at the call site.
+ */
+export interface EntityFactoryProps
+  extends Partial<PositionProps>,
+    Partial<ScaleProps>,
+    Partial<PivotProps>,
+    Partial<VisibilityProps> {}
+
 export interface GraphicsProps extends AbstractProps, PositionProps, ScaleProps, PivotProps, VisibilityProps {}
 
 export interface SvgProps extends GraphicsProps {

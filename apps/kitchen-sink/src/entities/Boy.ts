@@ -8,13 +8,15 @@ export const entity = defineEntity({
   active: true,
 });
 
+export type BoyProps = Record<string, never>;
+
 export class Boy extends Interactive(Container) {
   private _container: Container;
   private _spine: Spine;
   private _animations: string[];
   private _currentAnimation: number;
 
-  constructor() {
+  constructor(_props?: BoyProps) {
     super();
     this._container = this.add.container();
     this._spine = this._container.add.spine({

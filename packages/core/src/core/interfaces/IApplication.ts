@@ -1,4 +1,4 @@
-import { AssetsManifest, Application as PIXIPApplication, Point } from 'pixi.js';
+import { AssetsManifest, Application as PIXIPApplication, Container as PIXIContainer, Point } from 'pixi.js';
 import type {
   ActionSignal,
   IAssetsPlugin,
@@ -80,6 +80,18 @@ export interface IApplication extends PIXIPApplication {
    * ```
    */
   readonly config: Partial<AppConfig>;
+
+  /**
+   * A top-level container for debug overlays, rendered above all other stage children.
+   * Lazily created on first access. Non-interactive and excluded from layout.
+   *
+   * Plugins and modules that draw screen-space debug (e.g. viewport bounds)
+   * should add their Graphics here rather than directly to the stage.
+   * Components drawing in local coordinates (FlexContainer, UICanvas) add
+   * debug Graphics to themselves instead — use the shared `createDebugGraphics()`
+   * and `DebugColors` utilities for consistent styling.
+   */
+  readonly debugContainer: PIXIContainer;
 
   /**
    * Environment variables available to the application.

@@ -13,8 +13,10 @@ import {
   getDynamicModuleFromImportListItem,
   isDev,
   Queue,
+  type SceneId,
   SceneImportList,
   SceneImportListItem,
+  type SceneLoadArgs,
 } from '../utils';
 import { triggerViteError } from '../utils/vite';
 import type { IPlugin } from './Plugin';
@@ -39,6 +41,8 @@ export interface ISceneManagerPlugin extends IPlugin {
 
   loadDefaultScene(): Promise<void>;
 
+  /** Typed overload — enforces `props` required when `Scene<Props>` declares a non-void generic. */
+  loadScene<K extends SceneId>(id: K, ...args: SceneLoadArgs<K>): Promise<void>;
   loadScene(sceneIdOrLoadSceneConfig: LoadSceneConfig | AppScenes): Promise<void>;
 
   getSceneFromHash(): string | null;
@@ -107,6 +111,8 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
   public defaultScene: string;
   public debugGroupsList: any[] = [];
   private _sceneModules: Map<string, Constructor<IScene>> = new Map();
+  /** Props for the pending `loadScene(id, props)` call, assigned onto the new scene before `initialize()` runs. */
+  private _pendingLoadProps: unknown = undefined;
   //
   private _lastScene: IScene | null = null;
   private _queue: Queue<any> | null;
@@ -198,9 +204,14 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
     return this.loadScene(this.defaultScene);
   }
 
-  public async loadScene(sceneIdOrLoadSceneConfig: string): Promise<void>;
+  public async loadScene<K extends SceneId>(id: K, ...args: SceneLoadArgs<K>): Promise<void>;
+  public async loadScene(sceneIdOrLoadSceneConfig: LoadSceneConfig | string): Promise<void>;
 
-  public async loadScene(sceneIdOrLoadSceneConfig: LoadSceneConfig | string): Promise<void> {
+  public async loadScene(
+    sceneIdOrLoadSceneConfig: LoadSceneConfig | string,
+    props?: unknown,
+  ): Promise<void> {
+    this._pendingLoadProps = props;
     if (this._queue) {
       // An in-flight load is interrupted by the new request: cancel the queue,
       // tear down the mid-transition scene, and proceed with the new load.
@@ -394,6 +405,11 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
 
     this.currentScene = new SceneClass();
     this.currentScene.id = this._currentSceneId;
+    // Thread the pending load-call props onto the scene. Scenes that don't
+    // declare a generic (default `Scene<void>`) just get `undefined`; scenes
+    // that declare one read them via `this.props` inside `initialize()`.
+    (this.currentScene as unknown as { props: unknown }).props = this._pendingLoadProps;
+    this._pendingLoadProps = undefined;
     if (sceneItem?.assets) {
       this.currentScene.assets = sceneItem.assets;
     }

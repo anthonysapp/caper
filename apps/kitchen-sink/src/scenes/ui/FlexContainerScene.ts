@@ -1,6 +1,6 @@
 import { FONT_BODY } from '@/utils/Constants';
 import { AlignItems, clamp, FlexContainer, FlexDirection, FlexWrap, JustifyContent, defineScene } from '@caper/core';
-import { Graphics, TextStyleOptions } from 'pixi.js';
+import { TextStyleOptions } from 'pixi.js';
 
 import BaseScene from '@/scenes/BaseScene';
 import { GUIController } from 'dat.gui';
@@ -25,7 +25,7 @@ export default class FlexContainerScene extends BaseScene {
   protected readonly title = 'Flex Container';
   protected readonly subtitle = 'Demonstrates the FlexContainer layout.';
   protected config = {
-    useBacking: true,
+    debug: true,
     width: 800,
     height: 200,
     numItems: 4,
@@ -37,18 +37,17 @@ export default class FlexContainerScene extends BaseScene {
     justifyContent: 'flex-start',
     nested: false,
   };
-  protected backing: Graphics;
   protected flexContainer: FlexContainer;
   protected widthUI: GUIController;
   protected heightUI: GUIController;
 
   configureGUI() {
     this.gui
-      .add(this.config, 'useBacking')
-      .onChange(() => {
-        this.addItems();
+      .add(this.config, 'debug')
+      .onChange((value: boolean) => {
+        this.flexContainer.debug = value;
       })
-      .name('Show backing');
+      .name('Debug');
 
     this.widthUI = this.gui.add(this.config, 'width', 0, 2000, 1).onChange(() => {
       this.addItems();
@@ -112,53 +111,36 @@ export default class FlexContainerScene extends BaseScene {
   async initialize() {
     await super.initialize();
 
-    this.backing = this.add
-      .graphics({
-        position: [-this.app.size.width * 0.5, -this.app.size.height * 0.5],
-      })
-      .rect(0, 0, this.config.width, this.config.height)
-      .fill({ color: 0x0, alpha: 0.5 });
-
     this.flexContainer = this.add.flexContainer({
-      position: [-100, -100],
+      debug: this.config.debug,
+      label: 'FlexContainer Demo',
+      position: [-this.config.width * 0.5, -this.config.height * 0.5],
       gap: this.config.gap,
       flexDirection: this.config.flexDirection as FlexDirection,
       flexWrap: this.config.flexWrap as FlexWrap,
       justifyContent: this.config.justifyContent as JustifyContent,
       alignItems: this.config.alignItems as AlignItems,
-      height: this.config.height as number,
+      layout: {
+        width: this.config.width,
+        height: this.config.height,
+      },
     });
 
     this.addItems();
   }
 
   resize() {
-    if (this.backing) {
-      this.backing.position.set(-this.backing.width / 2, -this.backing.height / 2);
-      this.flexContainer.position.set(this.backing.position.x, this.backing.position.y);
-
-      if (this.config.useBacking) {
-        this.flexContainer.size = [this.backing.width, this.backing.height];
-      }
-    }
     super.resize();
   }
 
   addItems() {
-    const { numItems, varySizes, useBacking } = this.config;
-    this.backing.visible = useBacking;
-
+    const { numItems, varySizes } = this.config;
     const width = this.config.width;
     const height = this.config.height;
 
-    if (this.backing.visible) {
-      this.backing.width = width;
-      this.backing.height = height;
-    }
-
     this.flexContainer.removeChildren();
-
     this.flexContainer.size = [width, height];
+    this.flexContainer.position.set(-width * 0.5, -height * 0.5);
 
     Array.from({ length: numItems }).forEach((_, i) => {
       if (this.config.nested && numItems > 1 && i === 1) {
@@ -179,6 +161,8 @@ export default class FlexContainerScene extends BaseScene {
       });
     });
 
+    // Force immediate layout pass after all items are in place
+    this.flexContainer.updateLayout();
     this.resize();
   }
 }

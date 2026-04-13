@@ -1,6 +1,6 @@
 import BaseScene from '@/scenes/BaseScene';
 import { CaperColors } from '@/theme';
-import { CaperPanel } from '@/ui/CaperPanel';
+import CaperPanel from '@/ui/CaperPanel';
 import { FONT_BODY } from '@/utils/Constants';
 import { Button, defineScene, FlexContainer, formatTime, PauseConfig, type SceneAssets, UICanvas } from '@caper/core';
 import { gsap } from 'gsap';

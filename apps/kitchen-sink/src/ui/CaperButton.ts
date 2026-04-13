@@ -1,6 +1,9 @@
-import { Container, Graphics, Text } from 'pixi.js';
 import { CaperColors } from '@/theme';
 import { FONT_BODY } from '@/utils/Constants';
+import { Container, defineUI } from '@caper/core';
+import { Graphics, Text } from 'pixi.js';
+
+export const ui = defineUI({ id: 'caper-button' });
 
 export interface CaperButtonOptions {
   text: string;
@@ -13,10 +16,10 @@ export interface CaperButtonOptions {
  * Branded button with olive inset bar on hover,
  * matching the sidebar's visual treatment.
  */
-export class CaperButton extends Container {
+export default class CaperButton extends Container {
   private bg: Graphics;
   private bar: Graphics;
-  private label: Text;
+  private _label: Text;
   private _btnWidth: number;
   private _btnHeight: number;
 
@@ -34,7 +37,7 @@ export class CaperButton extends Container {
     this.bar.alpha = 0;
     this.addChild(this.bar);
 
-    this.label = new Text({
+    this._label = new Text({
       text: options.text,
       style: {
         fontFamily: FONT_BODY,
@@ -43,26 +46,23 @@ export class CaperButton extends Container {
         fill: CaperColors.textDim,
       },
     });
-    this.label.anchor.set(0.5);
-    this.label.position.set(this._btnWidth / 2, this._btnHeight / 2);
-    this.addChild(this.label);
+
+    this._label.anchor.set(0.5);
+    this._label.position.set(this._btnWidth / 2, this._btnHeight / 2);
+    this.addChild(this._label);
 
     this.draw();
 
     this.on('pointerover', () => {
-      this.label.style.fill = CaperColors.text;
+      this._label.style.fill = CaperColors.text;
       this.bar.alpha = 1;
       this.bg.clear();
-      this.bg
-        .roundRect(0, 0, this._btnWidth, this._btnHeight, 6)
-        .fill({ color: CaperColors.panel2 });
-      this.bg
-        .roundRect(0, 0, this._btnWidth, this._btnHeight, 6)
-        .stroke({ color: CaperColors.line, width: 1 });
+      this.bg.roundRect(0, 0, this._btnWidth, this._btnHeight, 6).fill({ color: CaperColors.panel2 });
+      this.bg.roundRect(0, 0, this._btnWidth, this._btnHeight, 6).stroke({ color: CaperColors.line, width: 1 });
     });
 
     this.on('pointerout', () => {
-      this.label.style.fill = CaperColors.textDim;
+      this._label.style.fill = CaperColors.textDim;
       this.bar.alpha = 0;
       this.draw();
     });
@@ -74,16 +74,10 @@ export class CaperButton extends Container {
 
   private draw(): void {
     this.bg.clear();
-    this.bg
-      .roundRect(0, 0, this._btnWidth, this._btnHeight, 6)
-      .fill({ color: CaperColors.panel });
-    this.bg
-      .roundRect(0, 0, this._btnWidth, this._btnHeight, 6)
-      .stroke({ color: CaperColors.line, width: 1 });
+    this.bg.roundRect(0, 0, this._btnWidth, this._btnHeight, 6).fill({ color: CaperColors.panel });
+    this.bg.roundRect(0, 0, this._btnWidth, this._btnHeight, 6).stroke({ color: CaperColors.line, width: 1 });
 
     this.bar.clear();
-    this.bar
-      .roundRect(0, 4, 2, this._btnHeight - 8, 1)
-      .fill({ color: CaperColors.olive });
+    this.bar.roundRect(0, 4, 2, this._btnHeight - 8, 1).fill({ color: CaperColors.olive });
   }
 }

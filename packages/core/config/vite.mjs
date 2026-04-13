@@ -937,12 +937,14 @@ function dillPixelConfigPlugin(isProject = true) {
     const plugins = await discoverPlugins(server);
     const popups = await discoverPopups(server);
     const entities = await discoverEntities(server);
+    const uis = await discoverUIs(server);
     const localeKeys = await discoverLocaleKeys(server);
 
     const sceneIds = scenes.filter((s) => s.active !== false).map((s) => s.id);
     const pluginIds = plugins.filter((p) => p.active !== false).map((p) => p.id);
     const popupIds = popups.filter((p) => p.active !== false).map((p) => p.id);
     const entityIds = entities.filter((e) => e.active !== false).map((e) => e.id);
+    const uiIds = uis.filter((u) => u.active !== false).map((u) => u.id);
 
     // Build-time cross-reference validation. Warnings for typos that would
     // silently fail at runtime (missing bundles, unknown plugin IDs,
@@ -961,7 +963,27 @@ function dillPixelConfigPlugin(isProject = true) {
     const pluginIdType = pluginIds.length > 0 ? `\n  | '${pluginIds.join("'\n  | '")}'` : 'string';
     const popupIdType = popupIds.length > 0 ? `\n  | '${popupIds.join("'\n  | '")}'` : 'string';
     const entityIdType = entityIds.length > 0 ? `\n  | '${entityIds.join("'\n  | '")}'` : 'string';
+    const uiIdType = uiIds.length > 0 ? `\n  | '${uiIds.join("'\n  | '")}'` : 'string';
     const localeKeyType = localeKeys.length > 0 ? `\n  | '${localeKeys.join("'\n  | '")}'` : 'string';
+
+    // Emit a keyed `{ id: typeof import('...').default }` map for each of
+    // scenes/popups/entities so the framework can derive typed constructor
+    // props via `ConstructorParameters<...>[0]` / `InstanceType<...>` at call
+    // sites (`this.add.entity(id, props)` etc). Uses the `@/` alias path the
+    // discovery already emits — the generated .d.ts lives inside the user's
+    // project so tsconfig `paths` applies.
+    const buildClassMap = (items) => {
+      const active = items.filter((i) => i.active !== false && i.importPath);
+      if (active.length === 0) return '  [id: string]: never;';
+      return active
+        .map((item) => `  ${JSON.stringify(item.id)}: typeof import('${item.importPath}').default;`)
+        .join('\n');
+    };
+
+    const sceneClassMap = buildClassMap(scenes);
+    const popupClassMap = buildClassMap(popups);
+    const entityClassMap = buildClassMap(entities);
+    const uiClassMap = buildClassMap(uis);
 
     const configDir = path.dirname(configPath);
     const dtsDir = path.resolve(configDir, 'src/types');
@@ -1025,6 +1047,29 @@ type AppPopups = ${popupIdType};
 // Entities
 type AppEntities = ${entityIdType};
 
+// UI Elements
+type AppUIs = ${uiIdType};
+
+// Class maps — typeof-import pointers to the real discovered classes. The
+// framework uses these with ConstructorParameters<> + InstanceType<> + infer
+// to derive typed props and return types for this.add.entity / popups.show /
+// scenes.load without any AST type extraction.
+type AppSceneClasses = {
+${sceneClassMap}
+};
+
+type AppPopupClasses = {
+${popupClassMap}
+};
+
+type AppEntityClasses = {
+${entityClassMap}
+};
+
+type AppUIClasses = {
+${uiClassMap}
+};
+
 // Locale keys (flattened dot-paths from src/locales/<reference>.ts)
 type AppLocaleKeys = ${localeKeyType};
 
@@ -1042,6 +1087,11 @@ declare module '@caper/core' {
     Plugins: AppPlugins;
     Popups: AppPopups;
     Entities: AppEntities;
+    SceneClasses: AppSceneClasses;
+    PopupClasses: AppPopupClasses;
+    EntityClasses: AppEntityClasses;
+    UIs: AppUIs;
+    UIClasses: AppUIClasses;
     LocaleKeys: AppLocaleKeys;
     Eases: Eases;
   }
@@ -1275,8 +1325,13 @@ async function discoverPlugins(server) {
  * `active` / `dynamic` metadata (either from individual exports or a
  * `defineX({...})` wrapper). Used for popups and entities — same shape
  * as scenes/plugins minus the npm-package discovery path.
+ *
+ * `defaultDynamic` sets the emit mode when a file doesn't declare it
+ * explicitly. Entities default to `false` (static import) because the
+ * typed `this.add.entity(id, props)` factory needs sync access to the
+ * constructor; popups default to `true` because `show()` is async.
  */
-async function discoverLocalClassFiles({ dir, kind, server }) {
+async function discoverLocalClassFiles({ dir, kind, server, defaultDynamic = true }) {
   const rootDir = path.resolve(process.cwd(), dir);
   if (!fs.existsSync(rootDir)) return [];
 
@@ -1297,18 +1352,18 @@ async function discoverLocalClassFiles({ dir, kind, server }) {
       const importPath = `@${relativePath.replace(/\.ts$/, '')}`;
       const id = exports.id || cls.id?.name || path.basename(file, '.ts');
       const name = cls.id?.name || id;
+      const isDynamic = exports.dynamic !== undefined ? exports.dynamic : defaultDynamic;
 
       results.push({
         id,
         name,
         importPath,
-        module:
-          exports.dynamic === false
-            ? importPath
-            : {
-                toString: () => `() => import('${importPath}')`,
-                isFunction: true,
-              },
+        module: !isDynamic
+          ? importPath
+          : {
+              toString: () => `() => import('${importPath}')`,
+              isFunction: true,
+            },
         active: exports.active === false ? false : true,
       });
     } catch (e) {
@@ -1337,7 +1392,16 @@ async function discoverPopups(server) {
 }
 
 async function discoverEntities(server) {
-  return discoverLocalClassFiles({ dir: 'src/entities', kind: 'entity', server });
+  // Entities default to static imports so `this.add.entity(id, props)` can
+  // synchronously construct without awaiting a dynamic import. Opt into
+  // code-splitting per-entity with `defineEntity({ dynamic: true })`.
+  return discoverLocalClassFiles({ dir: 'src/entities', kind: 'entity', server, defaultDynamic: false });
+}
+
+async function discoverUIs(server) {
+  // UI elements default to static imports so `this.add.ui(id, props)` can
+  // synchronously construct. Same rationale as entities.
+  return discoverLocalClassFiles({ dir: 'src/ui', kind: 'ui', server, defaultDynamic: false });
 }
 
 /**
@@ -1430,6 +1494,24 @@ export function entityListPlugin(isProject = true) {
     discoverFn: discoverEntities,
     exportName: 'entityList',
     pluginName: 'vite-plugin-entities',
+  });
+}
+
+export function uiListPlugin(isProject = true) {
+  if (!isProject) {
+    const virtualModuleId = 'virtual:caper-uis';
+    const resolvedVirtualModuleId = '\0' + virtualModuleId;
+    return {
+      name: 'vite-plugin-uis',
+      resolveId: (id) => (id === virtualModuleId ? resolvedVirtualModuleId : undefined),
+      load: (id) => (id === resolvedVirtualModuleId ? 'export const uiList = [];' : undefined),
+    };
+  }
+  return createClassListPlugin({
+    virtualModuleId: 'virtual:caper-uis',
+    discoverFn: discoverUIs,
+    exportName: 'uiList',
+    pluginName: 'vite-plugin-uis',
   });
 }
 
@@ -1600,7 +1682,7 @@ async function findTypeScriptFiles(dir) {
 // Callees whose single argument is treated as the entire config object and
 // unwrapped into the exported constant's value. Keep in sync with the
 // identity helpers in src/utils/define.ts.
-const DEFINE_HELPER_NAMES = new Set(['defineScene', 'definePlugin', 'definePopup', 'defineEntity']);
+const DEFINE_HELPER_NAMES = new Set(['defineScene', 'definePlugin', 'definePopup', 'defineEntity', 'defineUI']);
 
 function findExportedConstants(ast) {
   const exports = {};
@@ -1747,12 +1829,16 @@ async function discoverScenes(server) {
       const exports = findExportedConstants(ast);
 
       const relativePath = file.replace(process.cwd(), '').replace(/\\/g, '/').split('/src')[1];
-      // remove /src
+      // remove /src — the runtime import uses the raw alias (Vite resolves
+      // `.ts` automatically) while the typeof-import codegen needs the
+      // extension stripped so TypeScript's path-alias resolution finds it.
       const importPath = `@${relativePath}`;
+      const importPathForTypes = importPath.replace(/\.ts$/, '');
       const id = exports.id || sceneClass.id?.name || path.basename(file, '.ts');
 
       scenes.push({
         id,
+        importPath: importPathForTypes,
         module:
           exports.dynamic === false
             ? importPath
@@ -1872,6 +1958,7 @@ function createCaperRuntimePlugin() {
           import { sceneList } from 'virtual:caper-scenes';
           import { popupList } from 'virtual:caper-popups';
           import { entityList } from 'virtual:caper-entities';
+          import { uiList } from 'virtual:caper-uis';
           import { create } from '@caper/core';
 
           (globalThis).Caper = (globalThis).Caper || {};
@@ -1887,11 +1974,13 @@ function createCaperRuntimePlugin() {
           (globalThis).Caper.pluginsList = pluginsList;
           (globalThis).Caper.popupList = popupList;
           (globalThis).Caper.entityList = entityList;
+          (globalThis).Caper.uiList = uiList;
 
           (globalThis).Caper.sceneIds = sceneList.map((scene) => scene.id);
           (globalThis).Caper.pluginIds = pluginsList.map((plugin) => plugin.id);
           (globalThis).Caper.popupIds = popupList.map((popup) => popup.id);
           (globalThis).Caper.entityIds = entityList.map((entity) => entity.id);
+          (globalThis).Caper.uiIds = uiList.map((ui) => ui.id);
 
           (globalThis).Caper.get = function (key) {
             (globalThis).Caper = (globalThis).Caper || {};
@@ -2069,6 +2158,7 @@ const defaultConfig = {
     sceneListPlugin(),
     popupListPlugin(),
     entityListPlugin(),
+    uiListPlugin(),
     assetpackPlugin(),
     assetTypesPlugin(),
     dillPixelConfigPlugin(),

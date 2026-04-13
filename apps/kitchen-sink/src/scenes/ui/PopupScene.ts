@@ -1,7 +1,6 @@
 import { FONT_BODY } from '@/utils/Constants';
-import { ActionDetail, Button, FlexContainer, PopupConfig, defineScene } from '@caper/core';
+import { Button, FlexContainer, PopupConfig, PopupId, defineScene } from '@caper/core';
 
-import { ExamplePopup } from '@/popups/ExamplePopup';
 import BaseScene from '@/scenes/BaseScene';
 
 export const scene = defineScene({
@@ -25,12 +24,13 @@ export default class PopupScene extends BaseScene {
     this.app.func.setActionContext('game');
     this.app.focus.addFocusLayer(this.id);
 
-    this.app.popups.addPopup('one', ExamplePopup);
-    this.app.popups.addPopup('two', ExamplePopup);
-    this.app.popups.addPopup('three', ExamplePopup);
+    // Popups are now auto-registered from discovery (src/popups/). No
+    // addPopup() calls needed — just reference the discovered ids.
 
-    this.app.popups.onPopupChanged.connect(() => {
-      console.log(this.app.popups.hasActivePopups);
+    this.app.popups.onHidePopup.connect((detail) => {
+      if (detail.id === 'confirm') {
+        console.log(`[PopupScene] Confirm popup closed — user picked: ${detail.data?.choice ?? 'unknown'}`);
+      }
     });
 
     this.buttonContainer = this.add.flexContainer({
@@ -42,38 +42,37 @@ export default class PopupScene extends BaseScene {
       x: this.app.size.width,
     });
 
-    this.addButton('Popup 1', () => {
+    this.addButton('Example', () => {
       this.app.action('show_popup', {
-        id: 'one',
-        data: { title: `Example Popup 1` },
+        id: 'example',
+        data: { title: `Example Popup` },
       });
     });
-    this.addButton('Popup 2', () =>
+    this.addButton('No ESC Close', () =>
       this.app.action('show_popup', {
-        id: 'two',
-        data: { title: `Example Popup 2:\nWon't close on ESC` },
+        id: 'example',
+        data: { title: `Example Popup:\nWon't close on ESC` },
         closeOnEscape: false,
       }),
     );
-    this.addButton('Popup 3', () =>
+    this.addButton('No Outside Close', () =>
       this.app.action('show_popup', {
-        id: 'three',
-        data: { title: "Example Popup 3:\nWon't close on click outside" },
+        id: 'example',
+        data: { title: "Example Popup:\nWon't close on click outside" },
         closeOnPointerDownOutside: false,
         backing: { color: 'red' },
       }),
     );
-    this.addSignalConnection(this.app.actions('show_popup').connect(this._handleShowPopup));
+    this.addButton('Confirm', () =>
+      this.app.action('show_popup', {
+        id: 'confirm',
+        data: { title: 'Confirm Popup' },
+      }),
+    );
   }
 
   public async start() {
     this.app.focus.add(this.buttons, this.id, true);
-  }
-
-  async _handleShowPopup(action: ActionDetail<PopupConfig<{ title: string }>>) {
-    if (action.data?.id) {
-      this.showPopup(action.data?.id, action.data);
-    }
   }
 
   addButton(label: string = 'Button', callback: () => void) {
@@ -105,13 +104,13 @@ export default class PopupScene extends BaseScene {
   }
 
   showPopup(
-    popupId: string | number,
+    popupId: PopupId,
     config: Partial<PopupConfig> = {
       backing: { color: 0x222222 },
       data: { title: `Example Popup ${popupId}` },
     },
   ) {
-    this.app.func.showPopup(popupId, config);
+    this.app.popups.show(popupId, config);
   }
 
   resize() {

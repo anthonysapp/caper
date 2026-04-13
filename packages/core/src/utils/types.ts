@@ -1,5 +1,6 @@
 import type { AssetInitOptions, AssetsManifest, AssetsPreferences, Texture, UnresolvedAsset } from 'pixi.js';
 import { Point } from 'pixi.js';
+import type { Scene } from '../display/Scene';
 import { SceneAssets } from '../display';
 import type { FilterBitmapFontNames, FilterCleanAssetNames, FilterSpineAssetNames } from './typefilters';
 
@@ -293,8 +294,115 @@ export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
- 
+
 export interface AppTypeOverrides {}
+
+// ============================================================================
+// Typed factory helpers (entities / popups / scenes)
+// ----------------------------------------------------------------------------
+// The Vite plugin's `generateTypes()` emits `SceneClasses` / `PopupClasses` /
+// `EntityClasses` into the `AppTypeOverrides` augmentation as keyed
+// `{ [id]: typeof import('@/...').default }` maps. The helpers below pull
+// constructor params and instance types out of those maps via plain
+// TypeScript — no AST type extraction, full fidelity on generics and
+// imports. If the generated maps are missing (framework built in isolation
+// or no entities/popups discovered), the helpers degrade to `never`.
+// ============================================================================
+
+type _EntityClassMap = AppTypeOverrides extends { EntityClasses: infer E } ? E : Record<string, never>;
+type _PopupClassMap = AppTypeOverrides extends { PopupClasses: infer P } ? P : Record<string, never>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _SceneClassMap = AppTypeOverrides extends { SceneClasses: infer S } ? S : Record<string, never>;
+
+/** Any-constructor shape. */
+type AnyCtor = abstract new (...args: any[]) => any;
+
+type _UIClassMap = AppTypeOverrides extends { UIClasses: infer U } ? U : Record<string, never>;
+
+/** Union of discovered entity IDs from `src/entities/`. */
+export type EntityId = keyof _EntityClassMap & string;
+/** Constructor type of the entity class registered under `K`. */
+export type EntityCtor<K extends EntityId> = _EntityClassMap[K] extends AnyCtor
+  ? _EntityClassMap[K]
+  : never;
+/**
+ * Props accepted by the entity's constructor — derived from the first
+ * parameter of its constructor signature. Enforces the single-options-object
+ * convention at the call site of `this.add.entity(id, props)`.
+ */
+export type EntityProps<K extends EntityId> = EntityCtor<K> extends AnyCtor
+  ? ConstructorParameters<EntityCtor<K>>[0]
+  : never;
+/** Instance type returned by `this.add.entity(id, props)`. */
+export type EntityInstance<K extends EntityId> = EntityCtor<K> extends AnyCtor
+  ? InstanceType<EntityCtor<K>>
+  : never;
+
+/** Union of discovered UI element IDs from `src/ui/`. */
+export type UIId = keyof _UIClassMap & string;
+/** Constructor type of the UI class registered under `K`. */
+export type UICtor<K extends UIId> = _UIClassMap[K] extends AnyCtor ? _UIClassMap[K] : never;
+/**
+ * Props accepted by the UI element's constructor — derived from the first
+ * parameter of its constructor signature.
+ */
+export type UIProps<K extends UIId> = UICtor<K> extends AnyCtor
+  ? ConstructorParameters<UICtor<K>>[0]
+  : never;
+/** Instance type returned by `this.add.ui(id, props)`. */
+export type UIInstance<K extends UIId> = UICtor<K> extends AnyCtor
+  ? InstanceType<UICtor<K>>
+  : never;
+
+/** Union of discovered popup IDs from `src/popups/`. */
+export type PopupId = keyof _PopupClassMap & string;
+/** Constructor type of the popup class registered under `K`. */
+export type PopupCtor<K extends PopupId> = _PopupClassMap[K] extends AnyCtor
+  ? _PopupClassMap[K]
+  : never;
+/**
+ * Config accepted by `app.popups.show(id, config)` — the second constructor
+ * parameter of the popup class. If the popup declares its data generic
+ * (e.g. `class Foo extends Popup<MyDataType>`), `config.data` narrows to
+ * that type at the call site.
+ */
+export type PopupProps<K extends PopupId> = PopupCtor<K> extends abstract new (
+  id: any,
+  config?: infer C,
+) => any
+  ? C
+  : never;
+/** Instance type returned by `app.popups.show(id, config)`. */
+export type PopupInstance<K extends PopupId> = PopupCtor<K> extends AnyCtor
+  ? InstanceType<PopupCtor<K>>
+  : never;
+
+/** Union of discovered scene IDs from `src/scenes/`. */
+export type SceneId = keyof _SceneClassMap & string;
+/** Constructor type of the scene class registered under `K`. */
+export type SceneCtor<K extends SceneId> = _SceneClassMap[K] extends AnyCtor
+  ? _SceneClassMap[K]
+  : never;
+/** Instance type returned by `app.scenes.load(id, props)`. */
+export type SceneInstance<K extends SceneId> = SceneCtor<K> extends AnyCtor
+  ? InstanceType<SceneCtor<K>>
+  : never;
+/**
+ * Props accepted by `app.scenes.load(id, props)`. Derived from the scene's
+ * `Scene<Props>` generic — scenes that don't declare a generic resolve to
+ * `void`, so callers don't pass a second argument. Scenes that declare
+ * `class LevelScene extends Scene<{ levelId: number }>` require the prop
+ * object at the call site.
+ */
+export type SceneProps<K extends SceneId> = SceneInstance<K> extends Scene<infer P> ? P : void;
+/**
+ * Tuple form of `SceneProps<K>` — `[]` when `void`, `[props: P]` otherwise.
+ * Used in overloaded `loadScene` signatures so unparameterized scenes keep
+ * the `load('menu')` shape without a second arg.
+ */
+export type SceneLoadArgs<K extends SceneId> = SceneProps<K> extends void
+  ? []
+  : [props: SceneProps<K>];
 
 export type TextureAsset =
   | FilterCleanAssetNames<AssetTypeOverrides['Texture']>

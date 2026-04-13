@@ -229,6 +229,7 @@ Small wins that compound:
 - Gamepad support in the input plugin — matters for HTML5 + Steam.
 - Plugin dependency declaration (`requires: ['scenes']`) to catch load-order bugs.
 - Bump JSDoc coverage on Scene/Plugin lifecycle and the new unified Plugin interface.
+- **Typed factory revamp** — one coherent init pattern across entities, popups, and scenes. Discovery already walks every file and parses the AST; emit `typeof import(path).default` maps for each discovered class into `AppTypeOverrides`, then derive constructor params via `ConstructorParameters<>` + `InstanceType<>` + `infer`. Net result: `this.add.entity('actor', {color, x, y})`, `app.popups.show('confirm', {data})`, `app.scenes.loadScene('level', {levelId, difficulty})` all get typed id + typed props + narrowed return types, driven entirely by the real class signatures — no AST type extraction, no fragility on generics/utility types/imports. Optional `Entity<Props>` base class + `Scene<Props>` generic round out the convention. Popups auto-register from discovery (no more `addPopup` calls). See [plan/tasks.md](./tasks.md) Phase 8 for the execution log.
 
 ---
 

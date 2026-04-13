@@ -25,6 +25,7 @@ export default class UICanvasScene extends BaseScene {
     "Demonstrates the UI Canvas's alignment options.\nInitially, size is bound to the size of the" +
     ' application.\nModify the size / padding to see the UI Canvas resize.';
   protected config = {
+    debug: true,
     size: {
       width: 200,
       height: 200,
@@ -44,11 +45,19 @@ export default class UICanvasScene extends BaseScene {
     await super.initialize();
     this.ui = this.add.uiCanvas({
       useAppSize: true,
-      debug: true,
+      debug: this.config.debug,
+      label: 'UICanvas Demo',
     });
   }
 
   configureGUI() {
+    this.gui
+      .add(this.config, 'debug')
+      .onChange((value: boolean) => {
+        this.ui.debug = value;
+      })
+      .name('Debug');
+
     this.config.size.width = this.app.size.width;
     this.config.size.height = this.app.size.height;
 
@@ -84,10 +93,7 @@ export default class UICanvasScene extends BaseScene {
   }
 
   async start() {
-    // added using incorrect method - works, but will align the element to the top left
     this.ui.addElement(this.make.text({ text: 'top left', style: whiteTextStyle(24) }), { align: 'top left' });
-
-    // adds elements the correct way
     this.ui.addElement(this.make.text({ text: 'top center', resolution: 2, style: whiteTextStyle(24) }), {
       align: 'top',
     });

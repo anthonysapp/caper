@@ -9,6 +9,8 @@ export const entity = defineEntity({
   active: true,
 });
 
+export type DragonProps = Record<string, never>;
+
 /**
  * Spine-animated cauldron, with some dynamic functionality, like
  * play splash animation and set up an inner sprite that follows up the spine animation.
@@ -20,7 +22,7 @@ export class Dragon extends Interactive(Container) {
   private readonly _animations = [this.playIdle, this.playBubbles, this.playTransition];
   private _currentAnimation = 0;
 
-  constructor() {
+  constructor(_props?: DragonProps) {
     super();
     this.container = this.add.container({ scale: 0 });
 

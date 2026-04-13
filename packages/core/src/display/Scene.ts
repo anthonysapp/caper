@@ -120,9 +120,31 @@ export interface SceneListItem {
  * }
  * ```
  */
-export class Scene extends Container implements IScene {
+export class Scene<Props = void> extends Container implements IScene {
   public readonly id: string;
   public autoUnloadAssets: boolean = false;
+
+  /**
+   * Runtime props passed via `app.scenes.load(id, props)`. Populated by
+   * `SceneManagerPlugin._createCurrentScene` after construction and before
+   * `initialize()` runs, so scene authors can read them safely from any
+   * lifecycle hook.
+   *
+   * Subclasses declare the shape via the generic parameter:
+   *
+   * @example
+   * ```ts
+   * class LevelScene extends Scene<{ levelId: number; difficulty: 'easy' | 'hard' }> {
+   *   async start() {
+   *     const { levelId } = this.props;
+   *   }
+   * }
+   * ```
+   *
+   * For scenes that don't need props, use the default `Scene<void>` (no
+   * generic parameter) — `app.scenes.load('menu')` takes no second arg.
+   */
+  public props!: Props;
 
   protected _animationContext: string;
   public get animationContext(): string {
