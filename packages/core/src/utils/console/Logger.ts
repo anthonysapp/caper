@@ -6,6 +6,7 @@ const colors = {
   warn: 'background: yellow; color: black;',
   error: 'background: red; color: white;',
 };
+const lifecycleColor = 'background: #1f2937; color: #74b64c;';
 
 export type LoggerMode = 'development' | 'default' | 'disabled';
 
@@ -48,6 +49,22 @@ export class Logger {
 
   public static error(...args: any) {
     Logger.trace('error', ...args);
+  }
+
+  public static lifecycle(subject: string, phase: 'init' | 'destroy' = 'init', ...args: any[]) {
+    if (Logger.mode === 'disabled') {
+      return;
+    }
+
+    const message = `${subject} ${phase}`;
+
+    if (Logger.mode === 'default') {
+      return console.log(`%c ${capitalize(phase)} `, lifecycleColor, message, ...args);
+    }
+
+    console.groupCollapsed(`%c ${capitalize(phase)} `, lifecycleColor, message, ...args);
+    console.trace(`%c Stack `, lifecycleColor);
+    console.groupEnd();
   }
 
   public static trace(type: 'log' | 'warn' | 'error' = 'log', ...args: any[]) {

@@ -1,0 +1,1602 @@
+# Caper — llms.txt
+
+**What Caper is.** An opinionated HTML game framework built on **PixiJS v8**. Ships
+as `@caper/core` plus a set of `@caper/plugin-*` packages. Scene-oriented
+architecture, plugin dependency ordering, typed-signal wiring, a factory surface
+on every `Container`, build-time auto-discovery of scenes/plugins/popups/entities,
+and generated TypeScript types for app IDs and assets. Caper is a personal fork
+of `dill-pixel` by Relish Studios.
+
+**Package version:** `@caper/core@6.2.2` · **Peer deps:** `pixi.js@8.x`, `@pixi/sound@^6`, `gsap@^3.13`.
+
+**File citations in this guide** point at the `@caper/core` package source
+(paths relative to this file, e.g. `../src/core/Application.ts`) — those ship
+with the npm package and resolve wherever the agent is reading from. Code
+snippets are self-contained; you shouldn't need to fetch anything external to
+produce working code.
+
+**External references worth fetching when deeper context is needed:**
+- `pixijs.com/llms.txt` — PixiJS v8 API reference
+- `@caper/core` README on npm — package overview
+
+---
+
+## Table of contents
+
+1. [Rules of engagement](#1-rules-of-engagement) — read this first
+2. [Project layout & scaffolding CLI](#2-project-layout--scaffolding-cli)
+3. [Bootstrap: `create()` + entry](#3-bootstrap-create--entry)
+4. [`defineConfig` & companion helpers](#4-defineconfig--companion-helpers)
+5. [Scene lifecycle](#5-scene-lifecycle)
+6. [Factory methods: `add.*` / `make.*`](#6-factory-methods-add--make)
+7. [UI primitives](#7-ui-primitives)
+8. [Built-in plugins (on `app`)](#8-built-in-plugins-on-app)
+9. [Plugin authoring](#9-plugin-authoring)
+10. [Display objects beyond UI](#10-display-objects-beyond-ui)
+11. [Assets & AssetPack](#11-assets--assetpack)
+12. [Signals, Store, mixins](#12-signals-store-mixins)
+13. [First-party plugins (`@caper/plugin-*`)](#13-first-party-plugins-caperplugin-)
+14. [Generated types & virtual modules](#14-generated-types--virtual-modules)
+15. [Common recipes](#15-common-recipes)
+16. [Gotchas & verification loop](#16-gotchas--verification-loop)
+17. [API reference index](#17-api-reference-index)
+
+---
+
+## 1. Rules of engagement
+
+These six rules are the difference between idiomatic Caper code and code the
+human will rewrite. **Apply every one.** They're ordered by how often agents
+violate them.
+
+### 1.1 `caper.config.ts` is the single source of truth
+
+Plugins listed in `caper.config.ts`'s `plugins: [...]` array are
+**authoritative**. The framework does NOT auto-register transitive dependencies. If plugin A `requires: ['b']`, both A **and** B must
+appear in `plugins: [...]`. Bootstrap throws with an actionable message if a
+required plugin is missing — it does not silently add B.
+
+```ts
+// ✅ correct — both listed explicitly
+plugins: ['google-analytics', 'firebase']
+
+// ❌ wrong — relying on transitive registration
+plugins: ['plugin-that-requires-firebase']  // bootstrap will throw
+```
+
+Corollary: if you want to disable a plugin, remove it from `plugins: []`. Don't
+add an `enabled: false` flag, don't comment-and-uncomment, don't set `autoLoad:
+false` (that defers loading, it doesn't unregister). Explicit beats clever.
+
+### 1.2 Fail loud, never silent
+
+When the framework — or any plugin you write — hits a misconfiguration, missing
+dependency, missing asset, or other dev-error condition, **throw with a message
+that says what to change and where**. Do not fall back to defaults, do not
+return `null`, do not swallow exceptions.
+
+```ts
+// ❌ wrong — silent fallback, user has no idea anything went wrong
+try { texture = Assets.get('hero'); } catch { texture = Texture.WHITE; }
+
+// ✅ correct — tell the user exactly what's broken and how to fix it
+const texture = Assets.get('hero');
+if (!texture) {
+  throw new Error(
+    `Missing texture 'hero'. Add it to an asset bundle and preload it via ` +
+    `caper.config.ts > assets.preload.bundles, or declare it on the scene via ` +
+    `export const assets: SceneAssets = { preload: { bundles: ['hero'] } }`,
+  );
+}
+```
+
+Corollary: don't add `try { ... } catch { return null }` blocks to make symptoms
+go away. Diagnose the upstream cause.
+
+### 1.3 Metadata goes on `defineX` wrappers, not class statics
+
+Scene, plugin, popup, and entity metadata is read by the Vite plugin at build
+time via AST walk of `src/scenes/`, `src/plugins/`, `src/popups/`, `src/entities/`.
+The walker reads `export const <name> = defineX({...})`. It does **not** read
+class statics, decorators, or runtime registration. See
+[src/utils/define.ts](../src/utils/define.ts) —
+`defineScene`, `definePlugin`, `definePopup`, `defineEntity`, `defineUI` are all
+identity functions whose value is type inference + AST discoverability.
+
+```ts
+// ✅ correct — AST walker picks this up; types flow through
+export const scene = defineScene({ id: 'menu', dynamic: true });
+export default class MenuScene extends Scene { /* ... */ }
+
+// ❌ wrong — static ignored by discovery; type narrowing broken
+export default class MenuScene extends Scene {
+  static id = 'menu';
+}
+```
+
+Do **not** propose TypeScript decorators, a runtime `register()` call, or
+reflection — the architecture explicitly rules them out.
+
+### 1.4 `add.*` / `make.*` over raw `new Pixi…()`
+
+Every `Container` subclass in Caper (`Scene`, `Entity`, `Popup`, `FlexContainer`,
+user subclasses) has the Factory mixin. Always use `this.add.*` to parent to
+`this`, or `this.make.*` to build detached. The factory wires position / scale /
+pivot / anchor, asset-name resolution, layout props, and signals — raw `new
+Sprite()` skips all of that.
+
+```ts
+// ✅ correct
+this.hero = this.add.sprite({ asset: 'hero', anchor: 0.5, x: 100 });
+
+// ❌ wrong — no asset resolution, no layout integration, no factory behavior
+this.hero = new Sprite(Texture.from('hero.png'));
+this.addChild(this.hero);
+this.hero.anchor.set(0.5);
+this.hero.position.set(100, 0);
+```
+
+Full factory catalog: §6. Extending with custom factories: §6 end.
+
+### 1.5 `caper add` before hand-authoring
+
+When scaffolding a new scene / plugin / popup / entity, always start from the
+CLI. The templates drop the file in the right directory, include the `defineX`
+wrapper, and wire the import shape the discovery walker expects.
+
+```bash
+caper add scene LevelOne          # → src/scenes/LevelOne.ts
+caper add plugin Analytics        # → src/plugins/AnalyticsPlugin.ts
+caper add popup Confirm           # → src/popups/ConfirmPopup.ts
+caper add entity Enemy            # → src/entities/Enemy.ts
+```
+
+Only hand-author when the template genuinely doesn't match — e.g. a subclass of
+an existing scene that's not itself discoverable.
+
+### 1.6 Verify in the running app, not in isolation
+
+Caper changes are verified by running the app in a browser, not by unit tests
+alone. The framework's own type-check + test suite (`pnpm --filter @caper/core
+test`) catches a lot, but UI/scene/asset behavior only shows up live.
+
+After any non-trivial change:
+
+1. Type-check the app (`pnpm types` or `tsc`).
+2. Build cleanly (`caper build` or the app's `build` script).
+3. **Ask the human to run `caper dev`** and eyeball the affected scene/feature.
+
+Do **not** start `caper dev` yourself — it runs forever and will block. Ask the
+user to verify visually and report back.
+
+---
+
+## 2. Project layout & scaffolding CLI
+
+### 2.1 Canonical layout (per app)
+
+The Vite plugin's discovery paths are hard-coded — don't invent alternative
+directories.
+
+```
+my-app/
+├── src/
+│   ├── main.ts                    # optional post-boot hook: main(app) export
+│   ├── MyApplication.ts           # optional Application subclass
+│   ├── scenes/                    # AST-discovered; each file: defineScene + default class
+│   ├── plugins/                   # AST-discovered; each file: definePlugin + default class
+│   ├── popups/                    # AST-discovered; each file: definePopup + default class
+│   ├── entities/                  # AST-discovered; each file: defineEntity + default class
+│   ├── ui/                        # user UI components (not discovered)
+│   ├── locales/                   # i18n key maps, one file per locale
+│   ├── types/                     # generated: caper-app.d.ts, caper-assets.d.ts
+│   ├── utils/                     # user helpers, Constants.ts, Easing.ts, etc.
+│   └── theme.ts                   # user color / token constants
+├── assets/                        # AssetPack raw inputs (folders = bundle IDs)
+├── public/                        # static passthroughs
+├── caper.config.ts                # app config — source of truth (§4)
+├── vite.config.mjs                # usually minimal; just path aliases
+├── tsconfig.json                  # extends @caper/core/config/tsconfig
+├── index.html                     # Vite entry
+└── package.json
+```
+
+### 2.2 CLI — `caper <subcommand>`
+
+Installed via `@caper/core` package. Binary at [cli.mjs](../cli.mjs). All
+subcommands run from the app root.
+
+| Command | Purpose |
+| --- | --- |
+| `caper create [path] [--use-pnpm\|--use-yarn]` | Interactive scaffolder for a new Caper app. Also exposed as `create-caper`. |
+| `caper add scene \| plugin \| popup \| entity <Name> [--dir path]` | **Primary scaffolding entry.** Emits `src/<kind>s/<Name>.ts` with `defineX` wrapper + default class + the correct import shape. |
+| `caper dev` (alias `caper start`) | Start Vite dev server with Caper plugin pre-wired. |
+| `caper build` | Production build. |
+| `caper preview` | Build then preview locally. |
+| `caper update` | Update Caper to latest. |
+| `caper install` | Install peer deps (rarely needed; normally automatic). |
+| `caper vo generate [inputDir] [outputDir]` | Voiceover CSV generation from locales. Defaults: `./src/locales` → `./src/assets/audio/vo/csv`. |
+| `caper audio compress [audioDir]` | Compress audio files. |
+| `caper audio captions [csvDir] [outputDir]` | Generate `cc.json` closed-captions from CSV. |
+
+**Name normalization.** `caper add` accepts any case and produces PascalCase
+class name + kebab-case id. `caper add scene "My Cool Scene"` → class `MyCoolScene`,
+id `my-cool-scene`.
+
+**File is auto-discovered** on the next Vite reload. No edit to `caper.config.ts`
+required (plugins are the one exception — see §1.1).
+
+### 2.3 Typical app-level scripts
+
+```jsonc
+{
+  "dev":     "pnpm clean && caper dev",
+  "build":   "pnpm clean && caper build",
+  "preview": "pnpm clean && caper preview",
+  "types":   "tsc",
+  "clean":   "rimraf dist .assetpack .cache",
+  "lint":    "eslint \"src/**/*.ts\""
+}
+```
+
+The `clean` step is important — AssetPack caches aggressively under
+`.assetpack/` and stale caches cause confusing asset/name mismatches.
+
+**Source references:** [cli.mjs](../cli.mjs), [cli/add.mjs](../cli/add.mjs),
+[cli/create.mjs](../cli/create.mjs), [templates/](../templates/).
+
+---
+
+## 3. Bootstrap: `create()` + entry
+
+### 3.1 Entry HTML + `index.html`
+
+Standard Vite entry. The Caper Vite plugin injects the config.
+
+### 3.2 `main.ts` — optional post-boot hook
+
+Default-export an `async function main(app)` that runs after the app boots. Used
+for user-level UI that spans scenes, e.g. a sidebar / overlay. If you don't
+need one, omit the file.
+
+```ts
+// src/main.ts
+import type { MyApplication } from '@/MyApplication';
+import { Sidebar } from '@/ui/sidebar';
+
+export default async function main(app: MyApplication) {
+  new Sidebar(app).mount();
+}
+```
+
+The framework calls `create()` for you — **you don't call it yourself** in an
+app using the Caper Vite plugin. `create()` is exported for programmatic /
+testing use.
+
+### 3.3 `create(config?, domElement?, speak?)`
+
+Signature (from [src/core/create.ts](../src/core/create.ts)):
+
+```ts
+function create(
+  config?: Partial<AppConfig>,
+  domElement?: string | HTMLElement | Window,
+  speak?: boolean,
+): Promise<App>
+```
+
+- `config` — merged over discovered `caper.config.ts`.
+- `domElement` — string ID, element, or Window. If ID, a container is created.
+- `speak` — voiceover initialization flag.
+
+### 3.4 Custom `Application` subclass
+
+Provide a class in `config.application` to add typed getters for plugins, a
+`setup()` hook, and convenience methods on `app`. Pattern:
+
+```ts
+import { Application, PopupId } from '@caper/core';
+import { IFirebasePlugin } from '@caper/plugin-firebase';
+
+export class MyApplication extends Application {
+  get firebase(): IFirebasePlugin {
+    return this.getPlugin('firebase') as unknown as IFirebasePlugin;
+  }
+
+  setup() {
+    // Register cross-scene action handlers here
+    this.actions('toggle_pause').connect(detail => this.togglePause(detail.data), 'highest');
+    this.actions('show_popup').connect(detail => this.popups.showPopup(detail.data.id as PopupId, detail.data));
+  }
+}
+```
+
+Then in `caper.config.ts`:
+
+```ts
+export default defineConfig({
+  application: KitchenSinkApplication,
+  // ...
+});
+```
+
+---
+
+## 4. `defineConfig` & companion helpers
+
+Everything the Vite AST walker reads. All of them are identity functions
+(`config => config`) whose real job is type inference + static discoverability.
+See [src/utils/define.ts](../src/utils/define.ts) and
+[src/core/config.ts](../src/core/config.ts).
+
+### 4.1 `defineConfig(config)` — app config
+
+Returns the config object unchanged. Use it as the **default export** of
+`caper.config.ts`. Every top-level key listed in §4.3.
+
+### 4.2 Per-file wrappers
+
+| Helper | File location | Purpose |
+| --- | --- | --- |
+| `defineScene({ id, active?, dynamic?, assets?, plugins?, debug? })` | `src/scenes/<X>.ts` | Scene metadata |
+| `definePlugin({ id, active?, dynamic?, requires? })` | `src/plugins/<X>.ts` | Plugin metadata |
+| `definePopup({ id, active?, dynamic? })` | `src/popups/<X>.ts` | Popup metadata |
+| `defineEntity({ id, active?, dynamic? })` | `src/entities/<X>.ts` | Entity metadata |
+| `defineUI({ id, active?, dynamic? })` | `src/ui/<X>.ts` | UI component metadata (optional; for `this.add.ui(id)`) |
+
+Shared fields:
+- `id` — required, lowercase kebab or snake. Must be unique across its kind.
+- `active` — default `true`. Set `false` to hide without deleting the file.
+- `dynamic` — whether to code-split: `defineScene` defaults `true`,
+  `definePlugin`/`definePopup`/`defineEntity` default `false`.
+- `requires` (plugin only) — array of plugin IDs; topologically sorted at boot.
+
+Canonical scene file shape:
+
+```ts
+// src/scenes/Menu.ts
+import { defineScene, Scene } from '@caper/core';
+
+export const scene = defineScene({
+  id: 'menu',
+  debug: { label: 'Main Menu', group: 'Menus' },
+});
+
+export default class MenuScene extends Scene {
+  async initialize() { /* ... */ }
+}
+```
+
+### 4.3 Action / input helpers
+
+Four cooperating helpers, all imported from `@caper/core`:
+
+```ts
+const contexts = defineContexts(['default', 'game', 'menu', 'popup']);
+
+const actions = defineActions(contexts, {
+  jump: { context: ['game'] },
+  close: { context: ['menu', 'popup'] },
+  show_popup: { context: '*' },            // any context
+});
+
+const buttons = defineButtons(['A', 'B']);  // physical button IDs
+
+const controls = defineControls(actions, buttons, {
+  keyboard: {
+    down: { jump: ['Space', 'W'], move_left: ['ArrowLeft', 'A'] },
+    up:   { close: 'Escape' },
+  },
+  touch:    { down: { jump: 'A' }, joystick: { move_left: ['left'] } },
+});
+```
+
+Typo protection is compile-time: `actions` keys are constrained to the union
+`contexts[number]`, `controls` keys are constrained to `keyof actions`.
+
+Wire them in the main config:
+
+```ts
+export default defineConfig({
+  actions,
+  input: { controls },
+  /* ... */
+});
+```
+
+Read actions from code via `app.actions('jump').connect(detail => { ... })`.
+
+### 4.4 `defineData(schema)` — typed persistent store
+
+```ts
+export const dataSchema = defineData({
+  score: 0 satisfies number,
+  playerName: '' satisfies string,
+  unlocked: [] as string[],
+  settings: { sfx: true, music: 1.0 },
+});
+```
+
+Then `app.data.set('score', 100)` / `app.data.get('score')` are fully typed.
+
+### 4.5 Full `AppConfig` key table
+
+Every allowed key in `caper.config.ts`. Defer shape details to
+[src/core/interfaces/IApplicationOptions.ts](../src/core/interfaces/IApplicationOptions.ts).
+
+| Key | Purpose |
+| --- | --- |
+| `id: string` | Required. Unique app ID. |
+| `application?: typeof Application` | Custom Application subclass. |
+| `defaultScene?: string` | Scene ID to load first. Typed via `AppScenes` union. |
+| `sceneTransition?: typeof SceneTransition` | Transition animation class. |
+| `defaultSceneLoadMethod?: LoadSceneMethod` | `'immediate' \| 'exitEnter' \| 'enterExit' \| 'enterBehind' \| 'transitionExitEnter' \| 'exitTransitionEnter'` |
+| `sceneGroupOrder?: string[]` | Order for the debug scene picker. |
+| `useSpine?: boolean` | Enable Spine 2D integration. |
+| `useLayout?: boolean` | Enable `@pixi/layout` (Yoga flexbox). Required for FlexContainer. |
+| `useVoiceover?: boolean` | Enable VO + captions subsystem. |
+| `useStore?: boolean` | Enable reactive store. |
+| `useHash?: boolean` | Use URL hash for scene nav (deep links). |
+| `showSceneDebugMenu?: boolean` | Dev-only in-app scene picker. |
+| `showStats?: boolean` | Show PixiJS stats overlay. |
+| `defaultTextStyle?: Partial<TextStyle>` | Global text defaults. |
+| `defaultDropShadow?: TextDropShadow` | Global drop shadow defaults. |
+| `gsap?: Partial<GSAPPluginOptions>` | GSAP config + custom eases. |
+| `data?: Partial<IDataAdapterOptions>` | `{ initial, backupKeys }` for the store. |
+| `actions?: ActionMap` | Registered actions (from `defineActions`). |
+| `input?: { controls }` | Input bindings (from `defineControls`). |
+| `focus?: { outliner? }` | Focus subsystem (keyboard/gamepad nav). |
+| `assets?: AssetLoadingOptions` | `{ preload: { bundles }, background: { bundles } }` |
+| `plugins?: PluginConfig[]` | **Source of truth for which plugins run.** |
+| `i18n?: i18nOptions` | Locales + file map. |
+| `captions?: CaptionsOptions` | Closed-captions config. |
+| `resizer?: ResizerPluginOptions` | `{ minWidth, minHeight, letterbox, center }` viewport shape. |
+| `resizeToContainer?: boolean` | Auto-fit canvas to the mount element. |
+| `autoDensity?: boolean` | PixiJS DPI handling. |
+| `resolution?: number` | DPI scale factor. |
+| `splash?: SplashOptions` | Splash screen config. |
+| `logger?: LoggerMode` | Verbosity. |
+
+Plus all standard PixiJS `ApplicationOptions` (`antialias`, `width`, `height`, etc.).
+
+**Scene/plugin/popup/entity registrations are NOT in this table** — they're
+discovered from disk. Plugins list above is the one exception.
+
+### 4.6 `plugins: [...]` tuple forms
+
+```ts
+plugins: [
+  'my-local-plugin',                              // string ID only — loads with default options
+  'google-analytics',
+  ['crunch',  { autoLoad: false }],               // tuple: defer initialization
+  ['rive',    { autoLoad: false }],
+  ['rollbar', { options: { isDev: true } }],      // tuple: pass options
+  'firebase',
+]
+```
+
+`autoLoad: false` defers `initialize()` until you call
+`app.loadPlugin('rive')`. Options are passed to the plugin's `initialize()`.
+
+**Source references:** [src/utils/define.ts](../src/utils/define.ts),
+[src/core/config.ts](../src/core/config.ts),
+[src/core/interfaces/IApplicationOptions.ts](../src/core/interfaces/IApplicationOptions.ts).
+
+---
+
+## 5. Scene lifecycle
+
+### 5.1 Class shape
+
+```ts
+export class Scene<Props = void> extends Container implements IScene {
+  public readonly id: string;
+  public props: Props;                 // set before initialize() runs
+  public autoUnloadAssets: boolean = false;
+  public assets: SceneAssets;
+
+  async preloadAssets(): Promise<void>  // load scene-specific bundles
+  async initialize(): Promise<void>     // build display tree
+  enter(fromScene?): Promise<any>       // animate in
+  async start(): Promise<void>          // gameplay hook
+  update(ticker): void                  // per-frame (inherited from Container)
+  exit(toScene?): Promise<any>          // animate out
+  destroy(options): void                // cleanup
+}
+```
+
+Signatures in [src/display/Scene.ts](../src/display/Scene.ts).
+
+### 5.2 Lifecycle order
+
+1. `preloadAssets()` — assets declared on the scene are loaded here.
+2. `initialize(props)` — display tree constructed; `this.props` is populated.
+3. `enter(fromScene)` — entry animation; awaited before next hook.
+4. `start()` — ready to play.
+5. `update(ticker)` — every frame.
+6. `exit(toScene)` — exit animation; awaited before unload.
+7. `destroy()` — resources freed. `WithSignals` auto-disconnects connections.
+
+**`this.props` is populated before `initialize()` runs**, by the
+SceneManagerPlugin after construction. Safe to read from any lifecycle hook.
+
+### 5.3 Declaring scene assets
+
+Module-level export on the scene file:
+
+```ts
+// src/scenes/Level.ts
+import { defineScene, Scene, SceneAssets } from '@caper/core';
+
+export const scene = defineScene({ id: 'level' });
+
+export const assets: SceneAssets = {
+  preload: { bundles: ['level-1'] },
+  background: { bundles: ['level-1-optional'] },
+  autoUnload: true,           // unload when leaving the scene
+};
+
+export default class LevelScene extends Scene { /* ... */ }
+```
+
+Bundle IDs come from folder names under `assets/` (see §11). Bundles that
+don't exist fail build-time validation with a warning.
+
+### 5.4 Declaring required plugins
+
+```ts
+export const plugins: ScenePlugins = ['rive', 'crunch'];
+```
+
+These plugins must be present in `caper.config.ts plugins: []`; they'll be
+loaded before this scene enters. Typos fail at compile time via the
+`AppTypeOverrides['Plugins']` union.
+
+### 5.5 Typed scene props
+
+```ts
+class LevelScene extends Scene<{ levelId: number; difficulty: 'easy' | 'hard' }> {
+  async start() {
+    const { levelId } = this.props;   // typed
+  }
+}
+```
+
+Load it typed:
+
+```ts
+app.scenes.load('level', { levelId: 3, difficulty: 'easy' });
+```
+
+### 5.6 Switching scenes
+
+`app.scenes.load(id, props?)` from `SceneManagerPlugin`. Transition shape
+controlled by the config's `defaultSceneLoadMethod` (one of: `immediate`,
+`exitEnter`, `enterExit`, `enterBehind`, `transitionExitEnter`,
+`exitTransitionEnter`) or by providing an explicit method argument.
+
+Scene-change signals:
+- `app.scenes.onSceneChangeStart.connect(scene => { ... })`
+- `app.scenes.onSceneChangeComplete.connect(scene => { ... })`
+
+### 5.7 `SceneTransition`
+
+Provide a class extending `SceneTransition` for the config's `sceneTransition`
+key. It's a full-screen container that overlays between scenes:
+
+```ts
+// src/scenes/Transition.ts
+import { SceneTransition } from '@caper/core';
+import { gsap } from 'gsap';
+
+export class Transition extends SceneTransition {
+  private _cover: Graphics;
+
+  initialize() {
+    this._cover = this.add.graphics();
+    this._cover.rect(0, 0, this.app.size.width, this.app.size.height).fill(0x000000);
+    this._cover.alpha = 0;
+  }
+
+  async enter() {
+    await gsap.to(this._cover, { alpha: 1, duration: 0.3 });
+  }
+
+  async exit() {
+    await gsap.to(this._cover, { alpha: 0, duration: 0.3 });
+  }
+}
+```
+
+Splash screen hide-when: `splash: { hideWhen: 'firstSceneEnter' | 'requiredAssetsLoaded' }`.
+
+**Source references:** [src/display/Scene.ts](../src/display/Scene.ts),
+[src/display/SceneTransition.ts](../src/display/SceneTransition.ts),
+[src/plugins/SceneManagerPlugin.ts](../src/plugins/SceneManagerPlugin.ts).
+
+---
+
+## 6. Factory methods: `add.*` / `make.*`
+
+Every `Container` subclass in Caper has both `add` and `make`:
+- `this.add.sprite({...})` — creates the object **and** addChilds it to `this`.
+- `this.make.sprite({...})` — creates and returns detached.
+
+Definition in [src/mixins/factory/const.ts](../src/mixins/factory/const.ts)
+(`defaultFactoryMethods`), props in
+[src/mixins/factory/props.ts](../src/mixins/factory/props.ts). Wrapped by
+`Factory()` mixin in [src/mixins/factory/Factory.ts](../src/mixins/factory/Factory.ts).
+
+### 6.1 Full catalog
+
+| Method | Shape / notable keys |
+| --- | --- |
+| `existing(entity, props?)` | Wrap an already-instantiated object with position/scale/pivot/anchor resolution. Use for 3rd-party or hand-constructed instances. |
+| `container(props?)` | `ContainerProps`. A `@caper/core` Container (Animated + WithSignals + Factory). |
+| `particleContainer(props?)` | `ParticleContainerProps`. |
+| `sprite(props?)` | `{ asset, sheet, anchor, x, y, scale, alpha, label, layout, ... }`. `asset` is a string ID from the asset manifest — **not** a raw Texture. |
+| `tilingSprite(props?)` | Same as sprite + tiling. |
+| `animatedSprite(props?)` | `{ sheet, animations, animation, autoPlay, autoUpdate, animationSpeed, ... }`. |
+| `graphics(props?)` | Empty Graphics; draw on it afterwards. |
+| `svg({ ctx, ... })` | Pixi Graphics from SVG context. `ctx` required. |
+| `text(props?)` | `{ text, style: { fontFamily, fontSize, fill, ... }, anchor, roundPixels, layout, ... }`. Text style is **flattened** at the top level (no nested `{ style: {} }` required). |
+| `htmlText(props?)` | Same shape as `text`, uses Pixi `HTMLText`. Note: only sees fonts loaded via `loadWebFont` — not CSS @font-face. |
+| `bitmapText(props?)` | Same as `text`; no `resolution`. |
+| `button(props)` | See §7.2. `textures.default` required. |
+| `flexContainer(props?)` | See §7.1. Yoga flexbox. |
+| `uiCanvas(props?)` | See §7.5. Root UI layer. |
+| `spine(props?)` | `{ data: 'spine/foo', autoUpdate, animationName, loop, trackIndex }`. `data` is the asset name without extension; skeleton + atlas auto-resolved. |
+| `spineAnimation<Names>(props?)` | Wrapper with typed animation-name generic. |
+| `popup(...)` | Popup construction (normally use `app.popups.show(id)` instead). |
+| `particles(props?)` | Particle emitter. |
+| `toaster(config?, defaultToastConfig?)` | Toast notification container. |
+| `entity(id, props?)` | Construct from discovered entity registry. `id` narrowed to `AppEntities`. |
+| `ui(id, props?)` | Construct from discovered UI registry. |
+
+### 6.2 Common props (applied across the catalog)
+
+Most methods auto-resolve these from a single props object:
+
+```ts
+{
+  x, y, position,                     // PositionProps
+  scale, scaleX, scaleY,              // ScaleProps
+  pivot,                              // PivotProps
+  anchor,                             // (sprite-like only)
+  label, alpha, visible, eventMode,   // AbstractProps / VisibilityProps
+  layout: { ... },                    // LayoutProps — @pixi/layout keys
+}
+```
+
+### 6.3 Canonical snippet
+
+Composition of a title + body inside a vertically-centered flex container:
+
+```ts
+this.container = this.add.flexContainer({
+  bindToAppSize: true,
+  layout: { flexDirection: 'column', alignItems: 'center', gap: 5 },
+});
+
+this.mascot = this.add.sprite({
+  asset: 'logo',              // name from the asset manifest
+  anchor: 0.5,
+  scale: 0.35,
+  y: -150,
+});
+
+this.container.add.text({
+  text: 'GAME TITLE',
+  style: { fontFamily: 'MyFont', fontSize: 42, fill: 0xffffff },
+  layout: { marginTop: 100 },
+});
+```
+
+### 6.4 Extending the factory
+
+Add project-specific factories via `Factory(extensions)`:
+
+```ts
+class MyContainer extends Factory({ customBadge: (props) => new Badge(props) }) {}
+const c = new MyContainer();
+c.add.customBadge({ /* ... */ });
+```
+
+**Source references:** [src/mixins/factory/const.ts](../src/mixins/factory/const.ts),
+[src/mixins/factory/props.ts](../src/mixins/factory/props.ts),
+[src/mixins/factory/Factory.ts](../src/mixins/factory/Factory.ts).
+
+---
+
+## 7. UI primitives
+
+All under [src/ui/](../src/ui/). Instantiate via `this.add.*` whenever
+possible — raw `new FlexContainer(...)` works but misses the parenting +
+factory resolution.
+
+### 7.1 `FlexContainer` — Yoga flexbox
+
+Backed by `@pixi/layout`. Requires `useLayout: true` in config. Signature at
+[src/ui/FlexContainer.ts](../src/ui/FlexContainer.ts).
+
+```ts
+this.add.flexContainer({
+  bindTo?: ContainerLike,               // bind size to another container
+  bindToAppSize?: boolean,              // bind to app viewport
+  autoLayoutChildren?: boolean,         // default true — marks children as leaves
+  layout?: {
+    flexDirection?: 'row' | 'column' | 'row-reverse' | 'column-reverse',
+    justifyContent?: 'center' | 'space-between' | 'space-around' | 'space-evenly' | 'flex-start' | 'flex-end',
+    alignItems?: 'center' | 'flex-start' | 'flex-end' | 'stretch' | 'baseline',
+    flexWrap?: 'wrap' | 'nowrap' | 'wrap-reverse',
+    gap?: number,
+    padding?: number, paddingTop?: number, paddingRight?: number, /* ... */
+    margin?: number, marginTop?: number, /* ... */
+    width?: SizeNumber,                 // number | 'auto' | 'intrinsic'
+    height?: SizeNumber,
+  },
+  debug?: boolean,                      // debug overlay
+});
+```
+
+Child layout metadata goes on the child's `layout` prop — `this.container.add.text({ layout: { flexGrow: 1 } })`.
+
+### 7.2 `Button` — interactive state machine
+
+[src/ui/Button.ts](../src/ui/Button.ts). Four texture states
+(`default`, `hover`, `active`, `disabled`), four sound slots (`hover`, `out`,
+`down`, `click`), action dispatch, keyboard/focus integration.
+
+```ts
+this.add.button({
+  id: 'play',
+  textures: {
+    default:  'button/default',
+    hover:    'button/hover',
+    active:   'button/active',
+    disabled: 'button/disabled',
+  },
+  sounds: { click: 'click', hover: 'hover' },
+  action: { id: 'start_game', data: { level: 1 } },  // dispatches via app.actions
+  label: { text: 'Play', style: { fontSize: 24 } },  // optional child text
+  anchor: 0.5,
+});
+```
+
+Signals on the button: `onDown`, `onUp`, `onOver`, `onOut`, `onClick`,
+`onEnabled`, `onDisabled`, `onKeyboardEvent`, `onDestroy`.
+
+### 7.3 `Popup` — focus-aware modal
+
+[src/ui/Popup.ts](../src/ui/Popup.ts). Extends `Container`,
+implements `IPopup<T>`. Pushed/popped by the PopupManager, participates in
+the focus stack and action context.
+
+```ts
+// src/popups/Confirm.ts
+import { Container, definePopup, IPopup, Popup } from '@caper/core';
+
+export const popup = definePopup({ id: 'confirm', active: true });
+
+export default class ConfirmPopup extends Popup<{ title: string; onOk: () => void }> implements IPopup {
+  initialize() {
+    // access this.config.data.title (typed via generic)
+    // access this.backing (backdrop), this.view (content)
+  }
+  async show() { /* entrance animation */ }
+  async hide() { /* exit animation */ }
+}
+```
+
+Show from anywhere:
+
+```ts
+app.popups.showPopup('confirm', { data: { title: 'Delete save?', onOk: doDelete } });
+app.popups.hidePopup('confirm');
+```
+
+### 7.4 `Toast` / `Toaster`
+
+Programmatic toast notifications. Build a `Toaster` via `this.add.toaster()`
+then push toasts to it. Also available as `app.popups.toast(...)`.
+
+### 7.5 `UICanvas` — HUD root layer
+
+A FlexContainer preset for app-size-bound HUDs. Use as the root of in-game UI.
+
+### 7.6 `Joystick` — virtual stick
+
+For touch input. Wires into the `controls.touch.joystick` bindings set via
+`defineControls`.
+
+### 7.7 `Input` — text input
+
+Pixi-native text input primitive. Limited (no browser IME) — acceptable for
+game HUDs, not rich text forms.
+
+**Source references:** [src/ui/FlexContainer.ts](../src/ui/FlexContainer.ts),
+[src/ui/Button.ts](../src/ui/Button.ts),
+[src/ui/Popup.ts](../src/ui/Popup.ts),
+[src/ui/Toast.ts](../src/ui/Toast.ts),
+[src/ui/Toaster.ts](../src/ui/Toaster.ts),
+[src/ui/UICanvas.ts](../src/ui/UICanvas.ts),
+[src/ui/Joystick.ts](../src/ui/Joystick.ts),
+[src/ui/Input.ts](../src/ui/Input.ts).
+
+---
+
+## 8. Built-in plugins (on `app`)
+
+Registered by default — **do not** list them in `plugins: [...]`. Source:
+[src/plugins/defaults.ts](../src/plugins/defaults.ts).
+
+| ID | `app.X` | Primary methods |
+| --- | --- | --- |
+| `lookup` | `app.lookup` | `add(id, obj)`, `get(id)`, `remove(id)` — id-based game-object registry. |
+| `webEvents` | `app.webEvents` | `onResize`, `onVisibilityChange`, `onBlur`, `onFocus` signals. |
+| `fullscreen` | `app.fullscreen` | `toggle()`, `enter()`, `exit()`, `isActive`. |
+| `resizer` | `app.resizer` | `onResize` signal + `size`, driven by `config.resizer`. |
+| `assets` | `app.assets` | `loadAssets(list)`, `loadBundles(ids)`, `loadSceneAssets(scene)`, `unloadSceneAssets(scene)`. Signals: `onLoadStart`, `onLoadProgress`, `onLoadComplete`, required / background variants. |
+| `scenes` | `app.scenes` | `load(id, props)`, `onSceneChangeStart`, `onSceneChangeComplete`, `current`. |
+| `actions` | `app.actions(id)` | Returns the action's signal. `.connect(cb, order?)`. |
+| `input` | `app.input` | Pointer / gamepad / touch state. |
+| `keyboard` | `app.keyboard` | Raw keyboard listener. Normally use `actions` instead. |
+| `focus` | `app.focus` | `add(entity, layerId, active)`, `addFocusLayer(id)`, `removeFocusLayer(id)`, `setFocusLayer(id)`. Outliner provided via `config.focus.outliner`. |
+| `popups` | `app.popups` | `showPopup(id, config?)`, `hidePopup(id)`, `toast(config)`. |
+| `audio` | `app.audio` | `play(id, opts)`, `stop`, `pause`, groups (`music`, `sfx`, `vo`). |
+| `i18n` | `app.i18n` | `t(key, params?)`, `setLocale(id)`, `currentLocale`. Keys typed via `AppLocaleKeys`. |
+| `timers` | `app.timers` | `delay(ms)`, `every(ms, cb)`, scene-scoped via `WithSignals`. |
+
+Access any plugin by ID: `app.getPlugin('firebase')`. Typed via
+`AppTypeOverrides['Plugins']` — typos fail at compile time.
+
+**Source references:** [src/plugins/defaults.ts](../src/plugins/defaults.ts)
+for the full list, individual plugin sources under [src/plugins/](../src/plugins/).
+
+---
+
+## 9. Plugin authoring
+
+Sources: [src/plugins/Plugin.ts](../src/plugins/Plugin.ts), template at
+[cli/add.mjs](../cli/add.mjs).
+
+### 9.1 Scaffolding
+
+Preferred: `caper add plugin <Name>` — drops a file with the right shape for a
+**local** plugin under `src/plugins/`. For a new **publishable** plugin
+package, in the Caper monorepo run `pnpm plugin:create` which scaffolds a
+full `packages/plugin-<name>/` workspace package.
+
+### 9.2 Anatomy
+
+```ts
+// src/plugins/MyPlugin.ts
+import { definePlugin, IApplication, Plugin } from '@caper/core';
+
+export const plugin = definePlugin({
+  id: 'my-plugin',
+  active: true,
+  // requires: ['firebase'],          // optional dependency ordering
+});
+
+export type MyPluginOptions = { verbose?: boolean };
+
+export default class MyPlugin extends Plugin<MyPluginOptions> {
+  public readonly id = plugin.id;
+  protected _options: MyPluginOptions = {};
+
+  async initialize(options: Partial<MyPluginOptions> = {}, app: IApplication): Promise<void> {
+    this._options = { ...this._options, ...options };
+    // set up state, register signal connections, etc.
+  }
+
+  async postInitialize(app: IApplication): Promise<void> {
+    // All other plugins have initialized. Safe to look up siblings:
+    // const firebase = app.getPlugin('firebase');
+  }
+
+  destroy(): void {
+    super.destroy();
+  }
+}
+```
+
+### 9.3 Lifecycle
+
+1. Constructor — no `app` yet.
+2. `initialize(options, app)` — ordered by `requires` (topological sort). Required
+   deps are guaranteed initialized first.
+3. `postInitialize(app)` — every plugin's `initialize` has resolved.
+4. (use) — signal handlers fire, methods called.
+5. `destroy()` — signal connections auto-disconnect via `WithSignals`.
+
+### 9.4 `requires: [...]` rules
+
+- Listed dep IDs must exist in `caper.config.ts plugins: []` (see §1.1). Bootstrap
+  throws with an actionable error if not.
+- Cycles fail bootstrap with the cycle path printed.
+- Build-time validation also warns at `caper dev`/`build` time.
+
+### 9.5 Exposing API
+
+```ts
+export default class MyPlugin extends Plugin {
+  public readonly id = 'my-plugin';
+
+  public readonly onSomething = new Signal<(x: number) => void>();
+
+  // Public methods are accessible via:
+  //   app.getPlugin('my-plugin').doThing()
+  //   — or, if you publish core functions:
+  protected getCoreFunctions(): string[] { return ['doThing']; }
+  protected getCoreSignals():   string[] { return ['onSomething']; }
+
+  doThing() { /* ... */ }
+}
+```
+
+### 9.6 Storage adapters
+
+A plugin that implements `IStorageCapability` (has `save(key, data)` and
+`load(key)` methods) is **automatically** picked up by `app.store`. No separate
+registration. The first-party `@caper/plugin-firebase` package is the reference
+implementation. See §12.2.
+
+### 9.7 Fail-loud in `initialize`
+
+Throw with actionable messages. Bootstrap catches plugin init errors and routes
+through a `pluginError` signal — but only so a later plugin doesn't block the
+whole boot; it doesn't hide anything from the user.
+
+**Source references:** [src/plugins/Plugin.ts](../src/plugins/Plugin.ts),
+[src/plugins/defaults.ts](../src/plugins/defaults.ts),
+[src/core/registries.ts](../src/core/registries.ts).
+
+---
+
+## 10. Display objects beyond UI
+
+Under [src/display/](../src/display/).
+
+| Class | Purpose |
+| --- | --- |
+| `Container` | Base container. Mixes in `Animated` + `WithSignals` + `Factory`. Has `addColoredBackground(color, alpha)`, `onDestroy` signal, `autoResize` / `autoUpdate` / `priority` options. |
+| `Entity` | Extends `Container`. Use for game objects discovered under `src/entities/`. Paired with `defineEntity({ id })`. |
+| `Scene` | Extends `Container`. See §5. |
+| `SceneTransition` | Full-screen entry/exit animation container. |
+| `AnimatedSprite` | Caper wrapper over PixiJS AnimatedSprite — accepts `{ sheet, animations, animation, autoPlay, autoUpdate, animationSpeed }`. |
+| `SpineAnimation<Names>` | Typed Spine wrapper. Animation-name union via generic. |
+| `ParticleContainer` | Pixi ParticleContainer with Caper factory/resolve semantics. |
+| `Svg` | Graphics from SVG context. |
+| `Camera` | Camera controller for following/constraining entities. |
+
+### 10.1 Entity example
+
+```ts
+// src/entities/Hero.ts
+import type { Spine } from '@caper/core';
+import { Container, defineEntity, Interactive } from '@caper/core';
+import { Rectangle } from 'pixi.js';
+
+export const entity = defineEntity({ id: 'hero', active: true });
+
+export class Hero extends Interactive(Container) {
+  private _spine: Spine;
+
+  constructor() {
+    super();
+    this._spine = this.add.spine({ data: 'spine/hero', autoUpdate: true, loop: true });
+  }
+
+  added() {
+    this.eventMode = 'static';
+    this.cursor = 'pointer';
+    this.hitArea = new Rectangle(-350, -500, 500, 500);
+    this.onInteraction('pointerdown').connect(() => this._next());
+  }
+
+  _next() { /* cycle animation */ }
+}
+
+export default Hero;
+```
+
+Use from a scene:
+
+```ts
+this.hero = this.add.entity('hero');  // typed via AppEntities union
+```
+
+**Source references:** [src/display/Container.ts](../src/display/Container.ts),
+[src/display/Entity.ts](../src/display/Entity.ts),
+[src/display/SpineAnimation.ts](../src/display/SpineAnimation.ts),
+[src/display/AnimatedSprite.ts](../src/display/AnimatedSprite.ts),
+[src/display/Camera.ts](../src/display/Camera.ts),
+[src/display/ParticleContainer.ts](../src/display/ParticleContainer.ts),
+[src/display/Svg.ts](../src/display/Svg.ts).
+
+---
+
+## 11. Assets & AssetPack
+
+AssetPack is a build-time asset compiler that generates `assets.json` + optimized
+outputs from an `assets/` folder. Caper's Vite plugin wires it automatically.
+
+### 11.1 Folder → bundle mapping
+
+A folder under `assets/` **is** a bundle. Bundle IDs are the folder names.
+The `{m}` suffix means multi-resolution (AssetPack auto-generates 1x, 2x, etc.).
+
+```
+assets/
+  splash{m}/         → bundle 'splash'
+  required{m}/       → bundle 'required'
+  game{m}/           → bundle 'game'
+  audio{m}/          → bundle 'audio'
+  spine{m}/          → bundle 'spine'
+  kenney{m}/         → bundle 'kenney'
+```
+
+Preload / background wiring in `caper.config.ts`:
+
+```ts
+assets: {
+  preload:    { bundles: ['splash', 'required', 'game'] },  // gated before first scene
+  background: { bundles: ['audio', 'spine'] },              // loaded concurrently post-boot
+}
+```
+
+Scene-specific assets declared at module level — see §5.3.
+
+### 11.2 AssetPack filename tag reference
+
+Tags appear inside `{...}` in source filenames. AssetPack extracts them pre-build.
+
+| Tag | Effect |
+| --- | --- |
+| `{family=Name}` | Web-font family name. **Must be whitespace-free.** See §16.1. |
+| `{weight=bold}` | Font weight. Caper's `fontWeights` pipe converts this to the `weights: ['bold']` array PixiJS `loadWebFont` expects. |
+| `{resolution=2x}` / `{m}` | Multi-resolution variant. `{m}` on a folder auto-detects 1x/2x. |
+| `{wf}` | Mark this file as a web font. |
+| `{fix}` | Fix alpha pre-multiplication. |
+| `{nc}` | No cache bust in production (use sparingly). |
+| `{spine}` | Mark as Spine bundle. |
+| `{rive}` | Mark as Rive bundle. |
+
+Example:
+
+```
+assets/fonts{fix}/SpaceGrotesk-Bold{family=SpaceGrotesk}{weight=bold}{wf}.ttf
+                  ↑ file          ↑ strict: no whitespace   ↑ pipe converts
+```
+
+### 11.3 Framework AssetPack config
+
+Default pipes at [config/assetpack.mjs](../config/assetpack.mjs). Includes
+compression, spritesheets, webfonts, audio, Spine, Rive, and the custom
+**`fontWeights`** pipe that runs before the webfont pipe to convert
+`{weight=X}` to `weights: [X]` for PixiJS.
+
+### 11.4 Per-app override: `.assetpack.mjs`
+
+If `.assetpack.mjs` exists at the app root, Caper's framework config loads it
+via `import()` and merges it in. Only needed when injecting custom pipes.
+
+### 11.5 Loading from code
+
+```ts
+// Individual assets
+await app.assets.loadAssets(['hero', 'enemy']);
+
+// Whole bundle
+await app.assets.loadBundles('level-1');
+
+// Progress signals
+app.assets.onLoadProgress.connect(p => console.log(`${p * 100}%`));
+app.assets.onLoadComplete.connect(() => { /* ready */ });
+```
+
+Asset names in `this.add.sprite({ asset: 'hero' })` are resolved against the
+manifest. Unknown names fail at runtime with a named error.
+
+**Source references:** [config/assetpack.mjs](../config/assetpack.mjs),
+[src/plugins/AssetsPlugin.ts](../src/plugins/AssetsPlugin.ts).
+
+---
+
+## 12. Signals, Store, mixins
+
+### 12.1 Signals (typed, priority-ordered)
+
+Based on `typed-signals`. See [src/signals/Signal.ts](../src/signals/Signal.ts).
+
+```ts
+import { Signal, SignalConnections } from '@caper/core';
+
+const onPowerup = new Signal<(kind: 'life' | 'coin', n: number) => void>();
+
+const c = onPowerup.connect((kind, n) => { /* ... */ });
+onPowerup.connectOnce(cb);
+onPowerup.connectNTimes(cb, 3);
+
+// Emit
+onPowerup.emit('life', 1);
+
+// Priorities (higher = earlier): 'highest' | 'higher' | 'high' | 'normal' | 'low' | 'lower' | 'lowest' | number
+onPowerup.connect(cb, 'highest');
+```
+
+`WithSignals` mixin (applied to Container/Scene/Entity/Plugin) auto-disconnects
+all connections on `destroy()`. Use `addSignalConnection(conn)` to register a
+connection for auto-cleanup.
+
+Common framework signals:
+- `app.onResize`, `app.webEvents.onVisibilityChange`
+- `app.scenes.onSceneChangeStart`, `onSceneChangeComplete`
+- `app.assets.onLoadStart`, `onLoadProgress`, `onLoadComplete`
+- `scene.onDestroy`, `button.onClick`, `popup.onHide`
+
+### 12.2 Store (uniform storage-adapter facade)
+
+See [src/store/Store.ts](../src/store/Store.ts).
+
+```ts
+// Save to the firebase adapter
+await app.store.save('firebase', 'playerData', { score: 100 });
+
+// Load
+const data = await app.store.load('firebase', 'playerData');
+
+// Save to all storage-capable plugins
+await app.store.save('*', 'playerData', data);
+
+// Type-safe adapter lookup
+const firebase = app.store.getAdapter<IFirebasePlugin>('firebase');
+
+// Error signal
+app.store.onError.connect(({ adapterId, operation, key, error }) => { /* ... */ });
+```
+
+Adapters = any plugin implementing `IStorageCapability`. Discovered
+automatically; no separate registration.
+
+### 12.3 Mixins
+
+All under [src/mixins/](../src/mixins/). Composable via function calls:
+
+```ts
+class MyThing extends Focusable(Interactive(Container)) {}
+```
+
+| Mixin | Adds |
+| --- | --- |
+| `Animated` | GSAP-driven `animate(props)`, `animateFrom`, `animateFromTo`, `animateSequence`, `shake(config?)`, `pulse(config?)`, `bob(config?)`. Signals `onAnimationStart/Update/Complete`. `pauseAnimations()`, `resumeAnimations()`. |
+| `WithSignals` | `signalConnections` collection; `addSignalConnection(c)`; auto-disconnect on `destroy()`. Use `connectAction(...)` for action-scoped connections. |
+| `Factory(extensions?)` | `this.add.*` / `this.make.*`. See §6. |
+| `Interactive` | Pointer-event signals: `onInteraction('pointerdown' | 'pointerup' | 'pointerover' | 'pointerout' | 'pointerupoutside' | 'pointermove').connect(cb)`. |
+| `Focusable` | Participates in keyboard/gamepad focus stack. Works with `app.focus`. |
+
+**Source references:** [src/signals/Signal.ts](../src/signals/Signal.ts),
+[src/store/Store.ts](../src/store/Store.ts),
+[src/mixins/animated.ts](../src/mixins/animated.ts),
+[src/mixins/signals.ts](../src/mixins/signals.ts),
+[src/mixins/interaction.ts](../src/mixins/interaction.ts),
+[src/mixins/focus.ts](../src/mixins/focus.ts).
+
+---
+
+## 13. First-party plugins (`@caper/plugin-*`)
+
+Each is a separate npm package. Install → list in `plugins: [...]` → use via
+`app.getPlugin(id)` or a typed getter on a custom `Application` subclass.
+
+| Package | ID | Purpose |
+| --- | --- | --- |
+| `@caper/plugin-firebase` | `firebase` | Firebase Firestore save/load. Implements `IStorageCapability` → auto-registered with `app.store`. |
+| `@caper/plugin-rive` | `rive` | Rive animation runtime. `RiveEntity` for scene-level use. |
+| `@caper/plugin-colyseus` | `colyseus` | Colyseus multiplayer rooms. |
+| `@caper/plugin-google-analytics` | `google-analytics` | GA event tracking. Generic `IGoogleAnalyticsPlugin<Events>` for typed events. |
+| `@caper/plugin-crunch` | `crunch` | Crunch 2D rigid-body physics. |
+| `@caper/plugin-rollbar` | `rollbar` | Rollbar error tracking. |
+
+Install via pnpm/npm, then register in `caper.config.ts plugins: [...]`.
+Deep API lives in each plugin's own README on npm.
+
+Canonical registration shape:
+
+```ts
+plugins: [
+  'google-analytics',
+  ['crunch',  { autoLoad: false }],
+  ['rive',    { autoLoad: false }],
+  ['rollbar', { options: { isDev: import.meta.env.MODE === 'development' } }],
+  'firebase',
+]
+```
+
+---
+
+## 14. Generated types & virtual modules
+
+The Vite plugin ([config/vite.mjs](../config/vite.mjs)) generates types on every
+dev reload. **Do not hand-edit them** — delete stale copies after renames and let
+the next build regen.
+
+### 14.1 `src/types/caper-app.d.ts`
+
+Augments `AppTypeOverrides` with unions derived from disk:
+
+| Type | Derived from |
+| --- | --- |
+| `AppScenes` | `src/scenes/*` `defineScene.id` values |
+| `AppPlugins` | `src/plugins/*` `definePlugin.id` ∪ discovered `@caper/plugin-*` |
+| `AppPopups` | `src/popups/*` `definePopup.id` |
+| `AppEntities` | `src/entities/*` `defineEntity.id` |
+| `AppActions` | keys of `defineActions` in `caper.config.ts` |
+| `AppContexts` | `defineContexts` array |
+| `AppData` | `defineData` schema shape |
+| `AppLocaleKeys` | union of keys across locale files |
+| `AppSceneClasses` | `{ 'scene-id': typeof import('./scenes/X').default }` |
+
+These narrow runtime APIs:
+
+```ts
+app.scenes.load('unknown-scene');  // ← compile error
+app.getPlugin('typo');             // ← compile error
+app.popups.showPopup('confirm');   // ← typed
+app.i18n.t('home.title');          // ← typed
+```
+
+### 14.2 `src/types/caper-assets.d.ts`
+
+Generated from AssetPack's `assets.json`:
+
+```ts
+type AssetTextures = 'caper' | 'hero' | 'button/default' | /* ... */ ;
+type AssetTexturesIn<'game'> = /* textures in the 'game' bundle only */ ;
+type AssetAudio = 'music/main' | 'sfx/jump' | /* ... */ ;
+type AssetSpine = 'spine/spineboy-pro' | /* ... */ ;
+```
+
+`this.add.sprite({ asset: 'caper' })` narrows `asset` against `AssetTextures`.
+
+### 14.3 Virtual modules
+
+Provided by the Caper Vite plugin. You rarely import them directly — they're
+implementation of the auto-wiring. Know they exist for debugging.
+
+| Module | Contents |
+| --- | --- |
+| `virtual:caper-config` | The resolved config. |
+| `virtual:caper-scenes` | Map of scene ID → `() => import('./scenes/X.ts')`. |
+| `virtual:caper-plugins` | Map of plugin ID → constructor or dynamic import. |
+| `virtual:caper-popups` | Map of popup ID → constructor. |
+| `virtual:caper-entities` | Map of entity ID → constructor. |
+| `virtual:caper-assets` | Inlined asset manifest for dev. |
+
+### 14.4 Regenerating
+
+Types regen on dev-server restart. After renaming a scene / plugin / popup /
+entity: delete the stale `caper-app.d.ts` / `caper-assets.d.ts`, then
+`caper dev` — they're re-emitted from scratch.
+
+**Source references:** [config/vite.mjs](../config/vite.mjs).
+
+---
+
+## 15. Common recipes
+
+Recipes are intentionally short — they point at the section with the full
+shape. Each one starts with `caper add` when applicable.
+
+### 15.1 Add a scene
+
+```bash
+caper add scene Level
+```
+
+Edit `src/scenes/Level.ts`:
+
+```ts
+export const scene = defineScene({ id: 'level' });
+export const assets: SceneAssets = { preload: { bundles: ['level'] } };
+
+export default class LevelScene extends Scene<{ id: number }> {
+  async initialize() {
+    const { id } = this.props;
+    this.add.text({ text: `Level ${id}`, anchor: 0.5 });
+  }
+}
+```
+
+Load it: `app.scenes.load('level', { id: 1 })`. Details: §5.
+
+### 15.2 Switch scene with typed props
+
+Declare `Scene<Props>` generic, then `app.scenes.load(id, props)` is fully typed.
+Details: §5.5.
+
+### 15.3 Add a popup
+
+```bash
+caper add popup Confirm
+```
+
+Show: `app.popups.showPopup('confirm', { data: { title: 'Sure?' } })`. Details: §7.3.
+
+### 15.4 Add an entity
+
+```bash
+caper add entity Enemy
+```
+
+Use from a scene: `this.enemy = this.add.entity('enemy')`. Details: §10.
+
+### 15.5 Add a local plugin
+
+```bash
+caper add plugin Analytics
+```
+
+Add to `caper.config.ts plugins: ['analytics', ...]`. Details: §9.
+
+For a new publishable plugin: `pnpm plugin:create`.
+
+### 15.6 Add an asset bundle
+
+1. Create `assets/<bundle>{m}/` and drop files into it.
+2. Add to `caper.config.ts assets.preload.bundles` (or `background.bundles`).
+3. Restart dev server so AssetPack re-runs and types regen.
+4. Reference files via `this.add.sprite({ asset: '<path>' })` — names flow from
+   the generated `AssetTextures` union.
+
+Details: §11.
+
+### 15.7 Scene-scoped assets
+
+Module-level `export const assets: SceneAssets = { preload: { bundles: [...] }, autoUnload: true }`.
+Details: §5.3.
+
+### 15.8 Register an action + keybinding
+
+```ts
+// caper.config.ts
+const actions = defineActions(contexts, { jump: { context: ['game'] } });
+const controls = defineControls(actions, buttons, {
+  keyboard: { down: { jump: 'Space' } },
+});
+```
+
+Listen in a scene:
+
+```ts
+this.addSignalConnection(
+  this.app.actions('jump').connect(() => this.player.jump()),
+);
+```
+
+Details: §4.3.
+
+### 15.9 Show a toast
+
+```ts
+app.popups.toast({ message: 'Saved', duration: 2 });
+```
+
+Or attach a scene-local `Toaster` via `this.add.toaster({...})`.
+
+### 15.10 Persist data
+
+```ts
+// caper.config.ts
+export const dataSchema = defineData({ score: 0 });
+
+// anywhere
+app.data.set('score', 100);
+const s = app.data.get('score');   // typed: number
+
+// persist to firebase
+await app.store.save('firebase', 'playerData', app.data.toJSON());
+```
+
+Details: §4.4, §12.2.
+
+### 15.11 Use i18n
+
+```ts
+// src/locales/en.ts
+export default { 'home.title': 'Welcome', 'play': 'Play' };
+
+// usage
+this.add.text({ text: app.i18n.t('home.title') });
+await app.i18n.setLocale('fr');
+```
+
+Locale files declared in `caper.config.ts i18n.files`.
+
+### 15.12 Add a Spine entity
+
+```bash
+caper add entity Hero
+```
+
+```ts
+this._spine = this.add.spine({
+  data: 'spine/hero',     // resolves spine/hero.json + spine/hero.atlas
+  autoUpdate: true,
+  animationName: 'idle',
+  loop: true,
+});
+```
+
+Details: §6.1 (`spine`), §10.
+
+### 15.13 FlexContainer-based HUD
+
+```ts
+const hud = this.add.uiCanvas({ /* app-sized */ });
+
+const topBar = hud.add.flexContainer({
+  layout: {
+    width: 'intrinsic', height: 60,
+    flexDirection: 'row', justifyContent: 'space-between', padding: 12,
+  },
+});
+
+topBar.add.text({ text: `Score: ${score}`, style: { fontSize: 20 } });
+topBar.add.button({ textures: { default: 'button/pause' }, action: { id: 'toggle_pause' } });
+```
+
+Details: §7.1, §7.5.
+
+### 15.14 Consume firebase
+
+```ts
+// in a scene
+const firebase = this.app.getPlugin('firebase');
+await firebase.save('save-slot-1', { score: 100 });
+const data = await firebase.load('save-slot-1');
+```
+
+Via store facade (works with any storage adapter):
+
+```ts
+await this.app.store.save('firebase', 'save-slot-1', { score: 100 });
+```
+
+---
+
+## 16. Gotchas & verification loop
+
+### 16.1 AssetPack font family tags must be whitespace-free
+
+AssetPack strips whitespace from `{tag=value}` filename tags before parsing.
+`{family=Space Grotesk}` silently becomes `{family=SpaceGrotesk}`. Worse: if
+you **don't** add a family tag at all, AssetPack falls back to the filename
+stem — so `SpaceGrotesk-Bold{wf}.ttf` registers as family
+`"SpaceGrotesk-Bold"` and each weight becomes its own family.
+
+Rule: pick a single-word family name up front. Use it verbatim in all three
+places:
+1. The `{family=...}` tag in the source font filename
+2. The CSS `@font-face { font-family: '...' }` declaration
+3. The `FONT_*` constant in `src/utils/Constants.ts`
+
+After renaming source font files, delete `.assetpack/` so AssetPack
+re-processes.
+
+### 16.2 Verify in the running app
+
+Type-check and build don't catch UI/scene/asset regressions. After changes:
+
+```bash
+pnpm types          # or tsc — compiles clean
+pnpm build          # or caper build — builds clean
+# then ask the human to run `pnpm dev` (or `caper dev`) and report visually
+```
+
+Do not start the dev server yourself — it runs forever and blocks.
+
+### 16.3 Regenerate types after renames
+
+After renaming a scene/plugin/popup/entity, delete
+`src/types/caper-app.d.ts` and `src/types/caper-assets.d.ts` (they're
+generated), then run `pnpm dev`. Old IDs stuck in the union cause weird
+downstream type errors.
+
+### 16.4 Fail loud in plugins (see §1.2)
+
+A plugin that silently falls back to default options when its config is bad
+hides the bug. Throw with "set `options.X` in `caper.config.ts plugins[]`".
+
+### 16.5 `plugins[]` is explicit (see §1.1)
+
+If plugin A `requires: ['b']`, list both in `plugins: []`. Never assume
+transitive registration.
+
+### 16.6 Prefer `caper add` over hand-authoring
+
+Hand-authored files often miss the `defineX` wrapper and land outside the
+discovery directory. Both cause the file to be silently ignored — no error,
+just doesn't work. Start from the CLI.
+
+### 16.7 Don't commit `.vscode/settings.json`
+
+Personal editor config. Must stay unstaged.
+
+### 16.8 Conventional Commits
+
+This repo uses `@commitlint/config-conventional`. Prefix every commit with
+`feat:`, `fix:`, `chore:`, `refactor:`, etc. release-please parses these for
+changelogs + version bumps.
+
+### 16.9 Bust `.assetpack/`, `dist/`, `.cache/` on weirdness
+
+`pnpm clean` in an app clears them. AssetPack caches aggressively; a stale
+cache produces confusing texture/name mismatches.
+
+---
+
+## 17. API reference index
+
+Flat jump table. Name → section → one-line.
+
+| Name | § | One-line |
+| --- | --- | --- |
+| `Application` | §3.4 | Base app class; subclass for typed plugin getters. |
+| `AnimatedSprite` | §6.1, §10 | Pixi AnimatedSprite wrapper (`animations`, `animation`, `autoPlay`). |
+| `Button` | §7.2 | Four-state interactive button with sounds + actions. |
+| `Camera` | §10 | Camera controller for scene-level follow/constrain. |
+| `Container` | §6, §10 | Caper base container (Animated + WithSignals + Factory). |
+| `create(config, el?, speak?)` | §3.3 | Programmatic app bootstrap. |
+| `defineActions(contexts, map)` | §4.3 | Typed action registry. |
+| `defineButtons(ids)` | §4.3 | Physical button IDs. |
+| `defineConfig(config)` | §4.1 | `caper.config.ts` default export. |
+| `defineContexts(ids)` | §4.3 | Action contexts. |
+| `defineControls(actions, buttons, map)` | §4.3 | Key/touch/gamepad bindings. |
+| `defineData(schema)` | §4.4 | Typed store schema. |
+| `defineEntity({id, ...})` | §4.2, §10 | Entity discovery. |
+| `definePlugin({id, requires?, ...})` | §4.2, §9 | Plugin discovery + deps. |
+| `definePopup({id, ...})` | §4.2, §7.3 | Popup discovery. |
+| `defineScene({id, ...})` | §4.2, §5 | Scene discovery. |
+| `defineUI({id, ...})` | §4.2 | UI component discovery. |
+| `Entity` | §10 | Game-object base; paired with `defineEntity`. |
+| `FlexContainer` | §7.1 | Yoga flexbox container. |
+| `Focusable` (mixin) | §12.3 | Keyboard/gamepad focus. |
+| `Interactive` (mixin) | §12.3 | Pointer-event signals. |
+| `Joystick` | §7.6 | Virtual touch stick. |
+| `Plugin<Options>` | §9 | Base plugin class. |
+| `Popup<T>` | §7.3 | Focus-aware modal; paired with `definePopup`. |
+| `Scene<Props>` | §5 | Scene base; paired with `defineScene`. |
+| `SceneTransition` | §5.7 | Full-screen entry/exit animation. |
+| `Signal<T>` | §12.1 | Typed signal with priority ordering. |
+| `SpineAnimation<Names>` | §6.1, §10 | Typed Spine wrapper. |
+| `Store` | §12.2 | Unified storage-adapter facade. |
+| `Toast` / `Toaster` | §7.4 | Toast notifications. |
+| `UICanvas` | §7.5 | HUD root layer. |
+| `app.actions(id)` | §8 | Returns the action's signal. |
+| `app.assets.loadBundles(ids)` | §8, §11.5 | Load named bundles. |
+| `app.assets.loadSceneAssets(scene)` | §8 | Load a scene's declared bundles. |
+| `app.audio.play(id, opts)` | §8 | Play a sound by manifest ID. |
+| `app.data.get(key)` / `.set(key, v)` | §4.4, §15.10 | Typed store access. |
+| `app.focus.addFocusLayer(id)` | §8 | New focus layer. |
+| `app.fullscreen.toggle()` | §8 | Request fullscreen. |
+| `app.getPlugin<T>(id)` | §8 | Typed plugin lookup. |
+| `app.i18n.t(key, params?)` | §8 | Translate. |
+| `app.i18n.setLocale(id)` | §8 | Switch locale. |
+| `app.lookup.add/get/remove(id)` | §8 | Object ID registry. |
+| `app.popups.showPopup(id, config?)` | §7.3, §8 | Show a popup. |
+| `app.popups.toast(config)` | §7.4, §8 | Push a toast. |
+| `app.resizer.size` | §8 | Current viewport. |
+| `app.scenes.load(id, props?)` | §5.6, §8 | Switch scenes. |
+| `app.store.save(adapter, key, data)` | §12.2 | Persist via storage adapter. |
+| `app.store.load(adapter, key)` | §12.2 | Read via storage adapter. |
+| `app.timers.delay(ms)` | §8 | Scene-scoped timer. |
+| `Animated.animate(props)` | §12.3 | GSAP tween. |
+| `Animated.shake()` / `.pulse()` / `.bob()` | §12.3 | Preset animations. |
+| `this.add.*` / `this.make.*` | §6 | Factory methods on any Container subclass. |
+
+---
+
+**Last updated:** `@caper/core@6.2.2` (PixiJS 8.x). When in doubt, read the
+cited framework source file — signatures and defaults are authoritative there.

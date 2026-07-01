@@ -1,5 +1,5 @@
 import type { LayoutOptions, NumberValue } from '@pixi/layout';
-import { BitmapText, Container as PIXIContainer, Graphics, Text } from 'pixi.js';
+import { BitmapText, Graphics, Container as PIXIContainer, Text } from 'pixi.js';
 import { Application } from '../core/Application';
 import { Container } from '../display';
 import { Factory, WithSignals } from '../mixins';
@@ -425,9 +425,7 @@ export class FlexContainer extends _FlexContainer {
       this._debugGraphics.rect(0, h - pb, w, pb).fill({ color: DebugColors.outerBounds, alpha: DebugAlpha.fill });
     }
     if (pl > 0) {
-      this._debugGraphics
-        .rect(0, pt, pl, h - pt - pb)
-        .fill({ color: DebugColors.outerBounds, alpha: DebugAlpha.fill });
+      this._debugGraphics.rect(0, pt, pl, h - pt - pb).fill({ color: DebugColors.outerBounds, alpha: DebugAlpha.fill });
     }
     if (pr > 0) {
       this._debugGraphics

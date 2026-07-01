@@ -11,5 +11,10 @@ const ascii = `     ........        .....     ............    ............. ....
 
 export function sayHello() {
   const hello = `\n${ascii}\n\n v${version} | %cPixi.js v${pixiVersion} %c| %chttps://github.com/anthonysapp/caper\n\n`;
-  console.log(hello);
+  console.log(
+    hello,
+    'color: #E91E63; font-weight: 600;',
+    'color: inherit;',
+    'color: #00BCD4; text-decoration: underline;',
+  );
 }

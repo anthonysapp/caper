@@ -1205,9 +1205,12 @@ declare module '@caper/core' {
  * Walks `src/plugins/` recursively, AST-parses each TypeScript file, and
  * returns a list of local plugin metadata objects.
  *
- * Mirrors `discoverScenes()`:
+ *  - requires `export const <name> = definePlugin({...})` — files without
+ *    this marker are skipped (so sibling helper modules that incidentally
+ *    default-export a class don't get phantom-registered as plugins)
  *  - requires a default-exported class in the file
  *  - honours `export const id`, `export const active`, `export const dynamic`
+ *    (also flattened from inside `definePlugin({...})` by findExportedConstants)
  *  - default is dynamic import (code-split), opt out with `dynamic = false`
  *  - plugin ID defaults to exported `id` → class name → filename
  */
@@ -1229,6 +1232,16 @@ async function discoverLocalPlugins(server) {
         loc: true,
         comment: false,
       });
+
+      const hasPluginWrapper = ast.body.some(
+        (n) =>
+          n.type === AST_NODE_TYPES.ExportNamedDeclaration &&
+          n.declaration?.type === AST_NODE_TYPES.VariableDeclaration &&
+          n.declaration.declarations.some(
+            (d) => d.init?.type === AST_NODE_TYPES.CallExpression && d.init.callee?.name === 'definePlugin',
+          ),
+      );
+      if (!hasPluginWrapper) continue;
 
       const pluginClass = findDefaultExportedClass(ast);
       if (!pluginClass) continue;

@@ -16,6 +16,7 @@
     "config/assetpack.mjs",
     "config/tsconfig.json",
     "config/.prettierrc.json",
+    "extras/llms.txt",
     "extras/css/accessibility.css",
     "extras/css/loader.css",
     "extras/css/fullscreen.css",
@@ -26,6 +27,9 @@
     ".": {
       "types": "./lib/index.d.ts",
       "default": "./lib/caper.mjs"
+    },
+    "./extras/llms.txt": {
+      "default": "./extras/llms.txt"
     },
     "./config/assetpack": {
       "default": "./config/assetpack.mjs"
@@ -86,8 +90,8 @@
   },
   "peerDependencies": {
     "@pixi/sound": "^6.0.1",
-    "gsap": "^3.13.0",
-    "pixi.js": "8.17.1"
+    "gsap": "^3.15.0",
+    "pixi.js": "8.19.0"
   },
   "dependencies": {
     "@assetpack/core": "^1.7.0",
@@ -99,12 +103,12 @@
     "@types/stats.js": "^0.17.3",
     "@vite-pwa/assets-generator": "^1.0.0",
     "csv-parse": "^5.5.5",
-    "gsap": "^3.13.0",
+    "gsap": "^3.15.0",
     "kleur": "^4.1.5",
     "npm-run-all": "^4.1.5",
     "oxc-parser": "^0.124.0",
     "pixi-filters": "^6.1.2",
-    "pixi.js": "8.17.1",
+    "pixi.js": "8.19.0",
     "prettier": "^3.2.5",
     "rimraf": "^5.0.5",
     "shelljs": "^0.8.5",

@@ -37,7 +37,7 @@
   },
   "peerDependencies": {
     "@caper/core": "workspace:*",
-    "pixi.js": "8.17.1"
+    "pixi.js": "8.19.0"
   },
   "dependencies": {
     "@rive-app/canvas-advanced-lite": "^2.26.1"
