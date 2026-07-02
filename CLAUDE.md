@@ -49,6 +49,48 @@ There is **no repo-level test command** (root `test` script is a stub). Lint liv
 - **Build tooling is centralized.** The framework exports reusable Vite and AssetPack configs (`caper/config/vite`, `caper/config/assetpack`) plus shared `tsconfig.json` and prettier config — apps and plugins should consume these rather than duplicating build setup.
 - **Signals over events.** The framework uses `typed-signals` for cross-system communication (see `src/signals/`).
 
+## App entry, client types, and the automation bridge
+
+- **Client types.** Apps add `"@caper/core/client"` to their tsconfig `types` array (shipped as `packages/core/client.d.ts`) to get the ambient `declare module 'caper-runtime'` and the `__CAPER_APP_NAME`/`__CAPER_APP_VERSION` build-define globals.
+- **Auto-injected runtime entry.** The vite runtime plugin's `transformIndexHtml` hook injects `<script type="module">import("caper-runtime")</script>` for you, so new apps need **no** `src/index.ts`. Legacy HTML that already references `caper-runtime` or a `src/index.(ts|js)` entry is left untouched and still works.
+- **Automation bridge (`src/core/globals.ts`).** Every app is registered on `window.Caper`: `Caper.apps` (Map keyed by `config.id`), `Caper.app` (last created), and `Caper.ready(id?)` (resolves even if called before the app exists; no-id resolves the first app). When gated on — dev env, `config.automation === true`, or `VITE_CAPER_AUTOMATION === 'true'` — a facade lands at `Caper.automation[id]` (and `app.automation`) exposing `action/getContext/getState/registerStateGetter/notifyStateChanged/waitFor` plus a 200-entry log fed by the ActionsPlugin's new `onActionDispatched` signal (emitted only for allowed/dispatched actions) and `onActionContextChanged`. `globals.ts` touches **no browser globals at module load** and guards all `import.meta.env` access (SSR constraint).
+
+## SSR / Node evaluation of the framework entry
+
+`@caper/core`'s built entry (`lib/caper.mjs` → `lib/registries-*.js`) bundles
+`@pixi/sound` and GSAP, both of which run **browser-only top-level side effects**
+(`document.createElement('audio')` format probe, `window` reads in the sound
+singleton, GSAP CSSPlugin's `'transform' in div.style` probe). Importing the entry
+in plain Node therefore throws `document is not defined`. This bites anything that
+evaluates an app's `caper.config.ts` server-side — notably `validateCaperConfig` in
+[packages/core/config/vite.mjs](packages/core/config/vite.mjs), which `ssrLoadModule`s
+the config on dev start and on HMR of the config graph. That function installs a
+minimal, scoped `document`/`window` stub around the load (removed in `finally`, never
+overwriting an existing DOM). If a future dep adds a new browser-only top-level side
+effect, extend that stub — smoke-test with a bare `node -e "import('.../lib/caper.mjs')"`
+under the stub rather than guessing.
+
+## Model delegation — plan at the frontier, implement downstream
+
+When a frontier model (Fable/Opus-tier) orchestrates work in this repo, it should
+**diagnose, spec, and review — not type**. Delegate implementation via the Agent tool
+with a model override (this repo has no `.claude/agents/`): `model: "sonnet"` for
+mechanical, fully-specified changes (single-file edits, spec'd fixes, renames);
+`model: "opus"` for judgment-heavy work (package export surgery, build/bundling
+changes, anything spanning core + plugins or affecting the published API).
+
+- **Specs must be self-contained** — subagents have zero conversation context. Include
+  the completed diagnosis (root-cause chain, not just the symptom), exact file paths,
+  the fix specification, and the verify commands. Tell the agent not to re-investigate
+  and not to commit.
+- **Verification stays with the orchestrator.** Require the diff + evidence of what was
+  run from the subagent, then independently re-run the key check yourself before
+  presenting.
+- **Iterate with follow-up agents** when verification surfaces new failures: pass the
+  prior agent's findings forward in full rather than re-deriving them.
+- **Don't delegate trivia** — edits under ~20 lines in one file are cheaper to make
+  directly than to spec, hand off, and review.
+
 ## Conventions
 
 - **Commits follow Conventional Commits** (`commitlint.config.js` + `@commitlint/config-conventional`). Releases are automated via release-please; commit prefixes (`feat:`, `fix:`, `chore:`, etc.) drive version bumps and changelogs.

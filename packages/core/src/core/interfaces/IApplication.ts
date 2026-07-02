@@ -367,7 +367,7 @@ export interface IApplication extends PIXIPApplication {
 
   /**
    * The version of the application.
-   * Typically injected at build time (e.g., via `__DILL_PIXEL_APP_VERSION`).
+   * Typically injected at build time (e.g., via `__CAPER_APP_VERSION`).
    * @readonly
    * @example
    * ```typescript

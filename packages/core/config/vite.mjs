@@ -136,6 +136,35 @@ async function validateCaperConfig(server) {
   const configPath = path.resolve(cwd, 'caper.config.ts');
   if (!fs.existsSync(configPath)) return true;
 
+  // caper.config.ts pulls in @caper/core, which statically bundles
+  // @pixi/sound and GSAP. Both run browser-only top-level side effects
+  // during module init, which throw one after another under Vite SSR
+  // (Node, no DOM) and abort the whole ssrLoadModule — so config
+  // validation silently never runs. Install minimal stubs just for the
+  // duration of the load, and only for whichever globals aren't already
+  // defined (jsdom, a future Vite DOM environment, etc.).
+  //
+  // - document.createElement('audio').canPlayType: @pixi/sound's
+  //   utils/supported.mjs probes playable formats at module top level.
+  // - createElement(...).style: GSAP's CSSPlugin auto-registers at
+  //   import time and does `'transform' in tempDiv.style` on a div it
+  //   creates via document.createElement — needs a `style` object (any
+  //   object satisfies the `in` check; contents are never read here).
+  // - globalThis.window: @pixi/sound's WebAudioContext/SoundLibrary
+  //   singleton construction reads `window` at module top level.
+  const hadDocument = 'document' in globalThis;
+  const hadWindow = 'window' in globalThis;
+  if (!hadDocument) {
+    globalThis.document = {
+      createElement: () => ({ canPlayType: () => '', style: {} }),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+  }
+  if (!hadWindow) {
+    globalThis.window = globalThis;
+  }
+
   let mod;
   try {
     mod = await server.ssrLoadModule(configPath);
@@ -143,6 +172,9 @@ async function validateCaperConfig(server) {
     // Config failed to load — the normal type-regen path already surfaces
     // this error through the websocket overlay, so don't double-report.
     return false;
+  } finally {
+    if (!hadDocument) delete globalThis.document;
+    if (!hadWindow) delete globalThis.window;
   }
   const cfg = mod.default;
   if (!cfg) return true;
@@ -830,7 +862,7 @@ function detectCycle(edges) {
   return null;
 }
 
-function dillPixelConfigPlugin(isProject = true) {
+function caperConfigPlugin(isProject = true) {
   const virtualModuleId = 'virtual:caper-config';
   const resolvedVirtualModuleId = '\0' + virtualModuleId;
 
@@ -1959,6 +1991,31 @@ function createCaperRuntimePlugin() {
   return {
     name: 'vite-plugin-caper-runtime',
     enforce: 'pre',
+    // Auto-inject the runtime entry so apps don't need a hand-written
+    // `src/index.ts` that just does `import('caper-runtime')`. Legacy HTML that
+    // already references the runtime (or a src/index.(ts|js) entry) is left
+    // untouched so existing apps keep working.
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        const referencesRuntime = html.includes('caper-runtime');
+        const referencesLegacyEntry = /<script[^>]*\bsrc=["'][^"']*src\/index\.(ts|js)["']/.test(html);
+        if (referencesRuntime || referencesLegacyEntry) {
+          return html;
+        }
+        return {
+          html,
+          tags: [
+            {
+              tag: 'script',
+              attrs: { type: 'module' },
+              children: 'import("caper-runtime");',
+              injectTo: 'body',
+            },
+          ],
+        };
+      },
+    },
     resolveId(id) {
       if (id === virtualModuleId) {
         return resolvedVirtualModuleId;
@@ -1972,13 +2029,13 @@ function createCaperRuntimePlugin() {
           import { popupList } from 'virtual:caper-popups';
           import { entityList } from 'virtual:caper-entities';
           import { uiList } from 'virtual:caper-uis';
-          import { create } from '@caper/core';
+          import { create, signalCaperReady } from '@caper/core';
 
           (globalThis).Caper = (globalThis).Caper || {};
 
           try {
-            (globalThis).Caper.APP_NAME = __DILL_PIXEL_APP_NAME;
-            (globalThis).Caper.APP_VERSION = __DILL_PIXEL_APP_VERSION;
+            (globalThis).Caper.APP_NAME = __CAPER_APP_NAME;
+            (globalThis).Caper.APP_VERSION = __CAPER_APP_VERSION;
           } catch (e) {
             console.error('Failed to set app name and version', e);
           }
@@ -2014,8 +2071,19 @@ function createCaperRuntimePlugin() {
                 await mainModule.default(app);
               }
             }
+
+            signalCaperReady(app);
           }
-          bootstrap();
+
+          // Mark this app as managed by the vite runtime so create() does not
+          // double-signal readiness, then guard against a double bootstrap.
+          // (ES module caching already prevents re-evaluating this id; this is
+          // belt-and-braces.)
+          (globalThis).Caper.__runtimeManaged = true;
+          if (!(globalThis).__CAPER_BOOTSTRAPPED__) {
+            (globalThis).__CAPER_BOOTSTRAPPED__ = true;
+            bootstrap();
+          }
         `;
       }
     },
@@ -2090,7 +2158,7 @@ function createCaperPWAPlugin() {
   };
 }
 
-function dillPixelDevHelperPlugin() {
+function caperDevHelperPlugin() {
   return {
     name: 'vite-plugin-caper-dev-helper',
     configureServer(server) {
@@ -2174,8 +2242,8 @@ const defaultConfig = {
     uiListPlugin(),
     assetpackPlugin(),
     assetTypesPlugin(),
-    dillPixelConfigPlugin(),
-    dillPixelDevHelperPlugin(),
+    caperConfigPlugin(),
+    caperDevHelperPlugin(),
   ],
   resolve: {
     alias: {
@@ -2183,8 +2251,8 @@ const defaultConfig = {
     },
   },
   define: {
-    __DILL_PIXEL_APP_NAME: JSON.stringify(process.env.npm_package_name),
-    __DILL_PIXEL_APP_VERSION: JSON.stringify(process.env.npm_package_version),
+    __CAPER_APP_NAME: JSON.stringify(process.env.npm_package_name),
+    __CAPER_APP_VERSION: JSON.stringify(process.env.npm_package_version),
   },
 };
 

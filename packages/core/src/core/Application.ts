@@ -1,5 +1,13 @@
 import { gsap } from 'gsap';
-import type { AppConfig, IApplication, IApplicationOptions, ICoreFunctions, ICoreSignals, PauseConfig } from '.';
+import type {
+  AppConfig,
+  IApplication,
+  IApplicationOptions,
+  ICaperAutomation,
+  ICoreFunctions,
+  ICoreSignals,
+  PauseConfig,
+} from '.';
 import { coreFunctionRegistry, coreSignalRegistry, generatePluginList, sortPluginsByRequires } from '.';
 import type {
   ActionSignal,
@@ -130,13 +138,19 @@ export class Application extends PIXIPApplication implements IApplication {
   public static instance: IApplication;
 
   // method binding root
-  private readonly __dill_pixel_method_binding_root = true;
+  private readonly __caper_method_binding_root = true;
 
   // debug overlay (lazy, see getter)
   private _debugContainer: PIXIContainer;
 
   // config
   public config: Partial<IApplicationOptions>;
+  /**
+   * Automation facade for Playwright / agent drivers. Only assigned when
+   * automation is enabled (dev env, `config.automation === true`, or
+   * `VITE_CAPER_AUTOMATION === 'true'`); otherwise undefined.
+   */
+  public automation?: ICaperAutomation;
   public plugins: ImportList<IPlugin>;
   public manifest: string | AssetsManifest | undefined;
   public onPause = new Signal<(config: PauseConfig) => void>();
@@ -279,7 +293,7 @@ export class Application extends PIXIPApplication implements IApplication {
 
   public get appVersion() {
     try {
-      this._appVersion = __DILL_PIXEL_APP_VERSION;
+      this._appVersion = __CAPER_APP_VERSION;
     } catch (e) {
       this._appVersion = -1;
     }
@@ -292,7 +306,7 @@ export class Application extends PIXIPApplication implements IApplication {
   public get appName(): string {
     if (!this._appName) {
       try {
-        this._appName = __DILL_PIXEL_APP_NAME;
+        this._appName = __CAPER_APP_NAME;
       } catch (e) {
         this._appName = 'n/a';
       }

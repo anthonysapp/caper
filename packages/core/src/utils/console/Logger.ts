@@ -71,6 +71,11 @@ export class Logger {
     if (Logger.mode === 'disabled') {
       return;
     }
+    if (type === 'error') {
+      // Never collapse errors: console.error keeps them visible and renders
+      // Error objects with proper source-mapped stacks.
+      return console.error(`%c ${capitalize(type)} `, colors[type], ...args);
+    }
     if (Logger.mode === 'default') {
       return console.log(`%c ${capitalize(type)} `, colors[type], ...args);
     }

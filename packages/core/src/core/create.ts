@@ -5,6 +5,8 @@ import type { AppTypeOverrides, SceneImportListItem } from '../utils';
 import { triggerViteError } from '../utils/vite';
 import { checkWebGL } from '../webgl-check';
 import { Application } from './Application';
+import { registerCaperApp, signalCaperReady, type ICaperAutomation } from './globals';
+import type { IApplication } from './interfaces';
 import { AppConfig } from './types';
 
 type App = AppTypeOverrides['App'];
@@ -27,6 +29,13 @@ interface CaperGlobal {
   get: (key?: string) => any;
   // pwa
   pwa: CaperPWA;
+
+  // app discovery + automation
+  apps: Map<string, IApplication>;
+  app?: IApplication;
+  ready(id?: string): Promise<IApplication>;
+  automation: Record<string, ICaperAutomation>;
+  __runtimeManaged?: boolean;
 }
 
 declare global {
@@ -162,6 +171,16 @@ export async function create(
   // ensure all plugins are initialized
   // call postInitialize on the instance
   await instance.postInitialize();
+
+  // register with the global Caper discovery/automation surface
+  registerCaperApp(instance as unknown as IApplication);
+  // when not driven by the vite runtime (which signals readiness itself after
+  // main.ts), signal readiness here so direct create() usage still resolves
+  // Caper.ready()
+  if (!(globalThis as any).Caper?.__runtimeManaged) {
+    signalCaperReady(instance as unknown as IApplication);
+  }
+
   // return the app instance
   return instance as App;
 }

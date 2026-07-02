@@ -7,6 +7,7 @@ import { IPlugin, Plugin } from '../Plugin';
 export interface IActionsPlugin<C extends ActionContext = ActionContext> extends IPlugin {
   context: C;
   onActionContextChanged: Signal<(context: C) => void>;
+  onActionDispatched: Signal<(detail: ActionDetail) => void>;
   initialize(options: Partial<IActionsPluginOptions>, app: IApplication): void;
   getAction<TActionData = any>(action: Action | string): ActionSignal<TActionData>;
   getActions(): ActionMap;
@@ -25,6 +26,8 @@ export class ActionsPlugin extends Plugin<IActionsPluginOptions> implements IAct
   public onActionContextChanged: Signal<(context: string | ActionContext) => void> = new Signal<
     (context: string | ActionContext) => void
   >();
+  // emitted after an allowed action is dispatched (not for dropped out-of-context actions)
+  public onActionDispatched: Signal<(detail: ActionDetail) => void> = new Signal<(detail: ActionDetail) => void>();
 
   // private properties
   private _context: ActionContext = 'default';
@@ -82,7 +85,11 @@ export class ActionsPlugin extends Plugin<IActionsPluginOptions> implements IAct
       this._actions[actionId]?.context === this.context ||
       this._actions[actionId]?.context?.includes(this.context)
     ) {
-      return this.getAction<TActionData>(actionId).emit({ id: actionId, context: this.context, data });
+      const detail: ActionDetail<TActionData> = { id: actionId, context: this.context, data };
+      this.getAction<TActionData>(actionId).emit(detail);
+      // notify automation / observers of the dispatched (allowed) action
+      this.onActionDispatched.emit(detail);
+      return;
     }
 
     // the action wasn't allowed
@@ -101,6 +108,6 @@ export class ActionsPlugin extends Plugin<IActionsPluginOptions> implements IAct
   }
 
   protected getCoreSignals(): string[] {
-    return ['onActionContextChanged'];
+    return ['onActionContextChanged', 'onActionDispatched'];
   }
 }

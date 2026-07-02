@@ -327,7 +327,7 @@ export type AnimationContext = Set<gsap.core.Tween | gsap.core.Timeline>;
  */
 export class GSAPPlugin extends Plugin implements IGSAPPlugin {
   /** Internal identifier for the global animation context */
-  private static readonly GLOBAL_CONTEXT_ID = '__dill_pixel_global';
+  private static readonly GLOBAL_CONTEXT_ID = '__caper_global';
 
   /** Plugin identifier for framework registration */
   public readonly id = 'GSAPPlugin';

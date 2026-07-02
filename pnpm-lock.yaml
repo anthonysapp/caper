@@ -152,13 +152,13 @@ importers:
         version: 4.2.84
       '@pixi/devtools':
         specifier: ^2.0.1
-        version: 2.0.1(pixi.js@8.17.1)
+        version: 2.0.1(pixi.js@8.19.0)
       '@pixi/layout':
         specifier: ^3.2.0
-        version: 3.2.0(@types/react@19.1.8)(pixi.js@8.17.1)(react@19.1.0)(yoga-layout@3.2.1)
+        version: 3.2.0(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)(yoga-layout@3.2.1)
       '@pixi/sound':
         specifier: ^6.0.1
-        version: 6.0.1(pixi.js@8.17.1)
+        version: 6.0.1(pixi.js@8.19.0)
       '@types/stats.js':
         specifier: ^0.17.3
         version: 0.17.4
@@ -169,8 +169,8 @@ importers:
         specifier: ^5.5.5
         version: 5.6.0
       gsap:
-        specifier: ^3.13.0
-        version: 3.13.0
+        specifier: ^3.15.0
+        version: 3.15.0
       kleur:
         specifier: ^4.1.5
         version: 4.1.5
@@ -182,10 +182,10 @@ importers:
         version: 0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.2)
       pixi-filters:
         specifier: ^6.1.2
-        version: 6.1.3(pixi.js@8.17.1)
+        version: 6.1.3(pixi.js@8.19.0)
       pixi.js:
-        specifier: 8.17.1
-        version: 8.17.1
+        specifier: 8.19.0
+        version: 8.19.0
       prettier:
         specifier: ^3.2.5
         version: 3.6.2
@@ -288,11 +288,11 @@ importers:
   packages/plugin-crunch:
     dependencies:
       gsap:
-        specifier: ^3.13.0
-        version: 3.13.0
+        specifier: ^3.15.0
+        version: 3.15.0
       pixi.js:
-        specifier: 8.17.1
-        version: 8.17.1
+        specifier: 8.19.0
+        version: 8.19.0
     devDependencies:
       '@caper/core':
         specifier: workspace:*
@@ -345,8 +345,8 @@ importers:
         specifier: ^2.26.1
         version: 2.30.1
       pixi.js:
-        specifier: 8.17.1
-        version: 8.17.1
+        specifier: 8.19.0
+        version: 8.19.0
     devDependencies:
       '@caper/core':
         specifier: workspace:*
@@ -2755,6 +2755,10 @@ packages:
     resolution: {integrity: sha512-9k/gHF6n/pAi/9tqr3m3aqkuiNosYTurLLUtc7xQ9sxB/wm7WPygCv8GYa6mS0fLJEHhqMC1ATYhz++U/lRHqg==}
     engines: {node: '>=10.0.0'}
 
+  '@xmldom/xmldom@0.8.13':
+    resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
+    engines: {node: '>=10.0.0'}
+
   '@xmldom/xmldom@0.9.9':
     resolution: {integrity: sha512-qycIHAucxy/LXAYIjmLmtQ8q9GPnMbnjG1KXhWm9o5sCr6pOYDATkMPiTNa6/v8eELyqOQ2FsEqeoFYmgv/gJg==}
     engines: {node: '>=14.6'}
@@ -3805,6 +3809,9 @@ packages:
   gsap@3.13.0:
     resolution: {integrity: sha512-QL7MJ2WMjm1PHWsoFrAQH/J8wUeqZvMtHO58qdekHpCfhvhSL4gSiz6vJf5EeMP0LOn3ZCprL2ki/gjED8ghVw==}
 
+  gsap@3.15.0:
+    resolution: {integrity: sha512-dMW4CWBTUK1AEEDeZc1g4xpPGIrSf9fJF960qbTZmN/QwZIWY5wgliS6JWl9/25fpTGJrMRtSjGtOmPnfjZB+A==}
+
   handlebars@4.7.8:
     resolution: {integrity: sha512-vafaFqs8MZkRrSX7sFVUdo3ap/eNiLnb4IakshzvP56X5Nr1iGKAIqdX6tMlm6HcNRIkr6AxO5jFEoJzzpT8aQ==}
     engines: {node: '>=0.4.7'}
@@ -4700,6 +4707,9 @@ packages:
   parse-svg-path@0.1.2:
     resolution: {integrity: sha512-JyPSBnkTJ0AI8GGJLfMXvKq42cj5c006fnLz6fXy6zfoVjJizi8BNTpu8on8ziI1cKy9d9DGNuY17Ce7wuejpQ==}
 
+  parse-svg-path@0.2.0:
+    resolution: {integrity: sha512-Tf7FFIrguPKQwzD4pWnYkR2VOv3raoHeKED80Bm+BYHI3KxC8KsgsGC5+fSMzAGDA6UEk4bHvmi+RsjmL3khpg==}
+
   path-browserify@1.0.1:
     resolution: {integrity: sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==}
 
@@ -4788,6 +4798,9 @@ packages:
 
   pixi.js@8.17.1:
     resolution: {integrity: sha512-OB4TpZHrP5RYy+7FqmFrAc0IHRhfOoNIfF4sVeinvK3aG1r2pYrSMneJAKi9+WvGKC70Dj7GEpZ2OZGB6o/xdg==}
+
+  pixi.js@8.19.0:
+    resolution: {integrity: sha512-pq1O6emA/GFjjeF+8d3Pb5t7knD8FsnfWGqQcRjYjsqFZ7QdzG1XgjLDUu0DFJRbafjV5+g8iNLFBx0b9649lg==}
 
   pkg-types@1.3.1:
     resolution: {integrity: sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ==}
@@ -8052,9 +8065,9 @@ snapshots:
 
   '@pixi/colord@2.9.6': {}
 
-  '@pixi/devtools@2.0.1(pixi.js@8.17.1)':
+  '@pixi/devtools@2.0.1(pixi.js@8.19.0)':
     dependencies:
-      pixi.js: 8.17.1
+      pixi.js: 8.19.0
 
   '@pixi/layout@3.2.0(@types/react@19.1.8)(pixi.js@8.17.1)(react@19.1.0)(yoga-layout@3.2.1)':
     dependencies:
@@ -8062,6 +8075,16 @@ snapshots:
       yoga-layout: 3.2.1
     optionalDependencies:
       '@pixi/react': 8.0.2(@types/react@19.1.8)(pixi.js@8.17.1)(react@19.1.0)
+    transitivePeerDependencies:
+      - '@types/react'
+      - react
+
+  '@pixi/layout@3.2.0(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)(yoga-layout@3.2.1)':
+    dependencies:
+      pixi.js: 8.19.0
+      yoga-layout: 3.2.1
+    optionalDependencies:
+      '@pixi/react': 8.0.2(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)
     transitivePeerDependencies:
       - '@types/react'
       - react
@@ -8091,9 +8114,23 @@ snapshots:
       - '@types/react'
     optional: true
 
+  '@pixi/react@8.0.2(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)':
+    dependencies:
+      its-fine: 2.0.0(@types/react@19.1.8)(react@19.1.0)
+      pixi.js: 8.19.0
+      react: 19.1.0
+      react-reconciler: 0.31.0(react@19.1.0)
+    transitivePeerDependencies:
+      - '@types/react'
+    optional: true
+
   '@pixi/sound@6.0.1(pixi.js@8.17.1)':
     dependencies:
       pixi.js: 8.17.1
+
+  '@pixi/sound@6.0.1(pixi.js@8.19.0)':
+    dependencies:
+      pixi.js: 8.19.0
 
   '@pixi/svg2ttf@6.1.0':
     dependencies:
@@ -8669,6 +8706,8 @@ snapshots:
   '@webgpu/types@0.1.69': {}
 
   '@xmldom/xmldom@0.8.12': {}
+
+  '@xmldom/xmldom@0.8.13': {}
 
   '@xmldom/xmldom@0.9.9': {}
 
@@ -9960,6 +9999,8 @@ snapshots:
 
   gsap@3.13.0: {}
 
+  gsap@3.15.0: {}
+
   handlebars@4.7.8:
     dependencies:
       minimist: 1.2.8
@@ -10831,6 +10872,8 @@ snapshots:
 
   parse-svg-path@0.1.2: {}
 
+  parse-svg-path@0.2.0: {}
+
   path-browserify@1.0.1: {}
 
   path-exists@3.0.0: {}
@@ -10883,10 +10926,10 @@ snapshots:
     dependencies:
       pngjs: 6.0.0
 
-  pixi-filters@6.1.3(pixi.js@8.17.1):
+  pixi-filters@6.1.3(pixi.js@8.19.0):
     dependencies:
       '@types/gradient-parser': 0.1.5
-      pixi.js: 8.17.1
+      pixi.js: 8.19.0
 
   pixi.js@8.17.1:
     dependencies:
@@ -10899,6 +10942,19 @@ snapshots:
       gifuct-js: 2.1.2
       ismobilejs: 1.1.1
       parse-svg-path: 0.1.2
+      tiny-lru: 11.4.7
+
+  pixi.js@8.19.0:
+    dependencies:
+      '@pixi/colord': 2.9.6
+      '@types/earcut': 3.0.0
+      '@webgpu/types': 0.1.69
+      '@xmldom/xmldom': 0.8.13
+      earcut: 3.0.2
+      eventemitter3: 5.0.1
+      gifuct-js: 2.1.2
+      ismobilejs: 1.1.1
+      parse-svg-path: 0.2.0
       tiny-lru: 11.4.7
 
   pkg-types@1.3.1:

@@ -9,7 +9,7 @@
       "@caper/plugin-google-analytics/*": ["../../packages/plugin-google-analytics/src/*"],
       "@caper/plugin-firebase/*": ["../../packages/plugin-firebase/src/*"]
     },
-    "types": ["vite/client", "vite-plugin-pwa/client"]
+    "types": ["vite/client", "vite-plugin-pwa/client", "@caper/core/client"]
   },
   "references": [
     {

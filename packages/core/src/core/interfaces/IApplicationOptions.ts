@@ -34,6 +34,12 @@ export interface IApplicationOptions extends ApplicationOptions {
   useSpine: boolean;
   useLayout: boolean;
   useVoiceover: boolean;
+  /**
+   * Enable the `window.Caper.automation[id]` facade for this app regardless of
+   * environment. Automation is also auto-enabled in dev or when
+   * `VITE_CAPER_AUTOMATION === 'true'`.
+   */
+  automation?: boolean;
   defaultTextStyle: Partial<TextStyle>;
   defaultDropShadow: TextDropShadow;
   gsap: Partial<GSAPPluginOptions>;

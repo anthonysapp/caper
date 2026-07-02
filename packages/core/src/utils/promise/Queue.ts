@@ -107,7 +107,15 @@ export class Queue<T = any | void> {
       this._currentIndex++;
       void this._next();
     } catch (error: any) {
-      triggerViteError({ message: "Queue didn't complete due to an error:", stack: error.stack, id: error.id });
+      const err = error instanceof Error ? error : new Error(String(error));
+      // Log the original error object directly (outside Logger's collapsed
+      // groups) so DevTools renders a source-mapped, clickable stack.
+      console.error("Queue didn't complete due to an error:", error);
+      triggerViteError({
+        message: `Queue didn't complete due to an error: ${err.message}`,
+        stack: err.stack,
+        id: error?.id,
+      });
       // this._isCanceled = true;
       // remove the current promise from the queue
       this._promises.splice(this._currentIndex, 1);

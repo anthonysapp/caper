@@ -60,7 +60,7 @@ export interface IContainer {
  * It represents a container for PIXI.js display objects.
  */
 export class Container extends Animated(WithSignals(Factory())) implements IContainer {
-  private readonly __dill_pixel_method_binding_root = true;
+  private readonly __caper_method_binding_root = true;
 
   public onDestroy: Signal<() => void> = new Signal();
 

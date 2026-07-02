@@ -21,12 +21,16 @@
     "extras/css/loader.css",
     "extras/css/fullscreen.css",
     "templates",
-    "types"
+    "types",
+    "client.d.ts"
   ],
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
       "default": "./lib/caper.mjs"
+    },
+    "./client": {
+      "types": "./client.d.ts"
     },
     "./extras/llms.txt": {
       "default": "./extras/llms.txt"
