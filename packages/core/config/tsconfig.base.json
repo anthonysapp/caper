@@ -1,12 +1,12 @@
 {
   "compilerOptions": {
-    "rootDir": ".",
-    "baseUrl": ".",
+    "rootDir": "${configDir}",
+    "baseUrl": "${configDir}",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["${configDir}/src/*"]
     },
     "types": ["vite/client", "vite-plugin-pwa/client", "@caper/core/client"],
-    "outDir": "dist",
+    "outDir": "${configDir}/dist",
     "target": "ESNext",
     "useDefineForClassFields": true,
     "strictPropertyInitialization": false,
@@ -23,6 +23,6 @@
     "noImplicitReturns": true,
     "skipLibCheck": true
   },
-  "include": ["caper.config.ts", "src", "src/**/*.d.ts"],
-  "exclude": [".cache", "node_modules", "dist"]
+  "include": ["${configDir}/caper.config.ts", "${configDir}/src", "${configDir}/src/**/*.d.ts"],
+  "exclude": ["${configDir}/.cache", "${configDir}/node_modules", "${configDir}/dist"]
 }

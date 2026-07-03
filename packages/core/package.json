@@ -14,7 +14,7 @@
     "cli",
     "config/vite.mjs",
     "config/assetpack.mjs",
-    "config/tsconfig.json",
+    "config/tsconfig.base.json",
     "config/.prettierrc.json",
     "extras/llms.txt",
     "extras/css/accessibility.css",
@@ -41,6 +41,9 @@
     "./config/vite": {
       "default": "./config/vite.mjs"
     },
+    "./tsconfig": {
+      "default": "./config/tsconfig.base.json"
+    },
     "./extras/css/accessibility.css": {
       "default": "./extras/css/accessibility.css"
     },
@@ -56,6 +59,7 @@
     "dev": "cd ./examples && pnpm dev",
     "start": "cd ./examples && pnpm start",
     "build": "pnpm generate-version && vite build",
+    "prepack": "pnpm build",
     "visualize:examples": "cd ./examples && npx vite-bundle-visualizer",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",

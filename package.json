@@ -41,6 +41,9 @@
       "allowedVersions": {
         "vite-plugin-pwa>vite": "^8.0.0"
       }
+    },
+    "overrides": {
+      "pixi.js": "8.19.0"
     }
   }
 }

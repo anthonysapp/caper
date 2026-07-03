@@ -1,9 +1,9 @@
-import { dirname } from 'path';
 import { execSync } from 'node:child_process';
-import { fileURLToPath } from 'url';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const cwd = process.cwd();
@@ -13,8 +13,8 @@ const cwd = process.cwd();
  */
 export async function installPeerDeps() {
   // Read package.json to get peer dependencies
-  const dillPixelPackageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8'));
-  const peerDependencies = dillPixelPackageJson.peerDependencies;
+  const caperPackageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8'));
+  const peerDependencies = caperPackageJson.peerDependencies;
 
   if (!peerDependencies) {
     console.log('No peer dependencies found.');

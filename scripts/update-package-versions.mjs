@@ -9,7 +9,7 @@ const __dirname = resolve(dirname(__filename), '../');
 
 const mainPackageJsonPath = resolve(__dirname, './package.json');
 const mainPackageJson = JSON.parse(readFileSync(mainPackageJsonPath, 'utf8'));
-const { version: dillPixelVersion } = mainPackageJson;
+const { version: caperVersion } = mainPackageJson;
 
 // Load the framework package.json to get the versions
 const frameworkPackageJsonPath = resolve(__dirname, './packages/core/package.json');
@@ -23,7 +23,7 @@ const {
 function updatePackageJson(packageJsonPath) {
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
   if (packageJson.version) {
-    packageJson.version = dillPixelVersion;
+    packageJson.version = caperVersion;
   }
   if (packageJson.dependencies) {
     if (packageJson.dependencies['pixi.js'] && !packageJson.dependencies['pixi.js']?.includes('workspace')) {
@@ -33,7 +33,7 @@ function updatePackageJson(packageJsonPath) {
       packageJson.dependencies['@pixi/sound'] = pixiSoundVersion;
     }
     if (packageJson.dependencies['@caper/core'] && !packageJson.dependencies['@caper/core']?.includes('workspace')) {
-      packageJson.dependencies['@caper/core'] = dillPixelVersion;
+      packageJson.dependencies['@caper/core'] = caperVersion;
     }
     if (packageJson.dependencies['vite'] && !packageJson.dependencies['vite']?.includes('workspace')) {
       packageJson.dependencies['vite'] = viteVersion;
@@ -47,7 +47,7 @@ function updatePackageJson(packageJsonPath) {
       packageJson.peerDependencies['@pixi/sound'] = pixiSoundVersion;
     }
     if (packageJson.peerDependencies['@caper/core']) {
-      packageJson.peerDependencies['@caper/core'] = dillPixelVersion;
+      packageJson.peerDependencies['@caper/core'] = caperVersion;
     }
     if (packageJson.peerDependencies['vite']) {
       packageJson.peerDependencies['vite'] = viteVersion;
@@ -59,7 +59,7 @@ function updatePackageJson(packageJsonPath) {
       packageJson.devDependencies['vite-plugin-dts'] = vitePluginDtsVersion;
     }
     if (packageJson.devDependencies['@caper/core']) {
-      packageJson.devDependencies['@caper/core'] = dillPixelVersion;
+      packageJson.devDependencies['@caper/core'] = caperVersion;
     }
     if (packageJson.devDependencies['vite']) {
       packageJson.devDependencies['vite'] = viteVersion;

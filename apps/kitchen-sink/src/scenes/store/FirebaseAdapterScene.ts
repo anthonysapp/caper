@@ -2,7 +2,6 @@ import { ActionDetail, Button, FlexContainer, IFocusable, Input, Logger, defineS
 import { collection, DocumentData, limit, onSnapshot, orderBy, QuerySnapshot, where } from 'firebase/firestore';
 import { Container, Graphics, Text } from 'pixi.js';
 
-import { SimpleButton } from '@/popups/ExamplePopup';
 import BaseScene from '@/scenes/BaseScene';
 import { gsap } from 'gsap';
 
@@ -390,7 +389,7 @@ export default class FirebasePluginScene extends BaseScene {
 
     const deleteButton = this.make.container();
 
-    const deleteButtonBg = new SimpleButton();
+    const deleteButtonBg = new Button({});
     deleteButtonBg.label = 'delete-button';
     deleteButtonBg.accessibleTitle = 'Delete';
     deleteButtonBg.accessibleHint = 'Press to delete this score';

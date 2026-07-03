@@ -18,7 +18,6 @@ export class Sidebar {
   private searchCount: HTMLElement | null = null;
   private searchBar: HTMLElement | null = null;
   private toggleBtn: HTMLElement | null = null;
-  private reel: HTMLElement | null = null;
   private isOpen = false;
 
   constructor(app: KitchenSinkApplication) {
@@ -30,7 +29,6 @@ export class Sidebar {
       throw new Error('[Sidebar] nav.reel-nav not found in #reel — check index.html');
     }
     this.nav = nav;
-    this.reel = reel;
     this.scroll = reel?.querySelector<HTMLElement>('.reel-scroll') ?? null;
   }
 

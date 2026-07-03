@@ -34,9 +34,12 @@ class Runner extends Actor {
   public speed = -3;
   public jumpForce = Math.max(this.system.gravity * 0.25, 600);
   public onKilled = new Signal<() => void>();
-  public active: boolean = false;
 
   initialize(): void {
+    // `active` is an accessor on the base Entity; set it via the setter rather
+    // than shadowing it with an instance property (TS2610).
+    this.active = false;
+
     // Set the collision layer to PLAYER (bit 1)
     this.collisionLayer = CollisionLayer.PLAYER;
 

@@ -297,11 +297,11 @@ export default class PauseScene extends BaseScene {
     pauseButton.setTexture('default', this.config.isPaused ? 'btn/red' : 'btn/blue');
   }
 
-  onPause(config: PauseConfig): void {
+  onPause(_config: PauseConfig): void {
     this._updatePauseInfo();
   }
 
-  onResume(config: PauseConfig): void {
+  onResume(_config: PauseConfig): void {
     this._updatePauseInfo();
   }
 

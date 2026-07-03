@@ -42,6 +42,8 @@ interface CaperGlobalInternal {
   automation: Record<string, ICaperAutomation>;
   ready: (id?: string) => Promise<IApplication>;
   __runtimeManaged?: boolean;
+  /** set by the caper-runtime virtual module from the app's import.meta.env.DEV */
+  __dev?: boolean;
   /** internal: keyed ready resolvers */
   __readyResolvers?: Map<string, CaperReadyResolver>;
   /** internal: ids of apps that have fully finished booting (signalCaperReady) */
@@ -50,12 +52,19 @@ interface CaperGlobalInternal {
 }
 
 /**
- * Guarded dev-env check. Access to `import.meta.env` must stay inside a
- * function (never at module top level) so the built entry can be evaluated in
- * plain Node during SSR config loading.
+ * Guarded dev-env check. The caper-runtime virtual module sets `Caper.__dev`
+ * from the consumer app's `import.meta.env.DEV` (the reliable signal — inside
+ * this pre-built lib, import.meta.env has been compiled away at build time).
+ * The direct import.meta check remains as a fallback for source-linked
+ * consumers. Access to browser/env globals must stay inside a function (never
+ * at module top level) so the built entry can be evaluated in plain Node
+ * during SSR config loading.
  */
 function isDevEnv(): boolean {
   try {
+    if ((globalThis as any).Caper?.__dev === true) {
+      return true;
+    }
     return typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV === true;
   } catch {
     return false;
@@ -124,6 +133,17 @@ function ensureCaperGlobal(): CaperGlobalInternal {
   }
 
   return caper;
+}
+
+/**
+ * Install the `Caper` discovery surface (`apps`, `automation`, `ready()`) on
+ * `globalThis` immediately. The caper-runtime virtual module calls this before
+ * bootstrap so automation drivers (Playwright etc.) can `await Caper.ready()`
+ * from the very first moment the page scripts run, instead of polling for the
+ * function to appear at the end of boot.
+ */
+export function installCaperGlobal(): void {
+  ensureCaperGlobal();
 }
 
 function appIdOf(app: IApplication): string {

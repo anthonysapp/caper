@@ -387,7 +387,6 @@ export default class CrunchPhysicsScene extends BaseScene {
   private camera: Camera;
 
   private player: Player;
-  private pf1: Platform;
   private pf2: Platform;
   private portal1: Portal;
   private portal2: Portal;
@@ -531,7 +530,7 @@ export default class CrunchPhysicsScene extends BaseScene {
     // this.createPlatform(0, 0, this.app.size.width, 32, 'ground_grass', true);
 
     // Platform 1
-    this.pf1 = this.createPlatform(100, 600, 200, 32, 'ground_grass_small');
+    this.createPlatform(100, 600, 200, 32, 'ground_grass_small');
 
     // Platform 2 (moving)
     this.pf2 = this.createPlatform(400, 600, 200, 32, 'ground_grass');

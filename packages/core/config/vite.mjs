@@ -1,4 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
 import { parseSync } from 'oxc-parser';
+import { createLogger, mergeConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
+import wasm from 'vite-plugin-wasm';
 import { z } from 'zod';
 
 // oxc-parser emits an ESTree-compatible AST. We keep the `AST_NODE_TYPES`
@@ -42,13 +49,6 @@ function parse(content, _options = {}) {
   }
   return result.program;
 }
-import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
-import { createLogger, mergeConfig } from 'vite';
-import { VitePWA } from 'vite-plugin-pwa';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
-import wasm from 'vite-plugin-wasm';
 
 const env = process.env.NODE_ENV;
 const cwd = process.cwd();
@@ -75,19 +75,18 @@ const ASSET_DTS_FILE_NAME = 'caper-assets.d.ts';
  */
 const pluginConfigSchema = z.union([
   z.string(),
-  z
-    .tuple([
-      z.string(),
-      z
-        .object({
-          autoLoad: z.boolean().optional(),
-          options: z.any().optional(),
-        })
-        .loose(),
-    ]),
+  z.tuple([
+    z.string(),
+    z
+      .object({
+        autoLoad: z.boolean().optional(),
+        options: z.any().optional(),
+      })
+      .loose(),
+  ]),
 ]);
 
-const dillPixelConfigSchema = z
+const caperConfigSchema = z
   .object({
     id: z.string().min(1).optional(),
     application: z.any().optional(),
@@ -179,7 +178,7 @@ async function validateCaperConfig(server) {
   const cfg = mod.default;
   if (!cfg) return true;
 
-  const result = dillPixelConfigSchema.safeParse(cfg);
+  const result = caperConfigSchema.safeParse(cfg);
   if (result.success) return true;
 
   const issues = result.error.issues
@@ -777,7 +776,10 @@ function runBuildTimeValidation({ server, configPath, configObject, scenes, plug
   // cycle in the terminal/overlay before bootstrap even tries to run).
   const cycleEdges = new Map();
   for (const p of plugins) {
-    cycleEdges.set(p.id, (p.requires ?? []).filter((r) => discoveredPluginIds.has(r)));
+    cycleEdges.set(
+      p.id,
+      (p.requires ?? []).filter((r) => discoveredPluginIds.has(r)),
+    );
   }
   const cycle = detectCycle(cycleEdges);
   if (cycle) {
@@ -816,7 +818,9 @@ function runBuildTimeValidation({ server, configPath, configObject, scenes, plug
     server.ws.send({
       type: 'error',
       err: {
-        message: `caper build-time validation (${warnings.length} warning${warnings.length === 1 ? '' : 's'}):\n` + warnings.map((w) => '  • ' + w).join('\n'),
+        message:
+          `caper build-time validation (${warnings.length} warning${warnings.length === 1 ? '' : 's'}):\n` +
+          warnings.map((w) => '  • ' + w).join('\n'),
         id: configPath,
         plugin: 'vite-plugin-caper-config',
       },
@@ -1828,10 +1832,7 @@ function findDefaultExportedClass(ast) {
   // Resolve the identifier to a class declaration in the same file. Accept
   // either a bare `class Foo {}` or an `export class Foo {}` form.
   for (const node of ast.body) {
-    if (
-      node.type === AST_NODE_TYPES.ClassDeclaration &&
-      node.id?.name === identifierName
-    ) {
+    if (node.type === AST_NODE_TYPES.ClassDeclaration && node.id?.name === identifierName) {
       return node;
     }
     if (
@@ -2029,9 +2030,13 @@ function createCaperRuntimePlugin() {
           import { popupList } from 'virtual:caper-popups';
           import { entityList } from 'virtual:caper-entities';
           import { uiList } from 'virtual:caper-uis';
-          import { create, signalCaperReady } from '@caper/core';
+          import { create, signalCaperReady, installCaperGlobal } from '@caper/core';
 
           (globalThis).Caper = (globalThis).Caper || {};
+
+          // Install Caper.apps / Caper.ready() / Caper.automation immediately
+          // so automation drivers can await Caper.ready() before boot finishes.
+          installCaperGlobal();
 
           try {
             (globalThis).Caper.APP_NAME = __CAPER_APP_NAME;
@@ -2074,6 +2079,12 @@ function createCaperRuntimePlugin() {
 
             signalCaperReady(app);
           }
+
+          // Pass dev-ness through to the framework. This virtual module is
+          // transformed in the CONSUMER app's vite context, so import.meta.env
+          // is real here — inside the pre-built framework lib it has already
+          // been compiled away, so globals.ts reads Caper.__dev instead.
+          (globalThis).Caper.__dev = !!import.meta.env.DEV;
 
           // Mark this app as managed by the vite runtime so create() does not
           // double-signal readiness, then guard against a double bootstrap.
@@ -2249,6 +2260,19 @@ const defaultConfig = {
     alias: {
       '@': path.resolve(cwd, './src'),
     },
+    // Force a single instance of each singleton lib. pixi keeps global
+    // registries (extensions, TextureSource cache, Ticker.shared) and relies on
+    // instanceof; two copies (via linked/transitive installs) split its state.
+    dedupe: ['pixi.js', 'gsap', '@pixi/sound'],
+  },
+  // Don't prebundle @pixi/ui: esbuild inlines its own copy of pixi.js into the
+  // dep chunk, giving two pixi instances — every cross-boundary
+  // `instanceof Texture/Sprite` then fails. Served as source, its
+  // `import "pixi.js"` resolves to the same optimized pixi as the app. Its
+  // nested typed-signals dep (CJS) still needs prebundling for interop.
+  optimizeDeps: {
+    exclude: ['@pixi/ui'],
+    include: ['@pixi/ui > typed-signals'],
   },
   define: {
     __CAPER_APP_NAME: JSON.stringify(process.env.npm_package_name),
