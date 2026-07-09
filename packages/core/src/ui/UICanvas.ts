@@ -42,6 +42,26 @@ export interface UICanvasChildSettings {
   padding: Padding;
 }
 
+/** Anchor box handed to a binding's placement callback, in canvas-local space
+ * (origin = canvas top-left), derived from the anchor's computed layout so it
+ * never lags the render transform. */
+export interface UICanvasBindRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** Places a bound (free-floating) element from its anchor's rect. Both the
+ * rect and the element's `position` are in canvas-local space. */
+export type UICanvasBindFn = (rect: UICanvasBindRect, child: PIXIContainer) => void;
+
+interface UICanvasBinding {
+  child: PIXIContainer;
+  anchor: PIXIContainer;
+  place: UICanvasBindFn;
+}
+
 export interface UICanvasChildProps {
   align: UICanvasEdge;
   padding: Partial<Padding> | PointLike;
@@ -84,6 +104,7 @@ export class UICanvas extends _UICanvas {
   protected _regionLabels: Text[] = [];
   private _disableAddChildError: boolean = false;
   private _positionContainers: Map<UICanvasEdge, Container>;
+  private _bindings: UICanvasBinding[] = [];
 
   public topRow: FlexContainer;
   public middleRow: FlexContainer;
@@ -377,6 +398,8 @@ export class UICanvas extends _UICanvas {
       container.off('childRemoved', this._updateLayout);
     });
 
+    this._bindings = [];
+
     super.destroy();
   }
 
@@ -491,9 +514,72 @@ export class UICanvas extends _UICanvas {
       this.position.set(-this.config.size.width * 0.5, -this.config.size.height * 0.5);
     }
 
+    this._updateBindings();
+
     if (this.config.debug) {
       this.app.ticker.addOnce(this.drawDebug);
     }
+  }
+
+  /**
+   * Bind a free-floating element to a UICanvas-managed anchor without adding it
+   * to the flex flow. The element is parented to the canvas as a `layout: false`
+   * child (so it never re-measures a region — it can't "shift everything left"),
+   * and `place` re-runs on every layout pass with the anchor's current box in
+   * canvas-local space. Use it for popovers, tooltips, and dropdowns anchored to
+   * laid-out chrome. Idempotent per child — binding the same child again replaces
+   * the previous binding.
+   *
+   * The bound element must NOT be a `@pixi/layout` node: re-enabling `.layout` on
+   * it (a layout-enabled direct child of the canvas joins the column flow and
+   * bottom-docks + reflows the canvas). Position its own subtree manually.
+   */
+  public bindElement(child: PIXIContainer, anchor: PIXIContainer, place: UICanvasBindFn): void {
+    if (child.parent !== this) {
+      this._disableAddChildError = true;
+      super.addChild(child);
+      this._disableAddChildError = false;
+    }
+    child.layout = false;
+    this._bindings = this._bindings.filter((b) => b.child !== child);
+    this._bindings.push({ child, anchor, place });
+    this._updateLayout();
+  }
+
+  /** Remove a binding created by `bindElement` and detach the element. */
+  public unbindElement(child: PIXIContainer): void {
+    const had = this._bindings.some((b) => b.child === child);
+    this._bindings = this._bindings.filter((b) => b.child !== child);
+    if (had && child.parent === this) {
+      this._disableAddChildError = true;
+      super.removeChild(child);
+      this._disableAddChildError = false;
+    }
+  }
+
+  private _updateBindings(): void {
+    for (const { child, anchor, place } of this._bindings) {
+      const rect = this._anchorRect(anchor);
+      if (rect) place(rect, child);
+    }
+  }
+
+  /** The anchor's box in canvas-local space, summed from the computed-layout
+   * offsets up to this canvas — deterministic and free of render-transform lag
+   * (the same source the debug overlay uses to draw regions). */
+  private _anchorRect(anchor: PIXIContainer): UICanvasBindRect | null {
+    const own = anchor.layout?.computedLayout;
+    if (!own) return null;
+    let left = 0;
+    let top = 0;
+    for (let node: PIXIContainer | null = anchor; node && node !== this; node = node.parent) {
+      const cl = node.layout?.computedLayout;
+      if (cl) {
+        left += cl.left;
+        top += cl.top;
+      }
+    }
+    return { left, top, width: own.width, height: own.height };
   }
 
   public addElement<U extends PIXIContainer = PIXIContainer>(

@@ -169,8 +169,8 @@ export async function create(
   }
 
   // ensure all plugins are initialized
-  // call postInitialize on the instance
-  await instance.postInitialize();
+  // run framework post-init: the plugin loop + core wiring, then the user hook
+  await instance._postInitialize();
 
   // register with the global Caper discovery/automation surface
   registerCaperApp(instance as unknown as IApplication);

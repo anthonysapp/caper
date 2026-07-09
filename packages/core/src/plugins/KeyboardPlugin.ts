@@ -1,6 +1,6 @@
 import { IApplication } from '../core';
 import { Signal } from '../signals';
-import { KeyboardKey } from '../utils';
+import { isDev, KeyboardKey, Logger } from '../utils';
 import type { IPlugin } from './Plugin';
 import { Plugin } from './Plugin';
 
@@ -41,6 +41,9 @@ export class KeyboardPlugin extends Plugin implements IKeyboardPlugin {
 
   private _keysDown: Set<string> = new Set();
 
+  // Dev-only guard: warn once if key events arrive with no consumers connected.
+  private _warnedNoConsumers = false;
+
   get keysDown() {
     return this._keysDown;
   }
@@ -63,11 +66,10 @@ export class KeyboardPlugin extends Plugin implements IKeyboardPlugin {
   }
 
   public destroy() {
+    document.removeEventListener('keydown', this._handleKeyDown);
+    document.removeEventListener('keyup', this._handleKeyUp);
     document.removeEventListener('keydown', this._handleEvent);
     document.removeEventListener('keyup', this._handleEvent);
-
-    document.addEventListener('keydown', this._handleKeyDown);
-    document.addEventListener('keyup', this._handleKeyUp);
   }
 
   public onKeyDown(key?: KeyboardKey): KeySignal {
@@ -103,6 +105,18 @@ export class KeyboardPlugin extends Plugin implements IKeyboardPlugin {
   private _handleKeyUp(e: KeyboardEvent): void {
     const key = normalizeKey(e.key);
     this._keysDown.delete(key);
+    // DX guard: a key arrived but nothing consumes it (no KeyboardControls / no
+    // onKeyDown|onKeyUp subscribers). Almost always an Application subclass whose
+    // postInitialize() skipped framework wiring, or controls never connected.
+    if (isDev && !this._warnedNoConsumers && this._keyUpSignals.size === 0 && this._keyDownSignals.size === 0) {
+      this._warnedNoConsumers = true;
+      Logger.warn(
+        'KeyboardPlugin received a key event but no consumers are connected, so keyboard ' +
+          'actions will not fire. Ensure the InputPlugin controls are connected — e.g. an ' +
+          'Application subclass overriding postInitialize() must not skip framework wiring, ' +
+          'or call app.controls.connect().',
+      );
+    }
     this.onGlobalKeyUp.emit({ event: e, key: e.key });
   }
 

@@ -877,6 +877,10 @@ export class Input extends Focusable(Interactive(WithSignals(Container))) {
   }
 
   protected addInput() {
+    // Seed the backing value alongside the display text — otherwise an input
+    // constructed with `value` reports `''` until the first edit, and
+    // update() keeps the placeholder visible over the rendered text.
+    this._value = this.options.value ?? '';
     this.input = this._inputContainer.add.text({
       ...this.options,
       style: { ...(this.options?.style || {}), padding: 2 },

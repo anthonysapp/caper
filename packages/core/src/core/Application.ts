@@ -47,6 +47,7 @@ import type {
   Size,
 } from '../utils';
 import { bindAllMethods, deepMerge, getDynamicModuleFromImportListItem, isDev, isPromise, Logger } from '../utils';
+import { triggerViteError } from '../utils/vite';
 
 import { createFactoryMethods, defaultFactoryMethods } from '../mixins';
 import type { IActionsPlugin } from '../plugins/actions';
@@ -716,13 +717,24 @@ export class Application extends PIXIPApplication implements IApplication {
     return plugin;
   }
 
-  async postInitialize(): Promise<void> {
+  /**
+   * Framework post-initialization. Always runs the plugin `postInitialize` loop and
+   * core wiring, then invokes the user-overridable {@link postInitialize} hook last.
+   * The runtime (`create()`) calls this — apps should not call it directly, and must
+   * NOT need to call `super` from their own `postInitialize` override to get wired up.
+   */
+  async _postInitialize(): Promise<void> {
     // start plugins
     for (const plugin of this._plugins.values()) {
       try {
         await plugin.postInitialize(this as unknown as IApplication);
       } catch (error) {
-        Logger.error(`Plugin "${plugin.id}" failed in postInitialize:`, error);
+        // Surfaced (not just logged) so a plugin that silently fails to wire up —
+        // e.g. InputPlugin's controls.connect() — is visible in dev, not invisible.
+        triggerViteError({
+          message: `Plugin "${plugin.id}" failed in postInitialize: ${error instanceof Error ? error.message : String(error)}`,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
         this.onPluginError.emit({ id: plugin.id, phase: 'postInitialize', error });
       }
     }
@@ -736,7 +748,19 @@ export class Application extends PIXIPApplication implements IApplication {
         this.timers.pauseAllTimers();
       }
     });
+
+    // User hook, run last. Framework wiring above always runs regardless of whether
+    // a subclass override calls super, so overriding `postInitialize` is footgun-free.
+    await this.postInitialize();
   }
+
+  /**
+   * User-overridable post-initialization hook, invoked after all framework wiring is
+   * complete. Override to perform app setup that depends on a fully initialized
+   * environment. Safe to override WITHOUT calling `super` — framework post-init lives
+   * in {@link _postInitialize}, which the runtime calls.
+   */
+  async postInitialize(): Promise<void> {}
 
   public getUnloadedPlugin(id: string): ImportListItem<IPlugin> | undefined {
     return this.plugins.find((pluginItem) => pluginItem.id === id);
@@ -886,7 +910,10 @@ export class Application extends PIXIPApplication implements IApplication {
     try {
       return await plugin.initialize(options, this as unknown as IApplication);
     } catch (error) {
-      Logger.error(`Plugin "${plugin.id}" failed to initialize:`, error);
+      triggerViteError({
+        message: `Plugin "${plugin.id}" failed to initialize: ${error instanceof Error ? error.message : String(error)}`,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       this.onPluginError.emit({ id: plugin.id, phase: 'initialize', error });
       return undefined;
     }

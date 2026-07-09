@@ -565,17 +565,27 @@ export interface IApplication extends PIXIPApplication {
    * It's a good place for plugins to finalize their setup or for the application to perform tasks
    * that depend on a fully initialized environment.
    * @returns A promise that resolves when post-initialization tasks are complete.
+   * User-overridable hook, run last by {@link _postInitialize} after all framework
+   * wiring. Safe to override WITHOUT calling `super` — framework post-init does not
+   * live here.
    * @example
    * ```typescript
    * // Inside a custom Application class or after app.initialize resolves
    * async function startMyGame() {
    *   await app.initialize(config, el);
-   *   await app.postInitialize(); // Ensures everything is fully set up
+   *   await app._postInitialize(); // Runs framework post-init + the user hook
    *   app.scenes.load('intro');
    * }
    * ```
    */
   postInitialize(): Promise<void>;
+
+  /**
+   * Framework post-initialization: runs every plugin's `postInitialize` and core
+   * wiring, then invokes the user-overridable {@link postInitialize} hook. Called by
+   * the runtime (`create()`); apps normally don't call this directly.
+   */
+  _postInitialize(): Promise<void>;
 
   /**
    * Retrieves a registered plugin by its name.
