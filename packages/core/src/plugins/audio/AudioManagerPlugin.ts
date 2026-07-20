@@ -451,7 +451,11 @@ export class AudioManagerPlugin<C extends ChannelName = ChannelName> extends Plu
       const mediaInstance = await sound.play(soundId, options);
       audioInstance.media = mediaInstance;
       if (options?.volume !== undefined) {
-        mediaInstance.volume = options.volume;
+        // Route the per-play volume through AudioInstance's setter so the
+        // channel × masterVolume math applies. Writing mediaInstance.volume
+        // directly bypassed it — any explicit PlayOptions.volume ignored the
+        // master volume entirely (master 0 never silenced SFX).
+        audioInstance.volume = options.volume;
 
         audioInstance.onStart.connect(() => {
           () => this._soundStarted(soundId, audioInstance, channelName);
