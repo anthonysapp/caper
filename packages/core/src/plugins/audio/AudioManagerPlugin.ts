@@ -448,7 +448,16 @@ export class AudioManagerPlugin<C extends ChannelName = ChannelName> extends Plu
         soundId,
         new AudioInstance<C>(soundId, channel, this as IAudioManagerPlugin<C>),
       );
-      const mediaInstance = await sound.play(soundId, options);
+      // @pixi/sound starts playback at options.volume the instant sound.play()
+      // is called, synchronously and before the await below resolves. The
+      // channel × masterVolume correction previously only landed via
+      // audioInstance.media/volume AFTER the await, a microtask too late —
+      // producing an audible click/pop transient even when the correct
+      // steady-state volume is 0 (master muted or channel muted). Compute the
+      // real effective volume/mute state up front and hand it to sound.play
+      // so the very first sample already plays at the right level.
+      const startVolume = (options?.volume ?? 1) * channel.volume * this.masterVolume;
+      const mediaInstance = await sound.play(soundId, { ...options, volume: startVolume, muted: channel.muted });
       audioInstance.media = mediaInstance;
       if (options?.volume !== undefined) {
         // Route the per-play volume through AudioInstance's setter so the

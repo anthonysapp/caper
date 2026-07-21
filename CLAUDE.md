@@ -49,6 +49,52 @@ There is **no repo-level test command** (root `test` script is a stub). Lint liv
 - **Build tooling is centralized.** The framework exports reusable Vite and AssetPack configs (`caper/config/vite`, `caper/config/assetpack`) plus shared `tsconfig.json` and prettier config — apps and plugins should consume these rather than duplicating build setup.
 - **Signals over events.** The framework uses `typed-signals` for cross-system communication (see `src/signals/`).
 
+## Prefer the caper way
+
+When writing or changing **app / kitchen-sink / example** presentation code (scenes,
+entities, UI, popups), use Caper APIs — not raw Pixi constructors — whenever a Caper
+equivalent exists. Kitchen-sink is the canonical usage reference; factory methods live
+in [`packages/core/src/mixins/factory/`](packages/core/src/mixins/factory/).
+
+**Do this:**
+
+1. **Extend Caper's `Container` / `Entity` / `Scene`**, not Pixi's `Container`.
+   Caper's `Container` brings the factory mixin (`this.add` / `this.make`), signals,
+   and lifecycle (`added` / `removed` / `resize` / `update`). UI widgets and composite
+   views should subclass `Container` from `@caper/core`.
+2. **Build display trees with factory methods**, not `new Sprite()` / `new Text()` /
+   `new Graphics()` / `new Container()`:
+   - `this.add.sprite({ asset: "…" })` / `this.add.text({…})` /
+     `this.add.graphics()` / `this.add.container({…})` — create **and** parent.
+   - `this.make.*` — same constructors, **no** auto-parent (when you need the
+     instance before attaching, or to hand to `UICanvas.addElement`).
+   - `this.add.existing(view)` — parent an already-built node.
+   - `this.add.entity("id", props)` / `this.add.ui("id", props)` — typed registry
+     lookups for discovered entities/UI (`defineEntity` / `defineUI`).
+3. **Use Caper UI primitives** for chrome and layout: `UICanvas`, `FlexContainer`,
+   `Button`, `Popup` / popup manager, `Toaster`. Prefer `this.add.uiCanvas` /
+   `this.add.button` / `this.add.flexContainer` over hand-rolled layout. Wire
+   interactive chrome through `app.controls.touch.addButton(...)` and
+   `app.action(...)` when an action context fits — not ad-hoc pointer handlers.
+4. **Scenes / entities / popups / UI** — `defineScene` / `defineEntity` /
+   `definePopup` / `defineUI` + default-export the class so Vite discovery and
+   generated `caper-app.d.ts` stay in sync. Prefer `caper add scene|entity|popup`
+   when scaffolding.
+
+**Don't do this (unless no Caper API fits):**
+
+- `import { Container, Sprite, Text } from "pixi.js"` then `new …` inside scenes/UI
+  that already extend Caper `Container`.
+- Reimplementing flex/edge layout, buttons, or toasts with raw Pixi.
+
+Exceptions that are fine: ephemeral debug/overlay `Graphics`, one-off particles, or
+framework internals in `packages/core` that *implement* the factories/UI (those must
+touch Pixi). When editing legacy kitchen-sink code that still uses raw Pixi
+constructors, prefer migrating the touched lines to factories rather than spreading
+the old pattern.
+
+Consumer games (e.g. bankshot-web) mirror this rule in their own `CLAUDE.md`.
+
 ## App entry, client types, and the automation bridge
 
 - **Client types.** Apps add `"@caper/core/client"` to their tsconfig `types` array (shipped as `packages/core/client.d.ts`) to get the ambient `declare module 'caper-runtime'` and the `__CAPER_APP_NAME`/`__CAPER_APP_VERSION` build-define globals.
