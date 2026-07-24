@@ -64,8 +64,22 @@ function fontWeights() {
 const defaultManifestUrl = 'assets.json';
 
 const defaultPixiPipesConfig = {
-  resolutions: { default: 1, low: 0.5 },
-  compression: { jpg: true, png: true, webp: true },
+  // Retina-first: raw art is authored at 2x native game pixels. AssetPack
+  // treats the source as the largest resolution listed, so this emits @2x
+  // plus downscaled 1x and 0.5x. Apps whose art is authored at 1x override
+  // `resolutions` in their .assetpack.mjs (or tag individual assets {fix}).
+  resolutions: { high: 2, default: 1, low: 0.5 },
+  // Quality-first compression: the upstream webp default (quality 80, lossy
+  // alpha) rings on anti-aliased UI edges, and browsers load .webp over .png.
+  // alphaQuality 100 makes the alpha channel lossless (kills edge halos);
+  // quality 92 + smartSubsample tame RGB bleed; png quality 100 skips palette
+  // quantization on the fallback. effort 6 only costs prod builds — dev
+  // rebuilds override the effort knobs below.
+  compression: {
+    jpg: true,
+    png: { quality: 100 },
+    webp: { quality: 92, alphaQuality: 100, smartSubsample: true, effort: 6 },
+  },
   texturePacker: {
     nameStyle: 'relative',
     removeFileExtension: true,

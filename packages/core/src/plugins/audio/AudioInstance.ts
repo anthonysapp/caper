@@ -68,7 +68,7 @@ export class AudioInstance<C extends ChannelName = ChannelName> implements IAudi
   set media(value: IMediaInstance) {
     this._media = value;
     if (value) {
-      this._media.volume = this._volume * this.channel.volume * this.manager.masterVolume;
+      this._media.volume = this._effectiveVolume;
       if (this.muted) {
         this._media.muted = this.muted;
       }
@@ -85,7 +85,7 @@ export class AudioInstance<C extends ChannelName = ChannelName> implements IAudi
   public set volume(value: number) {
     this._volume = value;
     if (this._media) {
-      this._media.volume = this._volume * this.channel.volume * this.manager.masterVolume;
+      this._media.volume = this._effectiveVolume;
     }
   }
 
@@ -99,7 +99,20 @@ export class AudioInstance<C extends ChannelName = ChannelName> implements IAudi
     this._muted = value;
     if (this._media) {
       this._media.muted = this._muted;
+      this._media.volume = this._effectiveVolume;
     }
+  }
+
+  /**
+   * The volume that should actually reach the media instance: the logical
+   * (unmuted) volume folded through the channel and master volume, forced
+   * to 0 whenever this instance or its channel is muted. Centralizing this
+   * keeps `media.muted` from being the sole thing standing between a muted
+   * channel and audible sound.
+   */
+  private get _effectiveVolume(): number {
+    const muteFactor = this._muted || this.channel.muted ? 0 : 1;
+    return this._volume * this.channel.volume * this.manager.masterVolume * muteFactor;
   }
 
   private _isPlaying: boolean = false;

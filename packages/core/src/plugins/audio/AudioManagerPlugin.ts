@@ -69,6 +69,15 @@ export interface IAudioManagerPlugin<C extends ChannelName = ChannelName> extend
 
   readonly paused: boolean;
 
+  /**
+   * The WebAudio context sounds are actually played on. Anything building
+   * `PlayOptions.filters` MUST create its nodes on this context: WebAudio
+   * refuses to connect nodes across contexts, and caper may not share a
+   * `@pixi/sound` instance (and therefore a context) with the consuming app.
+   * `undefined` under the htmlaudio fallback, where filters do not apply.
+   */
+  readonly audioContext: AudioContext | undefined;
+
   createChannel(name: string): void;
 
   play(soundId: AudioAsset, channelName: C, options?: PlayOptions): Promise<IAudioInstance>;
@@ -181,6 +190,15 @@ export class AudioManagerPlugin<C extends ChannelName = ChannelName> extends Plu
   }
 
   private _masterVolume: number = 1;
+
+  /**
+   * The WebAudio context sounds actually play on — see
+   * {@link IAudioManagerPlugin.audioContext}. Exposed so consumers can build
+   * `PlayOptions.filters` on the right context instead of guessing.
+   */
+  get audioContext(): AudioContext | undefined {
+    return sound.context?.audioContext;
+  }
 
   /**
    * Gets the master volume.
@@ -437,6 +455,42 @@ export class AudioManagerPlugin<C extends ChannelName = ChannelName> extends Plu
    * @param {PlayOptions} options
    * @returns {Promise<IAudioInstance>}
    */
+  /**
+   * Drops any filter whose nodes belong to a different `AudioContext` than the
+   * one playback runs on.
+   *
+   * WebAudio refuses cross-context `connect()`, and @pixi/sound wires filters
+   * deep inside `WebAudioInstance.play()` — so one foreign filter throws
+   * `InvalidAccessError` from a place the caller cannot catch, and the sound
+   * never plays AT ALL. Silent-and-unattributable is the worst failure mode we
+   * can hand an app, so prefer dry audio plus a pointed error: the sound is
+   * still heard, and the log says exactly how to fix it. This is easy to hit
+   * because an app bundling its own `@pixi/sound` gets a different context than
+   * caper's — build filters on {@link audioContext}.
+   */
+  private _usableFilters(filters?: PlayOptions['filters']): PlayOptions['filters'] {
+    if (!filters?.length) {
+      return filters;
+    }
+    const context = this.audioContext;
+    if (!context) {
+      return filters;
+    }
+    const usable = filters.filter((filter) => {
+      // A Filter exposes its input as `destination` and its output as `source`.
+      const node = (filter as unknown as { destination?: AudioNode; source?: AudioNode })?.destination;
+      return !node?.context || node.context === context;
+    });
+    if (usable.length !== filters.length) {
+      Logger.error(
+        'AudioManager: ignoring filter(s) built on a different AudioContext — playing dry. ' +
+          'Build filter nodes on `app.audio.audioContext` (an app bundling its own copy of ' +
+          '@pixi/sound gets a separate context).',
+      );
+    }
+    return usable.length ? usable : undefined;
+  }
+
   public async play(soundId: AudioAsset, channelName: C = 'sfx' as C, options?: PlayOptions): Promise<IAudioInstance> {
     if (this._idMap.has(soundId)) {
       soundId = this._idMap.get(soundId) as string;
@@ -457,7 +511,12 @@ export class AudioManagerPlugin<C extends ChannelName = ChannelName> extends Plu
       // real effective volume/mute state up front and hand it to sound.play
       // so the very first sample already plays at the right level.
       const startVolume = (options?.volume ?? 1) * channel.volume * this.masterVolume;
-      const mediaInstance = await sound.play(soundId, { ...options, volume: startVolume, muted: channel.muted });
+      const mediaInstance = await sound.play(soundId, {
+        ...options,
+        filters: this._usableFilters(options?.filters),
+        volume: channel.muted ? 0 : startVolume,
+        muted: channel.muted,
+      });
       audioInstance.media = mediaInstance;
       if (options?.volume !== undefined) {
         // Route the per-play volume through AudioInstance's setter so the
@@ -465,14 +524,17 @@ export class AudioManagerPlugin<C extends ChannelName = ChannelName> extends Plu
         // directly bypassed it — any explicit PlayOptions.volume ignored the
         // master volume entirely (master 0 never silenced SFX).
         audioInstance.volume = options.volume;
-
-        audioInstance.onStart.connect(() => {
-          () => this._soundStarted(soundId, audioInstance, channelName);
-        });
-        audioInstance.onEnd.connect(() => {
-          () => this._soundEnded(soundId, audioInstance, channelName);
-        });
       }
+      audioInstance.onStart.connect(() => {
+        this._soundStarted(soundId, audioInstance, channelName);
+      });
+      audioInstance.onEnd.connect(() => {
+        channel.removeInstance(audioInstance);
+        this._soundEnded(soundId, audioInstance, channelName);
+      });
+      audioInstance.onStop.connect(() => {
+        channel.removeInstance(audioInstance);
+      });
       audioInstance.isPlaying = true;
       return audioInstance;
     } else {

@@ -14,6 +14,8 @@ export interface IAudioChannel {
 
   remove(id: string): IAudioInstance | undefined;
 
+  removeInstance(instance: IAudioInstance): void;
+
   updateVolume(): void;
 
   restore(): void;
@@ -26,7 +28,7 @@ export interface IAudioChannel {
 }
 
 export class AudioChannel<C extends ChannelName = ChannelName> {
-  private _sounds: Map<string, IAudioInstance> = new Map<string, IAudioInstance>();
+  private _sounds: Map<string, IAudioInstance[]> = new Map<string, IAudioInstance[]>();
 
   constructor(
     public name: C,
@@ -36,7 +38,7 @@ export class AudioChannel<C extends ChannelName = ChannelName> {
   }
 
   get instances(): IAudioInstance[] {
-    return Array.from(this._sounds.values());
+    return Array.from(this._sounds.values()).flat();
   }
 
   private _muted: boolean = false;
@@ -63,53 +65,91 @@ export class AudioChannel<C extends ChannelName = ChannelName> {
   }
 
   add(id: string, instance: IAudioInstance): IAudioInstance {
-    this._sounds.set(id, instance);
-    return instance;
-  }
-
-  get(id: string): IAudioInstance | undefined {
-    return this._sounds.get(id);
-  }
-
-  remove(id: string): IAudioInstance | undefined {
-    const instance = this._sounds.get(id);
-    if (instance) {
-      instance.destroy();
-      this._sounds.delete(id);
+    const bucket = this._sounds.get(id);
+    if (bucket) {
+      bucket.push(instance);
+    } else {
+      this._sounds.set(id, [instance]);
     }
     return instance;
   }
 
+  get(id: string): IAudioInstance | undefined {
+    const bucket = this._sounds.get(id);
+    return bucket ? bucket[bucket.length - 1] : undefined;
+  }
+
+  remove(id: string): IAudioInstance | undefined {
+    const bucket = this._sounds.get(id);
+    if (!bucket) {
+      return undefined;
+    }
+    const lastInstance = bucket[bucket.length - 1];
+    // destroy() -> stop() -> emits onEnd, whose handler may call
+    // removeInstance() and mutate `bucket` mid-iteration. Iterate a copy.
+    [...bucket].forEach((instance) => instance.destroy());
+    this._sounds.delete(id);
+    return lastInstance;
+  }
+
+  /**
+   * Removes a single instance from its alias bucket without stopping or
+   * destroying it, for use when an instance has naturally reached the end
+   * of its life. No-op if the instance is not currently tracked.
+   */
+  removeInstance(instance: IAudioInstance): void {
+    const bucket = this._sounds.get(instance.id);
+    if (!bucket) {
+      return;
+    }
+    const index = bucket.indexOf(instance);
+    if (index === -1) {
+      return;
+    }
+    bucket.splice(index, 1);
+    if (bucket.length === 0) {
+      this._sounds.delete(instance.id);
+    }
+  }
+
   pause(): void {
-    this._sounds.forEach((sound) => {
-      try {
-        sound.pause();
-      } catch (error) {
-        Logger.error('Error pausing sound', sound.id, error);
-      }
+    this._sounds.forEach((bucket) => {
+      bucket.forEach((sound) => {
+        try {
+          sound.pause();
+        } catch (error) {
+          Logger.error('Error pausing sound', sound.id, error);
+        }
+      });
     });
   }
 
   resume(): void {
-    this._sounds.forEach((sound) => {
-      try {
-        sound.resume();
-      } catch (error) {
-        Logger.error('Error resuming sound', sound.id, error);
-      }
+    this._sounds.forEach((bucket) => {
+      bucket.forEach((sound) => {
+        try {
+          sound.resume();
+        } catch (error) {
+          Logger.error('Error resuming sound', sound.id, error);
+        }
+      });
     });
   }
 
   _setMuted(): void {
-    this._sounds.forEach((sound) => {
-      sound.muted = this._muted;
+    this._sounds.forEach((bucket) => {
+      bucket.forEach((sound) => {
+        sound.muted = this._muted;
+      });
     });
   }
 
   updateVolume() {
     this.manager.app.ticker.addOnce(() => {
-      this._sounds.forEach((sound) => {
-        sound.updateVolume();
+      this._sounds.forEach((bucket) => {
+        bucket.forEach((sound) => {
+          sound.updateVolume();
+        });
       });
       this.manager.onChannelVolumeChanged.emit({ channel: this, volume: this._volume });
     });
