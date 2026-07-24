@@ -63,11 +63,7 @@ function fontWeights() {
 
 const defaultManifestUrl = 'assets.json';
 
-const env = process.env.NODE_ENV;
-const isProduction = env === 'production';
-
 const defaultPixiPipesConfig = {
-  cacheBust: isProduction,
   resolutions: { default: 1, low: 0.5 },
   compression: { jpg: true, png: true, webp: true },
   texturePacker: {
@@ -80,11 +76,38 @@ const defaultPixiPipesConfig = {
   manifest: { trimExtensions: true, createShortcuts: true, output: defaultManifestUrl },
 };
 
+// Effort/CPU knobs only — quality options are untouched, so dev output pixels
+// match production; dev rebuilds just spend less time squeezing bytes.
+const devCompressionEffort = {
+  png: { effort: 1, compressionLevel: 1 },
+  webp: { effort: 0 },
+};
+
+function devCompression(compression) {
+  if (!compression) return compression;
+  const result = { ...compression };
+  for (const [format, effort] of Object.entries(devCompressionEffort)) {
+    const current = result[format];
+    if (current === false) continue;
+    result[format] = { ...(current === true ? {} : current), ...effort };
+  }
+  return result;
+}
+
 export const assetpackConfig = (manifestUrl = defaultManifestUrl, pixiPipesConfig = {}, cacheBust) => {
   pixiPipesConfig = { ...defaultPixiPipesConfig, ...pixiPipesConfig };
 
   if (cacheBust !== undefined) {
     pixiPipesConfig.cacheBust = cacheBust;
+  }
+  // NODE_ENV is read at call time, not module load: under the caper CLI this
+  // module is imported before vite's resolveConfig sets NODE_ENV, whereas
+  // assetpackConfig runs after (configResolved / user .assetpack.mjs import).
+  if (pixiPipesConfig.cacheBust === undefined) {
+    pixiPipesConfig.cacheBust = process.env.NODE_ENV === 'production';
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    pixiPipesConfig.compression = devCompression(pixiPipesConfig.compression);
   }
   const pipes = pixiPipes({ ...pixiPipesConfig });
 
@@ -108,6 +131,7 @@ export function assetpackPlugin(manifestUrl = defaultManifestUrl, pixiPipesConfi
   let ap;
   let apConfig;
   let isBuilding = false;
+  let server;
 
   async function getConfig() {
     if (!apConfig) {
@@ -142,11 +166,27 @@ export function assetpackPlugin(manifestUrl = defaultManifestUrl, pixiPipesConfi
       if (mode === 'serve') {
         if (ap) return;
         ap = new AssetPack(apConfig);
-        await ap.watch();
+        // Vite does not reload the page when files under publicDir change, so
+        // without this the browser keeps serving stale assets after a rebuild.
+        // One reload per completed rebuild batch; the initial pass is skipped
+        // (the server isn't listening yet).
+        let initial = true;
+        await ap.watch(() => {
+          if (initial) {
+            initial = false;
+            return;
+          }
+          const hot = server?.environments?.client?.hot ?? server?.ws;
+          hot?.send({ type: 'full-reload', path: '*' });
+          Logger.info('Caper assetpack plugin:: assets rebuilt, reloading page');
+        });
       } else {
         await new AssetPack(apConfig).run();
       }
       isBuilding = false;
+    },
+    configureServer(devServer) {
+      server = devServer;
     },
     buildEnd: async () => {
       if (ap) {

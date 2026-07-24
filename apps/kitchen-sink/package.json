@@ -5,8 +5,9 @@
   "main": "index.html",
   "scripts": {
     "clean": "rimraf dist .assetpack .cache",
+    "clean:dev": "rimraf dist .cache",
     "start": "pnpm clean && caper start",
-    "dev": "pnpm clean && caper dev",
+    "dev": "pnpm clean:dev && caper dev",
     "build": "pnpm clean && caper build",
     "types": "tsc",
     "preview": "pnpm clean && caper preview",
