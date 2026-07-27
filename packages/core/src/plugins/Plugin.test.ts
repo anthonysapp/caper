@@ -38,7 +38,7 @@ describe('Plugin', () => {
 
   it('runs postInitialize independently', async () => {
     const p = new TestPlugin();
-    await p.postInitialize({} as never);
+    await p.postInitialize();
     expect(p.postCalls).toBe(1);
   });
 

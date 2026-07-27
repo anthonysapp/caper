@@ -35,6 +35,19 @@ export interface IApplicationOptions extends ApplicationOptions {
   useLayout: boolean;
   useVoiceover: boolean;
   /**
+   * Add `vite-plugin-wasm` to the Vite config. Only needed if your project
+   * imports a `.wasm` module directly (`import init from './foo.wasm'`) —
+   * runtime-fetched wasm (Rive's `locateFile`, pixi's KTX/basis transcoders)
+   * and Vite's native `?init` / `?url` imports work without it.
+   *
+   * Build-time only: read out of `caper.config.ts` by an AST parse before the
+   * Vite config is built, so it has no effect on the running Application and
+   * changing it requires a dev-server restart.
+   *
+   * @default false
+   */
+  useWasm?: boolean;
+  /**
    * Enable the `window.Caper.automation[id]` facade for this app regardless of
    * environment. Automation is also auto-enabled in dev or when
    * `VITE_CAPER_AUTOMATION === 'true'`.

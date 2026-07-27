@@ -117,6 +117,8 @@ const caperConfigSchema = z
     useLayout: z.boolean().optional(),
     useVoiceover: z.boolean().optional(),
     useHash: z.boolean().optional(),
+    // Build-time only — read by readCaperBuildFlags(), no runtime effect.
+    useWasm: z.boolean().optional(),
     showStats: z.boolean().optional(),
     showSceneDebugMenu: z.boolean().optional(),
     resizeToContainer: z.boolean().optional(),
@@ -693,6 +695,72 @@ function extractConfigReferences(configObject) {
     }
   }
   return result;
+}
+
+/**
+ * Locate the `defineConfig({...})` ObjectExpression in a parsed
+ * `caper.config.ts` AST. Handles both the default-export form
+ * (`export default defineConfig({...})`) and the named-const form
+ * (`export const config = defineConfig({...})`).
+ */
+function findConfigObject(ast) {
+  let configObject;
+  for (const node of ast.body) {
+    if (
+      node.type === AST_NODE_TYPES.ExportDefaultDeclaration &&
+      node.declaration?.type === AST_NODE_TYPES.CallExpression &&
+      node.declaration.callee?.name === 'defineConfig'
+    ) {
+      configObject = node.declaration.arguments[0];
+    } else if (
+      node.type === AST_NODE_TYPES.ExportNamedDeclaration &&
+      node.declaration?.type === AST_NODE_TYPES.VariableDeclaration
+    ) {
+      const decl = node.declaration.declarations.find(
+        (d) => d.init?.type === AST_NODE_TYPES.CallExpression && d.init.callee?.name === 'defineConfig',
+      );
+      if (decl) configObject = decl.init.arguments[0];
+    }
+  }
+  return configObject;
+}
+
+/**
+ * Boolean build-time flags read straight out of `caper.config.ts`.
+ *
+ * Vite fixes a config's plugin list the moment the config object is created —
+ * no plugin hook can add one later, and the CLI merges `defaultConfig` before
+ * anything has evaluated the user's config module. So these are pulled with
+ * the same oxc AST parse discovery already uses rather than by importing the
+ * file: importing pulls in @caper/core, whose @pixi/sound + GSAP deps run
+ * browser-only top-level side effects that throw under Node (see
+ * `validateCaperConfig` for the gory details).
+ *
+ * Only boolean literals are honoured. A missing, empty, or unparseable
+ * config silently yields the defaults — this runs before the normal config
+ * error reporting, so it must never be the thing that fails the build.
+ */
+function readCaperBuildFlags() {
+  const flags = { useWasm: false };
+  const configPath = path.resolve(cwd, 'caper.config.ts');
+  if (!fs.existsSync(configPath)) return flags;
+
+  let configObject;
+  try {
+    configObject = findConfigObject(parse(fs.readFileSync(configPath, 'utf-8')));
+  } catch {
+    return flags;
+  }
+  if (configObject?.type !== AST_NODE_TYPES.ObjectExpression) return flags;
+
+  for (const prop of configObject.properties) {
+    if (prop.type !== AST_NODE_TYPES.Property || prop.key?.type !== AST_NODE_TYPES.Identifier) continue;
+    if (!(prop.key.name in flags)) continue;
+    if (prop.value?.type === AST_NODE_TYPES.Literal && typeof prop.value.value === 'boolean') {
+      flags[prop.key.name] = prop.value.value;
+    }
+  }
+  return flags;
 }
 
 /**
@@ -2198,6 +2266,8 @@ function caperDevHelperPlugin() {
 /** END PLUGINS */
 
 /** CONFIG */
+const buildFlags = readCaperBuildFlags();
+
 /**
  * @type {Partial<import('vite').UserConfig>}
  */
@@ -2231,8 +2301,15 @@ const defaultConfig = {
     },
   },
   plugins: [
-    // wasm() still needed for Rive + Spine wasm loading paths
-    wasm(),
+    // wasm() only matters for ESM-integration `.wasm` imports (a bare
+    // `import init from './foo.wasm'`), and it costs an enforce:'pre'
+    // resolveId+load hook on every module in the graph. Nothing in caper
+    // needs it: Rive fetches its wasm at runtime via `locateFile`, pixi's
+    // KTX/basis transcoders fetch theirs from a CDN, spine-core is pure JS,
+    // and Vite 8 handles `?init` / `?url` wasm natively. Off by default —
+    // set `useWasm: true` in caper.config.ts if your project imports a
+    // .wasm module directly.
+    ...(buildFlags.useWasm ? [wasm()] : []),
     // vite-plugin-top-level-await dropped in Vite 8 upgrade: Chrome 111 /
     //   Safari 16.4 default targets support TLA natively.
     // vite-plugin-html dropped: was called with no args, Vite handles
