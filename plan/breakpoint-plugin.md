@@ -340,12 +340,16 @@ export default defineConfig({
 // plugins/breakpoints/methods.ts — mirrors actions/methods.ts
 export function defineBreakpoints<
   const T extends Record<string, number>,
-  const M extends Record<string, BreakpointMode<keyof T & string>> = Record<string, never>,
+  const M extends Record<string, BreakpointMode<keyof T & string>> = {},
 >(config: { tiers: T; modes?: M }): { tiers: T; modes: M };
 ```
 
 `modes` is always present on the return type (defaulting to `{}`) so the
-generated `keyof` union never resolves against `undefined`.
+generated `keyof` union never resolves against `undefined`. The default must be
+`{}` and not `Record<string, never>`: `keyof {}` is `never`, but
+`keyof Record<string, never>` is `string | number`, which would collapse the
+generated union to plain `string` and silently disable autocomplete for any app
+that declares tiers without modes.
 
 **Runtime wiring is free.** `Application.registerPlugins` sources a default
 plugin's options from `this.config[plugin.id]` (`Application.ts:780`), so a
