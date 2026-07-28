@@ -14,6 +14,7 @@ import type {
   AppScenes,
   IAssetsPlugin,
   IAudioManagerPlugin,
+  IBreakpointPlugin,
   IControls,
   IFocusManagerPlugin,
   Ii18nPlugin,
@@ -331,6 +332,15 @@ export class Application extends PIXIPApplication implements IApplication {
       this._resizer = this.getPlugin<IResizerPlugin>('resizer');
     }
     return this._resizer;
+  }
+
+  protected _breakpoints: IBreakpointPlugin;
+
+  public get breakpoints(): IBreakpointPlugin {
+    if (!this._breakpoints) {
+      this._breakpoints = this.getPlugin<IBreakpointPlugin>('breakpoints');
+    }
+    return this._breakpoints;
   }
 
   // actions

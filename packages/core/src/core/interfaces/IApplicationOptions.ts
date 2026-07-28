@@ -1,5 +1,6 @@
 import {
   ActionMap,
+  BreakpointsConfig,
   FocusManagerPluginOptions,
   i18nOptions,
   InputManagerOptions,
@@ -74,6 +75,7 @@ export interface IApplicationOptions extends ApplicationOptions {
   useHash: boolean;
   i18n: Partial<i18nOptions>;
   resizer: Partial<ResizerPluginOptions>;
+  breakpoints: Partial<BreakpointsConfig>;
   captions: Partial<CaptionsOptions>;
   showStats: boolean;
 }

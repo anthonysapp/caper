@@ -1,4 +1,5 @@
 import type {
+  BreakpointChangeDetail,
   ChannelMutedDetail,
   ChannelVolumeDetail,
   FocusChangeDetail,
@@ -71,4 +72,6 @@ export interface ICoreSignals {
   onLoadRequiredComplete: Signal<() => void>;
   // DataAdapter;
   onDataChange: Signal<(detail: DataChangeSignalDetail) => void>;
+  // BreakpointPlugin;
+  onBreakpointChanged: Signal<(detail: BreakpointChangeDetail) => void>;
 }

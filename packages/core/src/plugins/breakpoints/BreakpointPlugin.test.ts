@@ -169,10 +169,7 @@ describe('BreakpointPlugin', () => {
   it('registerCoreSignals() exposes onBreakpointChanged under its own registry key', async () => {
     const { plugin } = await setup();
     plugin.registerCoreSignals();
-    // `onBreakpointChanged` isn't declared on ICoreSignals until Task 6 wires
-    // the plugin into the core registry; cast around that for this test.
-    const registry = coreSignalRegistry as unknown as Record<string, unknown>;
-    expect(registry.onBreakpointChanged).toBe(plugin.onChange);
+    expect(coreSignalRegistry.onBreakpointChanged).toBe(plugin.onChange);
   });
 
   it('destroy() disconnects enter/leave listeners', async () => {

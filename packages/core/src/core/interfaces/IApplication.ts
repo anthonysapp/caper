@@ -3,6 +3,7 @@ import type {
   ActionSignal,
   IAssetsPlugin,
   IAudioManagerPlugin,
+  IBreakpointPlugin,
   IControls,
   IFocusManagerPlugin,
   Ii18nPlugin,
@@ -238,6 +239,13 @@ export interface IApplication extends PIXIPApplication {
    * @readonly
    */
   readonly resizer: IResizerPlugin;
+
+  /**
+   * The BreakpointPlugin instance for named responsive state derived from the
+   * renderer size.
+   * @readonly
+   */
+  readonly breakpoints: IBreakpointPlugin;
 
   /**
    * The InputPlugin instance for managing various input sources.

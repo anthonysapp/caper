@@ -11,6 +11,7 @@ import { TimerPlugin } from './TimerPlugin';
 import { WebEventsPlugin } from './WebEventsPlugin';
 import { ActionsPlugin } from './actions';
 import { AudioManagerPlugin } from './audio';
+import { BreakpointPlugin } from './breakpoints';
 import { FocusManagerPlugin } from './focus';
 import { i18nPlugin } from './i18nPlugin';
 import { InputPlugin } from './input';
@@ -35,6 +36,11 @@ export const defaultPlugins: ImportList<IPlugin> = [
     id: 'resizer',
     module: ResizerPlugin,
     namedExport: 'ResizerPlugin',
+  },
+  {
+    id: 'breakpoints',
+    module: BreakpointPlugin,
+    namedExport: 'BreakpointPlugin',
   },
   {
     id: 'assets',

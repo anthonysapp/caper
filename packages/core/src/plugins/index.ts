@@ -1,5 +1,6 @@
 export * from './actions';
 export * from './AssetsPlugin';
+export * from './breakpoints';
 export * from './DataAdapter';
 export * from './audio';
 export * from './focus';
