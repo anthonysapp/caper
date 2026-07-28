@@ -211,12 +211,12 @@ describe('resolveValue', () => {
     expect(resolveValue(ladder, 'tablet', { mobile: 1, tablet: 2, desktop: 3 })).toBe(2);
   });
 
-  it('falls down to the nearest defined tier below', () => {
+  it('falls to the nearest defined tier below', () => {
     expect(resolveValue(ladder, 'desktop', { mobile: 1, tablet: 2 })).toBe(2);
     expect(resolveValue(ladder, 'tablet', { mobile: 1, desktop: 3 })).toBe(1);
   });
 
-  it('falls up to the lowest defined entry when nothing is below', () => {
+  it('falls back to the lowest defined entry when nothing is below', () => {
     expect(resolveValue(ladder, 'mobile', { desktop: 3, wide: 4 })).toBe(3);
   });
 
