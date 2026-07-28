@@ -309,15 +309,15 @@ export interface AppTypeOverrides {}
 // or no entities/popups discovered), the helpers degrade to `never`.
 // ============================================================================
 
-type _EntityClassMap = AppTypeOverrides extends { EntityClasses: infer E } ? E : Record<string, never>;
-type _PopupClassMap = AppTypeOverrides extends { PopupClasses: infer P } ? P : Record<string, never>;
+type _EntityClassMap = AppTypeOverrides extends { EntityClasses: infer E } ? E : {};
+type _PopupClassMap = AppTypeOverrides extends { PopupClasses: infer P } ? P : {};
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _SceneClassMap = AppTypeOverrides extends { SceneClasses: infer S } ? S : Record<string, never>;
+type _SceneClassMap = AppTypeOverrides extends { SceneClasses: infer S } ? S : {};
 
 /** Any-constructor shape. */
 type AnyCtor = abstract new (...args: any[]) => any;
 
-type _UIClassMap = AppTypeOverrides extends { UIClasses: infer U } ? U : Record<string, never>;
+type _UIClassMap = AppTypeOverrides extends { UIClasses: infer U } ? U : {};
 
 /** Union of discovered entity IDs from `src/entities/`. */
 export type EntityId = keyof _EntityClassMap & string;
