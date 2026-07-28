@@ -1,1 +1,1 @@
-{ "extends": "@caper/core/tsconfig" }
+{ "extends": "@caper-engine/core/tsconfig" }

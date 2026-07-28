@@ -1,5 +1,5 @@
 import { FONT_BODY, FONT_DISPLAY_BITMAP } from '@/utils/Constants';
-import { FlexContainer, Size, defineScene } from '@caper/core';
+import { FlexContainer, Size, defineScene } from '@caper-engine/core';
 import BaseScene from '../BaseScene';
 
 export const scene = defineScene({

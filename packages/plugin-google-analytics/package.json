@@ -1,6 +1,6 @@
 {
-  "name": "@caper/plugin-google-analytics",
-  "version": "6.2.2",
+  "name": "@caper-engine/plugin-google-analytics",
+  "version": "0.1.0",
   "description": "Google Analytics",
   "files": [
     "lib",
@@ -24,18 +24,18 @@
     "google",
     "analytics",
     "google-analytics",
-    "@caper/core",
+    "@caper-engine/core",
     "caper"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
-    "@caper/core": "workspace:*",
+    "@caper-engine/core": "workspace:*",
     "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3"
   },
   "peerDependencies": {
-    "@caper/core": "workspace:*"
+    "@caper-engine/core": "workspace:*"
   },
   "dependencies": {
     "@types/gtag.js": "^0.0.20"

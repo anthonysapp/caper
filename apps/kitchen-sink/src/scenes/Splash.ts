@@ -1,4 +1,4 @@
-import { FlexContainer, SceneTransition } from '@caper/core';
+import { FlexContainer, SceneTransition } from '@caper-engine/core';
 import { gsap } from 'gsap';
 import { Text } from 'pixi.js';
 import { FONT_BODY } from '../utils/Constants';

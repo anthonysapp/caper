@@ -1,4 +1,4 @@
-import { PointLike } from '@caper/core';
+import { PointLike } from '@caper-engine/core';
 import { Cursor } from 'pixi.js';
 
 export type Fit = 'cover' | 'contain' | 'fill' | 'fitWidth' | 'fitHeight' | 'none' | 'scaleDown';

@@ -553,7 +553,7 @@ export type AssetBundleOf<T extends AssetAlias> = Extract<AssetBundles, T extend
 /**
  * Add type overrides to the framework
  */
-declare module '@caper/core' {
+declare module '@caper-engine/core' {
   interface AssetTypeOverrides {
     Texture: AssetTextures;
     TPSFrames: AssetTPSFrames; 

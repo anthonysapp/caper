@@ -1,6 +1,6 @@
 {
-  "name": "@caper/plugin-rollbar",
-  "version": "6.2.2",
+  "name": "@caper-engine/plugin-rollbar",
+  "version": "0.1.0",
   "description": "Rollbar",
   "files": [
     "lib",
@@ -23,18 +23,18 @@
   "keywords": [
     "rollbar",
     "rollbar.js",
-    "@caper/core",
+    "@caper-engine/core",
     "caper"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
-    "@caper/core": "workspace:*",
+    "@caper-engine/core": "workspace:*",
     "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3"
   },
   "peerDependencies": {
-    "@caper/core": "workspace:*"
+    "@caper-engine/core": "workspace:*"
   },
   "dependencies": {
     "rollbar": "^2.26.4"

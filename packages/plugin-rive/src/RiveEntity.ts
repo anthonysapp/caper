@@ -8,7 +8,7 @@ import {
   StateMachineInstance,
   WrappedRenderer,
 } from '@rive-app/canvas-advanced-lite';
-import { Container, destroyCanvas, Logger, Signal, WithSignals } from '@caper/core';
+import { Container, destroyCanvas, Logger, Signal, WithSignals } from '@caper-engine/core';
 import { Assets, FederatedPointerEvent, Sprite, Texture, Ticker } from 'pixi.js';
 import { RivePlugin } from './RivePlugin';
 import { Alignment, Fit, RiveOptions } from './types';

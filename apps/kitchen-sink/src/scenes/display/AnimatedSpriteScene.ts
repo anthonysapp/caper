@@ -1,6 +1,6 @@
 import BaseScene from '@/scenes/BaseScene';
 import { FONT_BODY } from '@/utils/Constants';
-import { AnimatedSprite, capitalize, FlexContainer, defineScene } from '@caper/core';
+import { AnimatedSprite, capitalize, FlexContainer, defineScene } from '@caper-engine/core';
 
 export const scene = defineScene({
   id: 'animated-sprites',

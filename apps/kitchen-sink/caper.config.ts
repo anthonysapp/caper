@@ -12,7 +12,7 @@ import {
   defineContexts,
   defineControls,
   defineData,
-} from '@caper/core';
+} from '@caper-engine/core';
 
 /** Default template */
 export const contexts = defineContexts(['default', 'game', 'menu', 'popup']);

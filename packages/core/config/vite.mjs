@@ -137,7 +137,7 @@ async function validateCaperConfig(server) {
   const configPath = path.resolve(cwd, 'caper.config.ts');
   if (!fs.existsSync(configPath)) return true;
 
-  // caper.config.ts pulls in @caper/core, which statically bundles
+  // caper.config.ts pulls in @caper-engine/core, which statically bundles
   // @pixi/sound and GSAP. Both run browser-only top-level side effects
   // during module init, which throw one after another under Vite SSR
   // (Node, no DOM) and abort the whole ssrLoadModule — so config
@@ -530,7 +530,7 @@ export type AssetBundleOf<T extends AssetAlias> = Extract<AssetBundles, T extend
 /**
  * Add type overrides to the framework
  */
-declare module '@caper/core' {
+declare module '@caper-engine/core' {
   interface AssetTypeOverrides {
     Texture: AssetTextures;
     TPSFrames: AssetTPSFrames; 
@@ -732,7 +732,7 @@ function findConfigObject(ast) {
  * no plugin hook can add one later, and the CLI merges `defaultConfig` before
  * anything has evaluated the user's config module. So these are pulled with
  * the same oxc AST parse discovery already uses rather than by importing the
- * file: importing pulls in @caper/core, whose @pixi/sound + GSAP deps run
+ * file: importing pulls in @caper-engine/core, whose @pixi/sound + GSAP deps run
  * browser-only top-level side effects that throw under Node (see
  * `validateCaperConfig` for the gory details).
  *
@@ -773,7 +773,7 @@ function readCaperBuildFlags() {
  *  1. Scene `assets.preload.bundles` / `assets.background.bundles` entries
  *     exist in the assetpack manifest.
  *  2. Plugin IDs in `caper.config.ts` match a discovered plugin
- *     (npm `@caper/plugin-*` OR local `src/plugins/*`).
+ *     (npm `@caper-engine/plugin-*` OR local `src/plugins/*`).
  *  3. `defaultScene` in `caper.config.ts` matches a discovered scene ID.
  *  4. No duplicate scene / plugin / popup / entity IDs across discovery.
  *
@@ -989,7 +989,7 @@ function caperConfigPlugin(isProject = true) {
     }
 
     let appClassName = 'Application';
-    let appImportPath = '@caper/core';
+    let appImportPath = '@caper-engine/core';
     let dataTypeName = 'Record<string, any>';
     let dataSchemaName = '';
     let hasActions = false;
@@ -1137,7 +1137,7 @@ function caperConfigPlugin(isProject = true) {
 
     const imports = [];
     if (appClassName === 'Application') {
-      imports.push(`import type { Application } from '@caper/core';`);
+      imports.push(`import type { Application } from '@caper-engine/core';`);
     }
     if (fs.existsSync(configPath)) {
       const configParts = [];
@@ -1216,7 +1216,7 @@ type AppLocaleKeys = ${localeKeyType};${breakpointsName ? `\n\n// Breakpoints\nt
 /**
  * Add type overrides to the framework
  */
-declare module '@caper/core' {
+declare module '@caper-engine/core' {
   interface AppTypeOverrides {
     App: ${appClassName};
     Data: AppData;
@@ -1432,7 +1432,7 @@ async function discoverLocalPlugins(server) {
 }
 
 /**
- * Discovers npm packages prefixed with `@caper/plugin-` in the host
+ * Discovers npm packages prefixed with `@caper-engine/plugin-` in the host
  * project's `package.json`. Always emitted as dynamic imports.
  */
 function discoverNpmPlugins() {
@@ -1446,9 +1446,9 @@ function discoverNpmPlugins() {
   };
 
   return Object.keys(allDependencies)
-    .filter((dep) => dep.startsWith('@caper/plugin-'))
+    .filter((dep) => dep.startsWith('@caper-engine/plugin-'))
     .map((packageName) => {
-      const id = packageName.replace('@caper/plugin-', '');
+      const id = packageName.replace('@caper-engine/plugin-', '');
       return {
         id,
         name: packageName,
@@ -2134,7 +2134,7 @@ function createCaperRuntimePlugin() {
           import { popupList } from 'virtual:caper-popups';
           import { entityList } from 'virtual:caper-entities';
           import { uiList } from 'virtual:caper-uis';
-          import { create, signalCaperReady, installCaperGlobal } from '@caper/core';
+          import { create, signalCaperReady, installCaperGlobal } from '@caper-engine/core';
 
           (globalThis).Caper = (globalThis).Caper || {};
 
@@ -2354,7 +2354,7 @@ const defaultConfig = {
     viteStaticCopy({
       targets: [
         {
-          src: './node_modules/@caper/core/src/plugins/captions/font/*.*',
+          src: './node_modules/@caper-engine/core/src/plugins/captions/font/*.*',
           dest: './assets/caper/font',
         },
       ],

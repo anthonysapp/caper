@@ -1,14 +1,14 @@
 {
-  "name": "@caper/plugin-crunch",
+  "name": "@caper-engine/plugin-crunch",
   "description": "Crunch Physics",
   "keywords": [
     "physics",
     "crunch",
     "physics-crunch",
-    "@caper/core",
+    "@caper-engine/core",
     "caper"
   ],
-  "version": "6.2.2",
+  "version": "0.1.0",
   "files": [
     "lib",
     "src"
@@ -28,14 +28,14 @@
     "generate-version": "node generateVersion.mjs"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
-    "@caper/core": "workspace:*",
+    "@caper-engine/core": "workspace:*",
     "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3"
   },
   "peerDependencies": {
-    "@caper/core": "workspace:*",
+    "@caper-engine/core": "workspace:*",
     "gsap": "^3.15.0",
     "pixi.js": "8.19.0"
   }

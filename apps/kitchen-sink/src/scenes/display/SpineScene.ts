@@ -1,5 +1,5 @@
 import BaseScene from '@/scenes/BaseScene';
-import { SpineAnimation, defineScene } from '@caper/core';
+import { SpineAnimation, defineScene } from '@caper-engine/core';
 
 export const scene = defineScene({
   id: 'spine',

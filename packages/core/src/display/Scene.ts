@@ -100,7 +100,7 @@ export interface SceneListItem {
  *
  * @example
  * ```ts
- * import { defineScene, Scene } from '@caper/core';
+ * import { defineScene, Scene } from '@caper-engine/core';
  *
  * export const scene = defineScene({
  *   id: 'menu',

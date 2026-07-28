@@ -1,4 +1,4 @@
-import { Animated, FocusOutliner, FocusOutlinerConfig, IFocusable } from '@caper/core';
+import { Animated, FocusOutliner, FocusOutlinerConfig, IFocusable } from '@caper-engine/core';
 import { Graphics } from 'pixi.js';
 import { gsap } from 'gsap';
 

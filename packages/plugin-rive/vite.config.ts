@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: () => `caper-plugin-rive.mjs`,
     },
     rollupOptions: {
-      external: ['@caper/core', 'pixi.js', '@rive-app/canvas-advanced-lite'], // External dependencies
+      external: ['@caper-engine/core', 'pixi.js', '@rive-app/canvas-advanced-lite'], // External dependencies
     },
   },
   plugins: [dts()],

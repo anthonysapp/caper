@@ -9,7 +9,7 @@ import { AppTypeOverrides } from '../utils';
  * @example
  * ```ts
  * // src/types/custom-eases.d.ts
- * declare module '@caper/core/types/gsap' {
+ * declare module '@caper-engine/core/types/gsap' {
  *   interface CustomEase {
  *     'my-custom-ease': any;
  *     'another-ease': any;

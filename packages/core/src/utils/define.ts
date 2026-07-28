@@ -16,7 +16,7 @@ type AppPluginId = AppTypeOverrides['Plugins'];
  * Example:
  *
  *   // src/scenes/MenuScene.ts
- *   import { defineScene, Scene } from '@caper/core';
+ *   import { defineScene, Scene } from '@caper-engine/core';
  *   export const scene = defineScene({
  *     id: 'menu',
  *     assets: { preload: { bundles: ['menu'] } },

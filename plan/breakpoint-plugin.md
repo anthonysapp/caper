@@ -313,7 +313,7 @@ Two levels, matching the two kinds of "custom" that come up.
 pattern — a named export consumed by a top-level config key:
 
 ```ts
-import { defineBreakpoints, defineConfig } from '@caper/core';
+import { defineBreakpoints, defineConfig } from '@caper-engine/core';
 
 export const breakpoints = defineBreakpoints({
   tiers: {

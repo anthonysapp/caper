@@ -1,6 +1,6 @@
 {
   "name": "caper-kitchen-sink",
-  "version": "6.2.2",
+  "version": "0.1.0",
   "description": "Examples of Caper Features (V8)",
   "main": "index.html",
   "scripts": {
@@ -26,21 +26,22 @@
   },
   "author": "Anthony Sapp <anthony@anthonysapp.dev>",
   "license": "MIT",
+  "private": true,
   "devDependencies": {
     "@types/dat.gui": "^0.7.13"
   },
   "dependencies": {
     "@assetpack/core": "^1.7.0",
-    "@caper/plugin-crunch": "workspace:*",
-    "@caper/plugin-google-analytics": "workspace:*",
-    "@caper/plugin-rive": "workspace:*",
-    "@caper/plugin-rollbar": "workspace:*",
-    "@caper/plugin-firebase": "workspace:*",
+    "@caper-engine/plugin-crunch": "workspace:*",
+    "@caper-engine/plugin-google-analytics": "workspace:*",
+    "@caper-engine/plugin-rive": "workspace:*",
+    "@caper-engine/plugin-rollbar": "workspace:*",
+    "@caper-engine/plugin-firebase": "workspace:*",
     "@pixi/layout": "^3.2.0",
     "@pixi/sound": "^6.0.1",
     "@vite-pwa/assets-generator": "^1.0.0",
     "dat.gui": "^0.7.9",
-    "@caper/core": "workspace:*",
+    "@caper-engine/core": "workspace:*",
     "firebase": "^10.12.2",
     "gsap": "^3.15.0",
     "npm-run-all": "4.1.5",

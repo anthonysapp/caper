@@ -1,5 +1,5 @@
 /**
- * Ambient types for caper app projects. Add "@caper/core/client" to the
+ * Ambient types for caper app projects. Add "@caper-engine/core/client" to the
  * "types" array of your tsconfig.
  */
 declare module 'caper-runtime';

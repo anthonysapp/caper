@@ -1,8 +1,8 @@
-# @caper/core
+# @caper-engine/core
 
 > An opinionated HTML game framework built on [PixiJS v8](https://pixijs.com).
 
-`@caper/core` is the framework package of [Caper](https://github.com/anthonysapp/caper), a personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel) by Relish Studios that narrows scope, modernizes the dependency stack, and ships fewer half-finished things.
+`@caper-engine/core` is the framework package of [Caper](https://github.com/anthonysapp/caper), a personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel) by Relish Studios that narrows scope, modernizes the dependency stack, and ships fewer half-finished things.
 
 It sits on top of PixiJS — a renderer, not a game engine — and adds the parts you'd otherwise rebuild for every project: scenes, plugins, asset pipeline, build config, type-safe IDs, signals, and a project layout that scales from a 48-hour jam to something you ship.
 
@@ -18,7 +18,7 @@ This package is **not yet published to npm**. The recommended way to use it is t
 - **Per-bundle asset types** generated from your AssetPack manifest
 - **Plugin `requires: [...]`** declarations + topological sort at bootstrap
 - **Build-time validation** for asset bundles, plugin IDs, dependency cycles, duplicate IDs
-- **Exported Vite + AssetPack config** (`@caper/core/config/vite`, `@caper/core/config/assetpack`)
+- **Exported Vite + AssetPack config** (`@caper-engine/core/config/vite`, `@caper-engine/core/config/assetpack`)
 - **`caper add` CLI** for scaffolding scenes, plugins, entities, popups
 - **Signals** via `typed-signals`
 - **Tested** — Vitest covers `Plugin`, `Store`, `Scene`, `SignalRegistry`
@@ -27,7 +27,7 @@ This package is **not yet published to npm**. The recommended way to use it is t
 
 ```ts
 // src/scenes/MenuScene.ts
-import { defineScene, Scene } from '@caper/core';
+import { defineScene, Scene } from '@caper-engine/core';
 
 export const scene = defineScene({
   id: 'menu',

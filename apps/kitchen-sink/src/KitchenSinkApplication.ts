@@ -1,6 +1,6 @@
-import { Application, PopupId } from '@caper/core';
-import { IFirebasePlugin } from '@caper/plugin-firebase';
-import { IGoogleAnalyticsPlugin } from '@caper/plugin-google-analytics/GoogleAnalyticsPlugin';
+import { Application, PopupId } from '@caper-engine/core';
+import { IFirebasePlugin } from '@caper-engine/plugin-firebase';
+import { IGoogleAnalyticsPlugin } from '@caper-engine/plugin-google-analytics/GoogleAnalyticsPlugin';
 import { AnalyticsEvents } from 'caper.config';
 
 export class KitchenSinkApplication extends Application {

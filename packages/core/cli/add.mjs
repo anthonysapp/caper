@@ -41,7 +41,7 @@ function normalizeName(raw) {
 }
 
 const TEMPLATES = {
-  scene: ({ className, id }) => `import { defineScene, Scene } from '@caper/core';
+  scene: ({ className, id }) => `import { defineScene, Scene } from '@caper-engine/core';
 
 export const scene = defineScene({
   id: '${id}',
@@ -73,7 +73,7 @@ export default class ${className} extends Scene {
 }
 `,
 
-  plugin: ({ className, id }) => `import { definePlugin, IApplication, Logger, Plugin } from '@caper/core';
+  plugin: ({ className, id }) => `import { definePlugin, IApplication, Logger, Plugin } from '@caper-engine/core';
 
 export const plugin = definePlugin({
   id: '${id}',
@@ -98,7 +98,7 @@ export default class ${className}Plugin extends Plugin<${className}PluginOptions
 }
 `,
 
-  entity: ({ className, id }) => `import { Container, defineEntity } from '@caper/core';
+  entity: ({ className, id }) => `import { Container, defineEntity } from '@caper-engine/core';
 
 export const entity = defineEntity({
   id: '${id}',
@@ -116,7 +116,7 @@ export default class ${className} extends Container {
 }
 `,
 
-  popup: ({ className, id }) => `import { Container, definePopup, IPopup, Popup } from '@caper/core';
+  popup: ({ className, id }) => `import { Container, definePopup, IPopup, Popup } from '@caper-engine/core';
 
 export const popup = definePopup({
   id: '${id}',

@@ -1,5 +1,5 @@
 import BaseScene from '@/scenes/BaseScene';
-import { bool, Container, defineScene, PointLike, Signal } from '@caper/core';
+import { bool, Container, defineScene, PointLike, Signal } from '@caper-engine/core';
 import {
   Actor,
   CollisionLayer,
@@ -8,7 +8,7 @@ import {
   ICrunchPhysicsPlugin,
   Sensor,
   Solid,
-} from '@caper/plugin-crunch';
+} from '@caper-engine/plugin-crunch';
 import gsap from 'gsap';
 import { Graphics, Rectangle, Ticker } from 'pixi.js';
 

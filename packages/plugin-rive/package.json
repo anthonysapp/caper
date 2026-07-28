@@ -1,6 +1,6 @@
 {
-  "name": "@caper/plugin-rive",
-  "version": "6.2.2",
+  "name": "@caper-engine/plugin-rive",
+  "version": "0.1.0",
   "description": "Rive",
   "files": [
     "lib",
@@ -23,20 +23,20 @@
   "keywords": [
     "rive",
     "rive.js",
-    "@caper/core",
+    "@caper-engine/core",
     "caper",
     "animation",
     "vector"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
-    "@caper/core": "workspace:*",
+    "@caper-engine/core": "workspace:*",
     "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3"
   },
   "peerDependencies": {
-    "@caper/core": "workspace:*",
+    "@caper-engine/core": "workspace:*",
     "pixi.js": "8.19.0"
   },
   "dependencies": {

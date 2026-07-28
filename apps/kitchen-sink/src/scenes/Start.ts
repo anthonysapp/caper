@@ -1,6 +1,6 @@
 import { CaperColors } from '@/theme';
 import { FONT_BODY, FONT_DISPLAY } from '@/utils/Constants';
-import { FlexContainer, defineScene } from '@caper/core';
+import { FlexContainer, defineScene } from '@caper-engine/core';
 import { gsap } from 'gsap';
 import { Sprite } from 'pixi.js';
 import Base from './BaseScene';

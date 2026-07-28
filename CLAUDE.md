@@ -9,14 +9,14 @@ https://pixijs.com/llms.txt
 
 ## Overview
 
-**Caper** (`@caper/core`) is an opinionated **HTML game framework built on PixiJS v8**. It adds scene management, plugins, asset pipeline, build config, and project tooling on top of PixiJS, which is a renderer — not a game engine. Caper is a personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel) by Relish Studios; the fork narrows scope, modernizes the dep stack, unifies the plugin contract (no more separate "storage adapter" type), and ships fewer half-finished things. Full rationale in [plan/fork-plan.md](plan/fork-plan.md).
+**Caper** (`@caper-engine/core`) is an opinionated **HTML game framework built on PixiJS v8**. It adds scene management, plugins, asset pipeline, build config, and project tooling on top of PixiJS, which is a renderer — not a game engine. Caper is a personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel) by Relish Studios; the fork narrows scope, modernizes the dep stack, unifies the plugin contract (no more separate "storage adapter" type), and ships fewer half-finished things. Full rationale in [plan/fork-plan.md](plan/fork-plan.md).
 
 This repo is a **pnpm + Turborepo monorepo** containing the framework, first-party plugins, and a kitchen-sink demo app. (The original `apps/docs/` site was deleted in Phase 6 — it was almost entirely upstream content that no longer matched the fork. A new docs surface will be designed from scratch when one is needed.)
 
 ## Repo layout
 
-- [packages/core](packages/core/) — the `@caper/core` npm package. Source in [packages/core/src](packages/core/src/): `core/` (Application, config, create, registries), `display/`, `mixins/`, `plugins/`, `signals/`, `store/`, `ui/`, `utils/`. Ships a CLI ([cli.mjs](packages/core/cli.mjs), `create-caper`, plus `caper add scene|plugin|entity|popup`) and reusable vite/assetpack/tsconfig in `config/`.
-- [packages/plugin-\*](packages/) — first-party plugins, flat siblings of `core/`. Current set: `plugin-colyseus`, `plugin-crunch` (Crunch physics), `plugin-firebase`, `plugin-google-analytics`, `plugin-rive`, `plugin-rollbar`. Each is an independent publishable package under the `@caper` npm scope. The `physics-matter` / `physics-snap` / `springroll` plugins were dropped in Phase 3; storage adapters were merged into the unified plugin contract in Phase 1 (Firebase is now a regular plugin).
+- [packages/core](packages/core/) — the `@caper-engine/core` npm package. Source in [packages/core/src](packages/core/src/): `core/` (Application, config, create, registries), `display/`, `mixins/`, `plugins/`, `signals/`, `store/`, `ui/`, `utils/`. Ships a CLI ([cli.mjs](packages/core/cli.mjs), `create-caper`, plus `caper add scene|plugin|entity|popup`) and reusable vite/assetpack/tsconfig in `config/`.
+- [packages/plugin-\*](packages/) — first-party plugins, flat siblings of `core/`. Current set: `plugin-colyseus`, `plugin-crunch` (Crunch physics), `plugin-firebase`, `plugin-google-analytics`, `plugin-rive`, `plugin-rollbar`. Each is an independent publishable package under the `@caper-engine` npm scope. The `physics-matter` / `physics-snap` / `springroll` plugins were dropped in Phase 3; storage adapters were merged into the unified plugin contract in Phase 1 (Firebase is now a regular plugin).
 - [apps/kitchen-sink](apps/kitchen-sink/) — demo / reference app exercising the framework; the canonical place to see real usage of scenes, plugins, popups, entities, UI. Configured via [caper.config.ts](apps/kitchen-sink/caper.config.ts). Doubles as the integration test for every framework change.
 - [scripts/](scripts/) — monorepo-wide build/publish/version scripts and `create-plugin` generator.
 - [plan/](plan/) — fork roadmap ([plan/fork-plan.md](plan/fork-plan.md)) and execution log ([plan/tasks.md](plan/tasks.md)) — read these for the *why* behind any architectural decision.
@@ -61,7 +61,7 @@ in [`packages/core/src/mixins/factory/`](packages/core/src/mixins/factory/).
 1. **Extend Caper's `Container` / `Entity` / `Scene`**, not Pixi's `Container`.
    Caper's `Container` brings the factory mixin (`this.add` / `this.make`), signals,
    and lifecycle (`added` / `removed` / `resize` / `update`). UI widgets and composite
-   views should subclass `Container` from `@caper/core`.
+   views should subclass `Container` from `@caper-engine/core`.
 2. **Build display trees with factory methods**, not `new Sprite()` / `new Text()` /
    `new Graphics()` / `new Container()`:
    - `this.add.sprite({ asset: "…" })` / `this.add.text({…})` /
@@ -97,13 +97,13 @@ Consumer games (e.g. bankshot-web) mirror this rule in their own `CLAUDE.md`.
 
 ## App entry, client types, and the automation bridge
 
-- **Client types.** Apps add `"@caper/core/client"` to their tsconfig `types` array (shipped as `packages/core/client.d.ts`) to get the ambient `declare module 'caper-runtime'` and the `__CAPER_APP_NAME`/`__CAPER_APP_VERSION` build-define globals.
+- **Client types.** Apps add `"@caper-engine/core/client"` to their tsconfig `types` array (shipped as `packages/core/client.d.ts`) to get the ambient `declare module 'caper-runtime'` and the `__CAPER_APP_NAME`/`__CAPER_APP_VERSION` build-define globals.
 - **Auto-injected runtime entry.** The vite runtime plugin's `transformIndexHtml` hook injects `<script type="module">import("caper-runtime")</script>` for you, so new apps need **no** `src/index.ts`. Legacy HTML that already references `caper-runtime` or a `src/index.(ts|js)` entry is left untouched and still works.
 - **Automation bridge (`src/core/globals.ts`).** Every app is registered on `window.Caper`: `Caper.apps` (Map keyed by `config.id`), `Caper.app` (last created), and `Caper.ready(id?)` (resolves even if called before the app exists; no-id resolves the first app). When gated on — dev env, `config.automation === true`, or `VITE_CAPER_AUTOMATION === 'true'` — a facade lands at `Caper.automation[id]` (and `app.automation`) exposing `action/getContext/getState/registerStateGetter/notifyStateChanged/waitFor` plus a 200-entry log fed by the ActionsPlugin's new `onActionDispatched` signal (emitted only for allowed/dispatched actions) and `onActionContextChanged`. `globals.ts` touches **no browser globals at module load** and guards all `import.meta.env` access (SSR constraint).
 
 ## SSR / Node evaluation of the framework entry
 
-`@caper/core`'s built entry (`lib/caper.mjs` → `lib/registries-*.js`) bundles
+`@caper-engine/core`'s built entry (`lib/caper.mjs` → `lib/registries-*.js`) bundles
 `@pixi/sound` and GSAP, both of which run **browser-only top-level side effects**
 (`document.createElement('audio')` format probe, `window` reads in the sound
 singleton, GSAP CSSPlugin's `'transform' in div.style` probe). Importing the entry

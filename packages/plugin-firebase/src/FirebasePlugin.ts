@@ -1,4 +1,4 @@
-import { IApplication, isDev, Logger, Plugin } from '@caper/core';
+import { IApplication, isDev, Logger, Plugin } from '@caper-engine/core';
 import type { FirebaseApp, FirebaseOptions } from 'firebase/app';
 import { initializeApp } from 'firebase/app';
 import type { DocumentData, Firestore, QueryConstraint } from 'firebase/firestore';

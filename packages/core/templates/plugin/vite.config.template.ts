@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: () => `caper-plugin-@pluginName.mjs`,
     },
     rollupOptions: {
-      external: ['@caper/core', 'pixi.js'], // External dependencies
+      external: ['@caper-engine/core', 'pixi.js'], // External dependencies
     },
   },
   plugins: [dts()],

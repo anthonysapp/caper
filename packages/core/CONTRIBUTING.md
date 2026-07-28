@@ -13,15 +13,15 @@ Open an issue on [github.com/anthonysapp/caper/issues](https://github.com/anthon
 
 ## Pull requests
 
-- Run `pnpm framework:build`, `pnpm kitchen-sink:build`, and `pnpm --filter @caper/core test` before opening the PR; all three should be green.
+- Run `pnpm framework:build`, `pnpm kitchen-sink:build`, and `pnpm --filter @caper-engine/core test` before opening the PR; all three should be green.
 - Follow [Conventional Commits](https://www.conventionalcommits.org) — this repo uses `commitlint` and release-please reads commit messages to drive version bumps.
 - Keep PRs focused. One concern per PR is far easier to review than five bundled together.
-- If the change touches the framework's public surface (anything exported from `@caper/core`), call it out in the PR description so I can think about the migration story.
+- If the change touches the framework's public surface (anything exported from `@caper-engine/core`), call it out in the PR description so I can think about the migration story.
 - For framework changes, the kitchen-sink is the integration test — exercise the change there and confirm it still runs end-to-end.
 
 ## What I'm less likely to merge
 
-- Adding a new third-party dependency to `@caper/core`. The framework's dep set is deliberately small.
+- Adding a new third-party dependency to `@caper-engine/core`. The framework's dep set is deliberately small.
 - Reintroducing systems the fork removed (springroll, physics-matter, physics-snap, the storage-adapter / plugin split). These were cut for reasons documented in `plan/audit.md` and `plan/fork-plan.md`.
 - Stylistic refactors of code that already works.
 - Features that depend on infrastructure I don't run (CI services, hosted databases, paid analytics, etc.).

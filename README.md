@@ -17,7 +17,7 @@ This is a personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel)
 - **Plugin dependency declarations.** `definePlugin({ requires: ['firebase'] })` and the framework topologically sorts at bootstrap. No more "wrong order" foot-guns.
 - **Build-time validation.** Missing asset bundles, unknown plugin IDs, plugin dependency cycles, duplicate scene IDs — all caught during the build, before the runtime ever sees them.
 - **One CLI.** `caper add scene|plugin|entity|popup` scaffolds a stub that builds and runs immediately.
-- **Exported Vite + AssetPack config.** Apps consume `@caper/core/config/vite` instead of duplicating ~300 lines of boilerplate.
+- **Exported Vite + AssetPack config.** Apps consume `@caper-engine/core/config/vite` instead of duplicating ~300 lines of boilerplate.
 - **Signals over events.** Strongly typed pub/sub via `typed-signals`.
 - **Tested.** Vitest covers `Plugin`, `Store`, `Scene`, `SignalRegistry`, and the storage interfaces. Not exhaustive, but it catches the bone-headed regressions.
 
@@ -29,7 +29,7 @@ If you're new to PixiJS, learn that first — Caper assumes you know how contain
 
 ## Status
 
-This is **a personal fork in active development**. The package is not yet published to npm under `@caper/core` — that happens in Phase 7. Until then, the recommended way to use it is to clone this repo, run the kitchen-sink, and either fork it as a starter or vendor `packages/core` into your own project.
+This is **a personal fork in active development**. The package is not yet published to npm under `@caper-engine/core` — that happens in Phase 7. Until then, the recommended way to use it is to clone this repo, run the kitchen-sink, and either fork it as a starter or vendor `packages/core` into your own project.
 
 The original `dill-pixel` package on npm still works for projects that don't want to follow this fork — see [`MIGRATION_GUIDE.md`](./MIGRATION_GUIDE.md) for what changed.
 
@@ -37,13 +37,13 @@ The original `dill-pixel` package on npm still works for projects that don't wan
 
 ```
 packages/
-  core/                       → @caper/core (the framework)
-  plugin-crunch/              → @caper/plugin-crunch (Crunch physics)
-  plugin-rive/                → @caper/plugin-rive
-  plugin-firebase/            → @caper/plugin-firebase
-  plugin-google-analytics/    → @caper/plugin-google-analytics
-  plugin-rollbar/             → @caper/plugin-rollbar
-  plugin-colyseus/            → @caper/plugin-colyseus
+  core/                       → @caper-engine/core (the framework)
+  plugin-crunch/              → @caper-engine/plugin-crunch (Crunch physics)
+  plugin-rive/                → @caper-engine/plugin-rive
+  plugin-firebase/            → @caper-engine/plugin-firebase
+  plugin-google-analytics/    → @caper-engine/plugin-google-analytics
+  plugin-rollbar/             → @caper-engine/plugin-rollbar
+  plugin-colyseus/            → @caper-engine/plugin-colyseus
 apps/
   kitchen-sink/               demo / reference app
 plan/                         fork roadmap + execution log
@@ -62,7 +62,7 @@ The kitchen-sink exercises every plugin, every UI primitive, the asset pipeline,
 
 ```ts
 // src/scenes/MenuScene.ts
-import { defineScene, Scene } from '@caper/core';
+import { defineScene, Scene } from '@caper-engine/core';
 
 export const scene = defineScene({
   id: 'menu',
@@ -86,7 +86,7 @@ The Vite plugin discovers this file on next reload. The id `'menu'` is added to 
 
 ```ts
 // src/plugins/AnalyticsPlugin.ts
-import { definePlugin, IApplication, Plugin } from '@caper/core';
+import { definePlugin, IApplication, Plugin } from '@caper-engine/core';
 
 export const plugin = definePlugin({
   id: 'analytics',
@@ -116,9 +116,9 @@ There's no docs site yet — the upstream `apps/docs/` was deleted in Phase 6 be
 ```sh
 pnpm kitchen-sink:dev          # run the demo
 pnpm kitchen-sink:build        # build the demo
-pnpm framework:build           # build @caper/core only
-pnpm packages:build             # build all @caper/plugin-*
-pnpm --filter @caper/core test # run framework tests (23 currently)
+pnpm framework:build           # build @caper-engine/core only
+pnpm packages:build             # build all @caper-engine/plugin-*
+pnpm --filter @caper-engine/core test # run framework tests (23 currently)
 pnpm plugin:create              # scaffold a new plugin package
 caper add scene MenuScene       # scaffold a new scene/plugin/entity/popup in a Caper app
 ```

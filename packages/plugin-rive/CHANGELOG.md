@@ -1,4 +1,4 @@
-# @caper/plugin-rive
+# @caper-engine/plugin-rive
 
 ## 8.7.13
 

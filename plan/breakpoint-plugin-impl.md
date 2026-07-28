@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a first-party `BreakpointPlugin` to `@caper/core` that turns raw resize events into named tiers, modes and axes, declared in `caper.config.ts` with generated intellisense.
+**Goal:** Add a first-party `BreakpointPlugin` to `@caper-engine/core` that turns raw resize events into named tiers, modes and axes, declared in `caper.config.ts` with generated intellisense.
 
 **Architecture:** All decision logic lives in pure functions in `evaluate.ts` (no DOM, no app) and is unit-tested directly; `BreakpointPlugin.ts` is a thin stateful shell that feeds those functions the renderer size and fans results out over signals. Config reaches the plugin for free because `Application.registerPlugins` sources a default plugin's options from `this.config[plugin.id]`, and typed names reach the app via the same `caper-app.d.ts` codegen path `defineActions`/`defineData` already use.
 
@@ -1498,7 +1498,7 @@ export const breakpoints = defineBreakpoints({
 });
 ```
 
-and `breakpoints,` inside `defineConfig({ … })`. Import `defineBreakpoints` from `@caper/core`.
+and `breakpoints,` inside `defineConfig({ … })`. Import `defineBreakpoints` from `@caper-engine/core`.
 
 ```bash
 cd apps/kitchen-sink && pnpm dev

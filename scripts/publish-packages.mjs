@@ -14,7 +14,7 @@ function updateDependencyVersions(packageJson, version) {
   for (const section of sections) {
     if (packageJson[section]) {
       for (const [dep, depVersion] of Object.entries(packageJson[section])) {
-        if (dep.startsWith('@caper/core') && depVersion === 'workspace:*') {
+        if (dep.startsWith('@caper-engine/core') && depVersion === 'workspace:*') {
           packageJson[section][dep] = version;
           modified = true;
         }

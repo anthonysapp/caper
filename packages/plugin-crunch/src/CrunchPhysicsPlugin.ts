@@ -1,4 +1,4 @@
-import { IApplication, IPlugin, isDev, Logger, Plugin, version } from '@caper/core';
+import { IApplication, IPlugin, isDev, Logger, Plugin, version } from '@caper-engine/core';
 import { Container as PIXIContainer, Rectangle, Ticker } from 'pixi.js';
 import { Actor } from './Actor';
 import { Group } from './Group';

@@ -1,4 +1,4 @@
-import { FlexContainer, Input, defineScene } from '@caper/core';
+import { FlexContainer, Input, defineScene } from '@caper-engine/core';
 
 import BaseScene from '@/scenes/BaseScene';
 

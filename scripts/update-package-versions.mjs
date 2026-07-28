@@ -32,8 +32,8 @@ function updatePackageJson(packageJsonPath) {
     if (packageJson.dependencies['@pixi/sound'] && !packageJson.dependencies['@pixi/sound']?.includes('workspace')) {
       packageJson.dependencies['@pixi/sound'] = pixiSoundVersion;
     }
-    if (packageJson.dependencies['@caper/core'] && !packageJson.dependencies['@caper/core']?.includes('workspace')) {
-      packageJson.dependencies['@caper/core'] = caperVersion;
+    if (packageJson.dependencies['@caper-engine/core'] && !packageJson.dependencies['@caper-engine/core']?.includes('workspace')) {
+      packageJson.dependencies['@caper-engine/core'] = caperVersion;
     }
     if (packageJson.dependencies['vite'] && !packageJson.dependencies['vite']?.includes('workspace')) {
       packageJson.dependencies['vite'] = viteVersion;
@@ -46,8 +46,8 @@ function updatePackageJson(packageJsonPath) {
     if (packageJson.peerDependencies['@pixi/sound']) {
       packageJson.peerDependencies['@pixi/sound'] = pixiSoundVersion;
     }
-    if (packageJson.peerDependencies['@caper/core']) {
-      packageJson.peerDependencies['@caper/core'] = caperVersion;
+    if (packageJson.peerDependencies['@caper-engine/core']) {
+      packageJson.peerDependencies['@caper-engine/core'] = caperVersion;
     }
     if (packageJson.peerDependencies['vite']) {
       packageJson.peerDependencies['vite'] = viteVersion;
@@ -58,8 +58,8 @@ function updatePackageJson(packageJsonPath) {
     if (packageJson.devDependencies['vite-plugin-dts']) {
       packageJson.devDependencies['vite-plugin-dts'] = vitePluginDtsVersion;
     }
-    if (packageJson.devDependencies['@caper/core']) {
-      packageJson.devDependencies['@caper/core'] = caperVersion;
+    if (packageJson.devDependencies['@caper-engine/core']) {
+      packageJson.devDependencies['@caper-engine/core'] = caperVersion;
     }
     if (packageJson.devDependencies['vite']) {
       packageJson.devDependencies['vite'] = viteVersion;

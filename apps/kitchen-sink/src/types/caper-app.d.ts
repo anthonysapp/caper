@@ -129,7 +129,7 @@ type AppBreakpointModes = keyof (typeof breakpoints)['modes'] & string;
 /**
  * Add type overrides to the framework
  */
-declare module '@caper/core' {
+declare module '@caper-engine/core' {
   interface AppTypeOverrides {
     App: KitchenSinkApplication;
     Data: AppData;

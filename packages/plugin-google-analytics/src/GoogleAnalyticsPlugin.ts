@@ -1,5 +1,5 @@
-import type { IApplication, IPlugin } from '@caper/core';
-import { isDev, Logger, omitKeys, Plugin } from '@caper/core';
+import type { IApplication, IPlugin } from '@caper-engine/core';
+import { isDev, Logger, omitKeys, Plugin } from '@caper-engine/core';
 import { version } from './version';
 
 type ConfigParams = Gtag.ConfigParams & Gtag.ControlParams & Gtag.EventParams & Gtag.ConfigParams & Gtag.CustomParams;

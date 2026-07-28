@@ -2,7 +2,7 @@ import BaseScene from '@/scenes/BaseScene';
 import { CaperColors } from '@/theme';
 import CaperPanel from '@/ui/CaperPanel';
 import { FONT_BODY } from '@/utils/Constants';
-import { FlexContainer, defineScene } from '@caper/core';
+import { FlexContainer, defineScene } from '@caper-engine/core';
 import { Text } from 'pixi.js';
 
 const CARDS: AssetCard[] = [

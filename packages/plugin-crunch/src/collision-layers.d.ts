@@ -6,7 +6,7 @@
  *
  * ```typescript
  * // collision-layers.d.ts in your project
- * declare module '@caper/plugin-crunch' {
+ * declare module '@caper-engine/plugin-crunch' {
  *   interface UserCollisionLayers {
  *     WATER: number;
  *     LAVA: number;
@@ -18,7 +18,7 @@
  * Then you can access your custom layers with intellisense:
  *
  * ```typescript
- * import { physics } from '@caper/core';
+ * import { physics } from '@caper-engine/core';
  *
  * // Register your custom layers
  * physics.registerCollisionLayer('WATER', 0);

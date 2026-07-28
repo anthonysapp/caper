@@ -2,7 +2,7 @@ import { Graphics, Sprite, Text, Texture } from 'pixi.js';
 
 import { CaperColors } from '@/theme';
 import { FONT_BODY, FONT_DISPLAY } from '@/utils/Constants';
-import { FlexContainer, Scene, Size, defineScene } from '@caper/core';
+import { FlexContainer, Scene, Size, defineScene } from '@caper-engine/core';
 import { GUI } from 'dat.gui';
 
 export const scene = defineScene({

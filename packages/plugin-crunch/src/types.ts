@@ -1,4 +1,4 @@
-import { PointLike, SizeLike } from '@caper/core';
+import { PointLike, SizeLike } from '@caper-engine/core';
 import { Container } from 'pixi.js';
 import { Actor } from './Actor';
 import { Entity } from './Entity';

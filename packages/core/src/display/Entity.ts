@@ -19,7 +19,7 @@ import { Container } from './Container';
  *
  * @example
  * ```ts
- * import { defineEntity, Entity } from '@caper/core';
+ * import { defineEntity, Entity } from '@caper-engine/core';
  *
  * type ActorProps = { color?: number; x?: number; y?: number };
  *

@@ -1,5 +1,5 @@
 import BaseScene from '@/scenes/BaseScene';
-import { ActionDetail, Button, FlexContainer, defineScene } from '@caper/core';
+import { ActionDetail, Button, FlexContainer, defineScene } from '@caper-engine/core';
 import { Text } from 'pixi.js';
 
 export const scene = defineScene({

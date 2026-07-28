@@ -12,32 +12,32 @@ let packageManager = package_manager;
 
 const AVAILABLE_PLUGINS = [
   {
-    name: '@caper/plugin-rollbar',
+    name: '@caper-engine/plugin-rollbar',
     displayName: 'Rollbar',
     description: 'Rollbar error tracking and monitoring',
   },
   {
-    name: '@caper/plugin-rive',
+    name: '@caper-engine/plugin-rive',
     displayName: 'Rive',
     description: 'Rive animation integration',
   },
   {
-    name: '@caper/plugin-colyseus',
+    name: '@caper-engine/plugin-colyseus',
     displayName: 'Colyseus',
     description: 'Colyseus multiplayer game server integration',
   },
   {
-    name: '@caper/plugin-google-analytics',
+    name: '@caper-engine/plugin-google-analytics',
     displayName: 'Google Analytics',
     description: 'Google Analytics integration',
   },
   {
-    name: '@caper/plugin-crunch',
+    name: '@caper-engine/plugin-crunch',
     displayName: 'Crunch Physics',
     description: 'Crunch physics engine integration',
   },
   {
-    name: '@caper/plugin-firebase',
+    name: '@caper-engine/plugin-firebase',
     displayName: 'Firebase',
     description: 'Firebase plugin for cloud data persistence',
   },
@@ -121,8 +121,8 @@ function write_template_files(cwd, template, applicationNameForPkg, applicationN
   const frameworkPkg = JSON.parse(fs.readFileSync(dist('package.json'), 'utf-8'));
 
   // Set the caper dependency version
-  if (pkgJson.dependencies && pkgJson.dependencies['@caper/core']) {
-    pkgJson.dependencies['@caper/core'] = ensureCaretPrefix(frameworkPkg.version);
+  if (pkgJson.dependencies && pkgJson.dependencies['@caper-engine/core']) {
+    pkgJson.dependencies['@caper-engine/core'] = ensureCaretPrefix(frameworkPkg.version);
   }
 
   // Add framework peer dependencies to the template's peerDependencies
@@ -175,8 +175,8 @@ function write_template_files(cwd, template, applicationNameForPkg, applicationN
   if (plugins && plugins.length > 0) {
     // Convert plugin names to config format
     const pluginConfigs = plugins.map((pluginName) => {
-      // Remove @caper/plugin- prefix
-      const shortName = pluginName.replace('@caper/plugin-', '');
+      // Remove @caper-engine/plugin- prefix
+      const shortName = pluginName.replace('@caper-engine/plugin-', '');
       return `['${shortName}', { autoLoad: false }]`;
     });
 

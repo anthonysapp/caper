@@ -1,7 +1,7 @@
 import type { Actor } from '@/entities/Actor';
 import BaseScene from '@/scenes/BaseScene';
 import { FONT_BODY } from '@/utils/Constants';
-import { Button, defineScene, FlexContainer, Logger, scaleToWidth } from '@caper/core';
+import { Button, defineScene, FlexContainer, Logger, scaleToWidth } from '@caper-engine/core';
 import { Text } from 'pixi.js';
 
 export const scene = defineScene({

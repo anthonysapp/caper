@@ -1,4 +1,4 @@
-import { definePlugin, IApplication, Plugin } from '@caper/core';
+import { definePlugin, IApplication, Plugin } from '@caper-engine/core';
 
 // Typed identity helper — same effect as writing `export const id = 'test'`
 // etc. individually, but the object literal is checked against

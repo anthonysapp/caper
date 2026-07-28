@@ -1,4 +1,4 @@
-import { resolvePointLike, resolveSizeLike } from '@caper/core';
+import { resolvePointLike, resolveSizeLike } from '@caper-engine/core';
 import { PhysicsEntityConfig } from './types';
 
 /**

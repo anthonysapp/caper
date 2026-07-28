@@ -1,6 +1,6 @@
 {
-  "name": "@caper/plugin-colyseus",
-  "version": "6.2.2",
+  "name": "@caper-engine/plugin-colyseus",
+  "version": "0.1.0",
   "description": "Colyseus",
   "files": [
     "lib",
@@ -22,18 +22,18 @@
   "keywords": [
     "colyseus",
     "colyseus.js",
-    "@caper/core",
+    "@caper-engine/core",
     "caper"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
-    "@caper/core": "workspace:*",
+    "@caper-engine/core": "workspace:*",
     "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3"
   },
   "peerDependencies": {
-    "@caper/core": "workspace:*"
+    "@caper-engine/core": "workspace:*"
   },
   "dependencies": {
     "@colyseus/schema": "^2.0.34",

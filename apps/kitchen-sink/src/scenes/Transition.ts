@@ -1,4 +1,4 @@
-import { SceneTransition } from '@caper/core';
+import { SceneTransition } from '@caper-engine/core';
 import { gsap } from 'gsap';
 import { Sprite } from 'pixi.js';
 import { COLOR_BG } from '../utils/Constants';

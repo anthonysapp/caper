@@ -1,5 +1,5 @@
 import Rive, { RiveCanvas } from '@rive-app/canvas-advanced-lite';
-import { IPlugin, Plugin } from '@caper/core';
+import { IPlugin, Plugin } from '@caper-engine/core';
 import { BrowserAdapter, checkExtension, extensions, ExtensionType, LoaderParserPriority } from 'pixi.js';
 import { riveVersion, version } from './version';
 

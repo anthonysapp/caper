@@ -1,4 +1,4 @@
-import { Container, defineEntity, Focusable, Interactive } from '@caper/core';
+import { Container, defineEntity, Focusable, Interactive } from '@caper-engine/core';
 import { Graphics } from 'pixi.js';
 
 export const entity = defineEntity({
