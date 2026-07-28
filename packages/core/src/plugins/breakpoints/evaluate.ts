@@ -173,3 +173,29 @@ export function diffNames(
   for (const name of prev) if (!next.has(name)) left.push(name);
   return { entered, left };
 }
+
+/**
+ * Mobile-first cascade: the entry for the current tier, else the nearest
+ * defined tier below it, else the lowest defined entry. A non-empty map
+ * therefore never yields undefined. An explicit `undefined` value counts as
+ * absent, which is what makes partial maps ergonomic.
+ *
+ * An unknown tier behaves like the bottom of the ladder (index -1), so the
+ * first loop is skipped and the lowest defined entry wins.
+ */
+export function resolveValue<T>(
+  ladder: NormalizedLadder,
+  tier: BreakpointNameLike,
+  map: Partial<Record<string, T>>,
+): T | undefined {
+  const idx = ladder.names.indexOf(tier as string);
+  for (let i = idx; i >= 0; i--) {
+    const value = map[ladder.names[i]];
+    if (value !== undefined) return value;
+  }
+  for (let i = 0; i < ladder.names.length; i++) {
+    const value = map[ladder.names[i]];
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}

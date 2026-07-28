@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { defaultBreakpoints } from './types';
 import type { BreakpointContext, BreakpointMode } from './types';
-import { activeNames, buildContext, diffNames, matchesMode, normalizeTiers, resolveTier, resolveStop } from './evaluate';
+import { activeNames, buildContext, diffNames, matchesMode, normalizeTiers, resolveTier, resolveStop, resolveValue } from './evaluate';
 
 const ladder = normalizeTiers({ ...defaultBreakpoints });
 
@@ -203,5 +203,37 @@ describe('diffNames', () => {
     const d = diffNames(new Set(['tablet', 'stacked']), new Set(['tablet']));
     expect(d.entered).toEqual([]);
     expect(d.left).toEqual(['stacked']);
+  });
+});
+
+describe('resolveValue', () => {
+  it('takes an exact hit', () => {
+    expect(resolveValue(ladder, 'tablet', { mobile: 1, tablet: 2, desktop: 3 })).toBe(2);
+  });
+
+  it('falls down to the nearest defined tier below', () => {
+    expect(resolveValue(ladder, 'desktop', { mobile: 1, tablet: 2 })).toBe(2);
+    expect(resolveValue(ladder, 'tablet', { mobile: 1, desktop: 3 })).toBe(1);
+  });
+
+  it('falls up to the lowest defined entry when nothing is below', () => {
+    expect(resolveValue(ladder, 'mobile', { desktop: 3, wide: 4 })).toBe(3);
+  });
+
+  it('handles a single-entry map from any tier', () => {
+    expect(resolveValue(ladder, 'wide', { tablet: 2 })).toBe(2);
+    expect(resolveValue(ladder, 'mobile', { tablet: 2 })).toBe(2);
+  });
+
+  it('returns undefined for an empty map', () => {
+    expect(resolveValue(ladder, 'tablet', {})).toBeUndefined();
+  });
+
+  it('treats an explicit undefined value as absent', () => {
+    expect(resolveValue(ladder, 'tablet', { mobile: 1, tablet: undefined })).toBe(1);
+  });
+
+  it('falls back to the lowest entry when the tier is not on the ladder', () => {
+    expect(resolveValue(ladder, 'bogus', { mobile: 1 })).toBe(1);
   });
 });
