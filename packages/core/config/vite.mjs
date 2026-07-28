@@ -781,7 +781,16 @@ function readCaperBuildFlags() {
  * (typos are a dev-time problem; the runtime will still start, just with
  * broken references the user needs to see).
  */
-function runBuildTimeValidation({ server, configPath, configObject, scenes, plugins, popups, entities }) {
+function runBuildTimeValidation({
+  server,
+  configPath,
+  configObject,
+  scenes,
+  plugins,
+  popups,
+  entities,
+  breakpointsName,
+}) {
   const warnings = [];
   const bundleNames = loadManifestBundleNames();
 
@@ -869,6 +878,19 @@ function runBuildTimeValidation({ server, configPath, configObject, scenes, plug
   checkDuplicates('plugin', plugins);
   checkDuplicates('popup', popups);
   checkDuplicates('entity', entities);
+
+  // 6. Breakpoints declared in config but not via defineBreakpoints() — the
+  // names will work at runtime but get no intellisense.
+  if (!breakpointsName && configObject?.type === AST_NODE_TYPES.ObjectExpression) {
+    const hasKey = configObject.properties.some(
+      (p) => p.type === AST_NODE_TYPES.Property && p.key?.name === 'breakpoints',
+    );
+    if (hasKey) {
+      warnings.push(
+        `caper.config.ts sets \`breakpoints\` but no \`defineBreakpoints()\` export was found — breakpoint names will not be type-checked. Wrap the object: \`export const breakpoints = defineBreakpoints({ ... })\`.`,
+      );
+    }
+  }
 
   if (warnings.length === 0) return;
 
@@ -972,6 +994,7 @@ function caperConfigPlugin(isProject = true) {
     let dataSchemaName = '';
     let hasActions = false;
     let hasContexts = false;
+    let breakpointsName = '';
 
     let configObject;
 
@@ -987,6 +1010,15 @@ function caperConfigPlugin(isProject = true) {
         if (dataDecl && dataDecl.id.type === AST_NODE_TYPES.Identifier) {
           dataSchemaName = dataDecl.id.name;
           dataTypeName = `typeof ${dataSchemaName}`;
+        }
+
+        // Find breakpoints (detect by callee, like defineData — more robust
+        // than matching on the variable name).
+        const bpDecl = node.declaration.declarations.find(
+          (d) => d.init?.type === AST_NODE_TYPES.CallExpression && d.init.callee.name === 'defineBreakpoints',
+        );
+        if (bpDecl && bpDecl.id.type === AST_NODE_TYPES.Identifier) {
+          breakpointsName = bpDecl.id.name;
         }
 
         // Find actions
@@ -1061,6 +1093,7 @@ function caperConfigPlugin(isProject = true) {
       plugins,
       popups,
       entities,
+      breakpointsName,
     });
 
     const sceneIdType = sceneIds.length > 0 ? `\n  | '${sceneIds.join("'\n  | '")}'` : 'string';
@@ -1116,6 +1149,9 @@ function caperConfigPlugin(isProject = true) {
       }
       if (hasContexts) {
         configParts.push('contexts');
+      }
+      if (breakpointsName) {
+        configParts.push(breakpointsName);
       }
       if (configParts.length > 0) {
         imports.push(`import type { ${configParts.join(', ')} } from '${relativeConfigPath}';`);
@@ -1176,6 +1212,13 @@ ${uiClassMap}
 
 // Locale keys (flattened dot-paths from src/locales/<reference>.ts)
 type AppLocaleKeys = ${localeKeyType};
+${
+  breakpointsName
+    ? `// Breakpoints
+type AppBreakpoints = keyof (typeof ${breakpointsName})['tiers'] & string;
+type AppBreakpointModes = keyof (typeof ${breakpointsName})['modes'] & string;`
+    : ''
+}
 
 /**
  * Add type overrides to the framework
@@ -1197,6 +1240,7 @@ declare module '@caper/core' {
     UIs: AppUIs;
     UIClasses: AppUIClasses;
     LocaleKeys: AppLocaleKeys;
+${breakpointsName ? `    Breakpoints: AppBreakpoints;\n    BreakpointModes: AppBreakpointModes;` : ''}
     Eases: Eases;
   }
 }
