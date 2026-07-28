@@ -1,6 +1,6 @@
 {
   "name": "@caperjs/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "title": "Caper",
   "description": "An opinionated HTML game framework built on PixiJS v8",
   "bin": {
@@ -93,8 +93,7 @@
     "turbo": "^2.0.3",
     "typedoc": "^0.28.1",
     "vite-plugin-dts": "^4.5.3",
-    "vitest": "^3",
-    "zod": "^4.3.6"
+    "vitest": "^3"
   },
   "peerDependencies": {
     "@pixi/sound": "^6.0.1",
@@ -134,6 +133,7 @@
     "workbox-expiration": "^7.4.0",
     "workbox-routing": "^7.4.0",
     "workbox-strategies": "^7.4.0",
-    "workbox-window": "^7.4.0"
+    "workbox-window": "^7.4.0",
+    "zod": "^4.3.6"
   }
 }
