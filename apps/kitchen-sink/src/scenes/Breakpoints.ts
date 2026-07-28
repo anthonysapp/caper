@@ -19,10 +19,13 @@ export const scene = defineScene({
  * - `bp.onChange` drives `_refresh` — it fires only when a name actually
  *   flips, never on every resize tick, so the readout stays cheap.
  * - `bp.value({ mobile: 1, tablet: 2, desktop: 3, wide: 4 })` cascades a
- *   column count for the box row down from the current tier.
- * - `bp.when('stacked', ...)` runs immediately if already stacked and
- *   again on every subsequent entry — used here to count entries, a job
- *   `_refresh`'s `bp.is('stacked')` check alone can't do.
+ *   column count for the box row from the current tier.
+ * - `bp.when('stacked', ...)` paired with `bp.onLeave('stacked', ...)`
+ *   drives the box row's own layout switch — `when` runs immediately if the
+ *   scene starts already stacked, then again on every later entry;
+ *   `onLeave` is its mirror. That pairing is the idiom for state that
+ *   tracks one mode, distinct from `onChange`'s "something flipped, redraw
+ *   everything" job.
  */
 export default class BreakpointsScene extends BaseScene {
   protected readonly title = 'Breakpoints';
@@ -32,8 +35,6 @@ export default class BreakpointsScene extends BaseScene {
   container: FlexContainer;
   readout: Text;
   boxRow: FlexContainer;
-
-  _stackedEntries = 0;
 
   async initialize() {
     await super.initialize();
@@ -65,13 +66,11 @@ export default class BreakpointsScene extends BaseScene {
 
     const bp = this.app.breakpoints;
 
-    this.addSignalConnection(bp.onChange.connect(() => this._refresh()));
     this.addSignalConnection(
-      bp.when('stacked', () => {
-        this._stackedEntries++;
-        this._refresh();
-      }),
+      bp.when('stacked', () => this._setStacked(true)),
+      bp.onLeave('stacked', () => this._setStacked(false)),
     );
+    this.addSignalConnection(bp.onChange.connect(() => this._refresh()));
 
     this._refresh();
   }
@@ -79,22 +78,25 @@ export default class BreakpointsScene extends BaseScene {
   _refresh() {
     const bp = this.app.breakpoints;
     const columns = bp.value({ mobile: 1, tablet: 2, desktop: 3, wide: 4 }) ?? 1;
-    const stacked = bp.is('stacked');
 
     this.readout.text = [
       `tier: ${bp.current}`,
       `orientation: ${bp.orientation}`,
       `pointer: ${bp.pointer}`,
-      `stacked: ${stacked}`,
+      `stacked: ${bp.is('stacked')}`,
       `columns: ${columns}`,
-      `stacked entries: ${this._stackedEntries}`,
     ].join('\n');
 
-    this._layoutBoxes(columns, stacked);
+    this._layoutBoxes(columns);
   }
 
-  _layoutBoxes(columns: number, stacked: boolean) {
+  _setStacked(stacked: boolean) {
     this.boxRow.flexDirection = stacked ? 'column' : 'row';
+    this.boxRow.updateLayout();
+    this.ui.updateLayout();
+  }
+
+  _layoutBoxes(columns: number) {
     this.boxRow.removeChildren();
     for (let i = 0; i < columns; i++) {
       this.boxRow.add
