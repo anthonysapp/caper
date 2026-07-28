@@ -7,4 +7,4 @@ export {
   CollectorUntil0,
   CollectorWhile0,
 } from './Signal';
-export type { SignalConnection } from './Signal';
+export type { SignalConnection, SignalOrder } from './Signal';
