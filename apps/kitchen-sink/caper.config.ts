@@ -4,7 +4,15 @@ import { Transition } from '@/scenes/Transition';
 import { ExampleOutliner } from '@/ui/ExampleOutliner';
 import { FONT_BODY } from '@/utils/Constants';
 import { CustomEases } from '@/utils/Easing';
-import { defineActions, defineButtons, defineConfig, defineContexts, defineControls, defineData } from '@caper/core';
+import {
+  defineActions,
+  defineBreakpoints,
+  defineButtons,
+  defineConfig,
+  defineContexts,
+  defineControls,
+  defineData,
+} from '@caper/core';
 
 /** Default template */
 export const contexts = defineContexts(['default', 'game', 'menu', 'popup']);
@@ -96,6 +104,11 @@ export const dataSchema = defineData({
   },
 });
 
+export const breakpoints = defineBreakpoints({
+  tiers: { mobile: 0, tablet: 768, desktop: 1024, wide: 1440 },
+  modes: { stacked: { below: 880 } },
+});
+
 export default defineConfig({
   id: 'KitchenSinkApplication',
   application: KitchenSinkApplication,
@@ -128,6 +141,7 @@ export default defineConfig({
     outliner: ExampleOutliner,
   },
   actions,
+  breakpoints,
   input: {
     controls,
   },
