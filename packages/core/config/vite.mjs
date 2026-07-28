@@ -1211,14 +1211,7 @@ ${uiClassMap}
 };
 
 // Locale keys (flattened dot-paths from src/locales/<reference>.ts)
-type AppLocaleKeys = ${localeKeyType};
-${
-  breakpointsName
-    ? `// Breakpoints
-type AppBreakpoints = keyof (typeof ${breakpointsName})['tiers'] & string;
-type AppBreakpointModes = keyof (typeof ${breakpointsName})['modes'] & string;`
-    : ''
-}
+type AppLocaleKeys = ${localeKeyType};${breakpointsName ? `\n\n// Breakpoints\ntype AppBreakpoints = keyof (typeof ${breakpointsName})['tiers'] & string;\ntype AppBreakpointModes = keyof (typeof ${breakpointsName})['modes'] & string;` : ''}
 
 /**
  * Add type overrides to the framework
@@ -1239,8 +1232,7 @@ declare module '@caper/core' {
     EntityClasses: AppEntityClasses;
     UIs: AppUIs;
     UIClasses: AppUIClasses;
-    LocaleKeys: AppLocaleKeys;
-${breakpointsName ? `    Breakpoints: AppBreakpoints;\n    BreakpointModes: AppBreakpointModes;` : ''}
+    LocaleKeys: AppLocaleKeys;${breakpointsName ? `\n    Breakpoints: AppBreakpoints;\n    BreakpointModes: AppBreakpointModes;` : ''}
     Eases: Eases;
   }
 }
