@@ -4,7 +4,15 @@ import { Logger, type Orientation, type Size } from '../../utils';
 import type { IPlugin } from '../Plugin';
 import { Plugin } from '../Plugin';
 import type { NormalizedLadder } from './evaluate';
-import { activeNames, buildContext, diffNames, matchesMode, normalizeTiers, resolveStop, resolveValue } from './evaluate';
+import {
+  activeNames,
+  buildContext,
+  diffNames,
+  matchesMode,
+  normalizeTiers,
+  resolveStop,
+  resolveValue,
+} from './evaluate';
 import type {
   BreakpointChangeDetail,
   BreakpointContext,
@@ -78,6 +86,7 @@ export class BreakpointPlugin extends Plugin<BreakpointPluginOptions> implements
   private _leave = new Map<string, Signal<() => void>>();
   private _pointer: Pointer = 'fine';
   private _pointerQuery: MediaQueryList | null = null;
+  private _warnedListenerNames = new Set<string>();
 
   /** Fluent alias for {@link onBreakpointChanged}. */
   get onChange(): Signal<(detail: BreakpointChangeDetail) => void> {
@@ -109,6 +118,15 @@ export class BreakpointPlugin extends Plugin<BreakpointPluginOptions> implements
   }
 
   async initialize(options: Partial<BreakpointPluginOptions> = {}) {
+    // Seed a safe default ladder and context before validating the user's
+    // tiers below. `normalizeTiers` throws on an invalid ladder, and
+    // `Application.registerPlugin` swallows a rejected `initialize` and
+    // continues — leaving `_ladder`/`_ctx` unset would turn every later
+    // accessor into an unrelated TypeError instead of surfacing the real
+    // cause (spec §11).
+    this._ladder = normalizeTiers({ ...defaultBreakpoints });
+    this._ctx = buildContext(ZERO, this._ladder, this._pointer);
+
     this._options = {
       tiers: options.tiers ?? { ...defaultBreakpoints },
       modes: options.modes ?? {},
@@ -183,10 +201,12 @@ export class BreakpointPlugin extends Plugin<BreakpointPluginOptions> implements
   }
 
   public onEnter(name: BreakpointNameLike, callback: () => void, order?: SignalOrder): SignalConnection {
+    this._warnIfUnknown(name as string);
     return this._signal(this._enter, name as string).connect(callback, order);
   }
 
   public onLeave(name: BreakpointNameLike, callback: () => void, order?: SignalOrder): SignalConnection {
+    this._warnIfUnknown(name as string);
     return this._signal(this._leave, name as string).connect(callback, order);
   }
 
@@ -253,6 +273,18 @@ export class BreakpointPlugin extends Plugin<BreakpointPluginOptions> implements
 
   private _isKnown(name: string): boolean {
     return name in this._ladder.byName || this._modes.has(name) || AXIS_NAMES.has(name);
+  }
+
+  /**
+   * `onEnter`/`onLeave` (and `when`, which delegates to `onEnter`) still
+   * connect a live signal for an unknown name — it may be `define`d later
+   * (§8) — but warn once per name so a typo doesn't silently create a
+   * listener nothing will ever emit.
+   */
+  private _warnIfUnknown(name: string): void {
+    if (this._isKnown(name) || this._warnedListenerNames.has(name)) return;
+    this._warnedListenerNames.add(name);
+    Logger.warn(`[breakpoints] unknown name '${name}'. Known: ${this._knownNames().join(', ')}.`);
   }
 
   private _knownNames(): string[] {

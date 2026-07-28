@@ -16,7 +16,7 @@ import type { BreakpointMode } from './types';
  */
 export function defineBreakpoints<
   const T extends Record<string, number>,
-  const M extends Record<string, BreakpointMode<keyof T & string>> = Record<string, never>,
+  const M extends Record<string, BreakpointMode<keyof T & string>> = {},
 >(config: { tiers: T; modes?: M }): { tiers: T; modes: M } {
   return { tiers: config.tiers, modes: (config.modes ?? {}) as M };
 }

@@ -12,6 +12,7 @@ vi.mock('../../core/Application', () => ({
 import { coreSignalRegistry } from '../../core';
 import { Signal } from '../../signals';
 import type { Size } from '../../utils';
+import { Logger } from '../../utils';
 import { BreakpointPlugin } from './BreakpointPlugin';
 
 function makeApp() {
@@ -179,5 +180,49 @@ describe('BreakpointPlugin', () => {
     plugin.destroy();
     resize({ width: 1200, height: 800 });
     expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('destroy() severs the resize connection, so current stops updating', async () => {
+    const { plugin, resize } = await setup();
+    expect(plugin.current).toBe('tablet');
+
+    plugin.destroy();
+    resize({ width: 1200, height: 800 }); // would move to 'desktop' if still connected
+
+    expect(plugin.current).toBe('tablet');
+  });
+
+  it('is() warns via Logger for an unknown name', async () => {
+    const { plugin } = await setup();
+    const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+
+    plugin.is('nonsense');
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('onEnter()/onLeave()/when() warn once per unknown name, but still return a live connection', async () => {
+    const { plugin } = await setup();
+    const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+
+    plugin.onEnter('bogus', () => {});
+    plugin.onEnter('bogus', () => {}); // same name again — no additional warning
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    plugin.onLeave('bogus', () => {}); // same name, different method — still no additional warning
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    plugin.when('other-bogus', () => {}); // different unknown name — warns again
+    expect(warn).toHaveBeenCalledTimes(2);
+
+    // Still a live connection: defining the mode later fires it (spec §8).
+    const fn = vi.fn();
+    const connection = plugin.onEnter('narrow', fn);
+    expect(connection).toBeDefined();
+    plugin.define('narrow', { below: 'desktop' });
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    warn.mockRestore();
   });
 });
