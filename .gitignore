@@ -24,4 +24,7 @@ apps/kitchen-sink/node_modules
 .cache
 .env
 .turbo
+
+# TypeScript incremental build cache — regenerated on every build
+*.tsbuildinfo
 .claude/settings.local.json
