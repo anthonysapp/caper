@@ -1,4 +1,4 @@
-import { defineEntity, Entity } from '@caper-engine/core';
+import { defineEntity, Entity } from '@caperjs/core';
 
 export const entity = defineEntity({
   id: 'player',

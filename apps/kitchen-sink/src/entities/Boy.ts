@@ -1,5 +1,5 @@
-import type { Spine } from '@caper-engine/core';
-import { Container, defineEntity, Interactive, Logger } from '@caper-engine/core';
+import type { Spine } from '@caperjs/core';
+import { Container, defineEntity, Interactive, Logger } from '@caperjs/core';
 
 import { Rectangle } from 'pixi.js';
 

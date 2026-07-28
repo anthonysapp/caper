@@ -1,7 +1,7 @@
 import BaseScene from '@/scenes/BaseScene';
 import { CaperColors } from '@/theme';
 import { FONT_BODY } from '@/utils/Constants';
-import { FlexContainer, UICanvas, defineScene } from '@caper-engine/core';
+import { FlexContainer, UICanvas, defineScene } from '@caperjs/core';
 import { Text } from 'pixi.js';
 
 export const scene = defineScene({

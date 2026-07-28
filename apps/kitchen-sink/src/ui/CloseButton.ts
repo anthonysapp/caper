@@ -1,5 +1,5 @@
 import { CaperColors } from '@/theme';
-import { Container, defineUI, Focusable, Interactive } from '@caper-engine/core';
+import { Container, defineUI, Focusable, Interactive } from '@caperjs/core';
 import { Graphics } from 'pixi.js';
 
 export const ui = defineUI({ id: 'close-button' });

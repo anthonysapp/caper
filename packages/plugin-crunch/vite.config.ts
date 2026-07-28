@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: () => `caper-plugin-crunch.mjs`,
     },
     rollupOptions: {
-      external: ['pixi.js', 'gsap', '@caper-engine/core'], // External dependencies
+      external: ['pixi.js', 'gsap', '@caperjs/core'], // External dependencies
     },
   },
   plugins: [dts()],

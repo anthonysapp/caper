@@ -1,4 +1,4 @@
-import { IApplication, IPlugin, isDev, Logger, Plugin } from '@caper-engine/core';
+import { IApplication, IPlugin, isDev, Logger, Plugin } from '@caperjs/core';
 import Rollbar from 'rollbar';
 import { rollbarVersion, version } from './version';
 

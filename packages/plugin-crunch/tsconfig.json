@@ -21,7 +21,7 @@
     "allowJs": true,
     "composite": true,
     "paths": {
-      "@caper-engine/core/*": ["../../../src/*"]
+      "@caperjs/core/*": ["../../../src/*"]
     }
   },
   "typeRoots": ["./node_modules/@types"],

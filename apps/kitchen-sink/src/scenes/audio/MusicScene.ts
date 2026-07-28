@@ -1,4 +1,4 @@
-import { ActionDetail, Button, ButtonAction, ButtonConfig, FlexContainer, defineScene } from '@caper-engine/core';
+import { ActionDetail, Button, ButtonAction, ButtonConfig, FlexContainer, defineScene } from '@caperjs/core';
 
 import BaseScene from '@/scenes/BaseScene';
 import { FONT_BODY } from '@/utils/Constants';

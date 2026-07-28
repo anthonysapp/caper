@@ -1,5 +1,5 @@
 import { FONT_BODY } from '@/utils/Constants';
-import { Scene, defineScene } from '@caper-engine/core';
+import { Scene, defineScene } from '@caperjs/core';
 
 export const scene = defineScene({
   id: 'level',

@@ -1,5 +1,5 @@
 import { __APPLICATION_NAME__ } from '@/__APPLICATION_NAME__';
-import { defineActions, defineButtons, defineConfig, defineContexts, defineControls, defineData } from '@caper-engine/core';
+import { defineActions, defineButtons, defineConfig, defineContexts, defineControls, defineData } from '@caperjs/core';
 /** Default template */
 // uncomment this to use the splash screen
 // import { Splash } from '@/scenes/Splash';

@@ -1,4 +1,4 @@
-import { type Eases } from '@caper-engine/core';
+import { type Eases } from '@caperjs/core';
 
 export enum Ease {
   Custom = 'custom',

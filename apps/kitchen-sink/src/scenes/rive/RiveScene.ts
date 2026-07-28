@@ -1,6 +1,6 @@
 import BaseScene from '@/scenes/BaseScene';
-import { RiveEntity } from '@caper-engine/plugin-rive';
-import { FlexContainer, defineScene } from '@caper-engine/core';
+import { RiveEntity } from '@caperjs/plugin-rive';
+import { FlexContainer, defineScene } from '@caperjs/core';
 import { FederatedEvent } from 'pixi.js';
 
 export const scene = defineScene({

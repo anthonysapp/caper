@@ -1,6 +1,6 @@
 # npm release automation
 
-Goal: publish `@caper-engine/*` to the public npm registry on an automated, repeatable
+Goal: publish `@caperjs/*` to the public npm registry on an automated, repeatable
 schedule, so consumers (starting with bankshot-web) resolve caper from a registry
 instead of a `link:` override pointing at a sibling working copy.
 
@@ -11,7 +11,7 @@ replaces that script, adds changelogs, and adds a canary channel.
 Version line: **reset to `0.1.0`.** The current 6.2.x numbering is inherited from
 the upstream fork, not earned. See "Resetting the version line" below.
 
-Scope: **`@caper-engine`.** `@caper` was unavailable. See P1 below.
+Scope: **`@caperjs`.** `@caper` was unavailable. See P1 below.
 
 ---
 
@@ -104,40 +104,43 @@ than a formality. Fix before the first publish:
    `repository.directory` to each package so npm pages link to the right subtree.
 4. Keep the fork attribution that is already in the READMEs.
 
-### P1. Scope: `@caper-engine` (RESOLVED)
+### P1. Scope: `@caperjs` (RESOLVED)
 
-The `@caper` scope was not available. npm shares a single namespace across
-packages, users, and orgs, so the pre-existing unscoped `caper` package (0.0.2,
-"Just-in-time HTTP server", untouched since 2022) blocks a `caper` org. Same story
-for `caperjs` (2.1.3, "Use jumping text", also dormant since 2022). A name dispute
-was rejected as a plan: npm's policy is that abandonment alone does not justify a
-transfer, and both are real published code rather than empty squats.
+The `@caper` scope was not available: a dormant unscoped `caper` package (0.0.2,
+"Just-in-time HTTP server", untouched since 2022) holds the name. A name dispute
+was rejected as a plan, since npm's policy is that abandonment alone does not
+justify a transfer.
 
-**The `caper-engine` org is claimed.** Packages become:
+`@caperjs` was briefly assumed blocked for the same reason, because an unscoped
+`caperjs` package also exists (2.1.3, "Use jumping text", dormant since 2022).
+That assumption was wrong: an existing package name does not prevent an org of
+the same name, and the `caperjs` org was already owned by `anthonysappdev`.
+
+**Scope is `@caperjs`.** Packages become:
 
 | Old | New |
 | --- | --- |
-| `@caper/core` | `@caper-engine/core` |
-| `@caper/plugin-colyseus` | `@caper-engine/plugin-colyseus` |
-| `@caper/plugin-crunch` | `@caper-engine/plugin-crunch` |
-| `@caper/plugin-firebase` | `@caper-engine/plugin-firebase` |
-| `@caper/plugin-google-analytics` | `@caper-engine/plugin-google-analytics` |
-| `@caper/plugin-rive` | `@caper-engine/plugin-rive` |
-| `@caper/plugin-rollbar` | `@caper-engine/plugin-rollbar` |
+| `@caper/core` | `@caperjs/core` |
+| `@caper/plugin-colyseus` | `@caperjs/plugin-colyseus` |
+| `@caper/plugin-crunch` | `@caperjs/plugin-crunch` |
+| `@caper/plugin-firebase` | `@caperjs/plugin-firebase` |
+| `@caper/plugin-google-analytics` | `@caperjs/plugin-google-analytics` |
+| `@caper/plugin-rive` | `@caperjs/plugin-rive` |
+| `@caper/plugin-rollbar` | `@caperjs/plugin-rollbar` |
 
 The repo, the framework, and the CLI stay named "caper". Only the npm scope changes.
 
 ### P1a. Rename the imports, do not alias
 
-The alternative was publishing as `@caper-engine/*` while keeping `@caper/core` as
+The alternative was publishing as `@caperjs/*` while keeping `@caper/core` as
 the import specifier via a `npm:` alias in each consumer:
 
 ```json
-"@caper/core": "npm:@caper-engine/core@^0.1.0"
+"@caper/core": "npm:@caperjs/core@^0.1.0"
 ```
 
 **Rejected.** An alias means two names for one package permanently, in the docs, in
-every app the CLI scaffolds, and for anyone who installs `@caper-engine/core` and
+every app the CLI scaffolds, and for anyone who installs `@caperjs/core` and
 then finds they must import `@caper/core`. The rename is a one-time mechanical
 change and this is the cheapest moment it will ever be: pre-1.0, no external users,
 and the version line is being reset in the same breath.
@@ -180,7 +183,7 @@ Establish a real baseline and prove the consumer story works before adding any
 automation on top.
 
 1. Settle P0 (license).
-2. One commit: rename the scope to `@caper-engine/*` per P1a **and** set every
+2. One commit: rename the scope to `@caperjs/*` per P1a **and** set every
    version to `0.1.0` per "Files to touch" above.
 3. `pnpm packages:build && pnpm framework:build`. Confirm `generate-version.mjs`
    rewrote `packages/core/src/version.ts` to `0.1.0`.
@@ -189,12 +192,12 @@ automation on top.
    `--access public` is load-bearing on the very first publish of each package.
 
 **Verification:** in a scratch directory outside both repos,
-`pnpm add @caper-engine/core@0.1.0` succeeds and the tarball contains `lib/`,
+`pnpm add @caperjs/core@0.1.0` succeeds and the tarball contains `lib/`,
 `types/`, `templates/`, and `client.d.ts` per the `files` array.
 
 **Then, in bankshot-web:** apply the P1a rename across its 84 files, change the two
-dependency entries to `@caper-engine/core` and
-`@caper-engine/plugin-google-analytics` at `^0.1.0`, delete both entries from
+dependency entries to `@caperjs/core` and
+`@caperjs/plugin-google-analytics` at `^0.1.0`, delete both entries from
 `overrides` in `pnpm-workspace.yaml`, `pnpm install`, and confirm `tsc --noEmit`,
 `pnpm build`, and the reducer suite all pass against the registry copy. This is the
 step that actually unblocks off-laptop builds (Cloudflare, CI, fresh clones).
@@ -243,7 +246,7 @@ an expiry reminder. Classic tokens are not an option.
 Note: `update-package-versions.mjs` also pins `pixi.js`, `@pixi/sound`, `vite`, and
 `vite-plugin-dts` across packages from `packages/core`'s values. Changesets does
 **not** do that. Either keep a trimmed version of the script for third-party pins
-and drop only its `@caper-engine/core` and `version` handling, or move those pins to a
+and drop only its `@caperjs/core` and `version` handling, or move those pins to a
 pnpm `catalog:` in `pnpm-workspace.yaml`. Catalogs are the better long-term answer
 and are a one-time edit.
 
@@ -251,7 +254,7 @@ and are a one-time edit.
 - `pnpm changeset version` on a scratch branch bumps all six packages to the same
   number and rewrites inter-package ranges correctly.
 - `pnpm publish --dry-run` from `packages/plugin-google-analytics` shows
-  `@caper-engine/core` resolved to a real version, not `workspace:*`. This is the check
+  `@caperjs/core` resolved to a real version, not `workspace:*`. This is the check
   that justifies deleting `publish-packages.mjs`.
 
 ---
@@ -271,13 +274,13 @@ so `latest` is never affected and nothing lands in the changelog.
 Consumers pin the exact version:
 
 ```json
-"@caper-engine/core": "0.0.0-canary-a1b2c3d"
+"@caperjs/core": "0.0.0-canary-a1b2c3d"
 ```
 
 The `0.0.0` base is why the stable line starts at `0.1.0` rather than `0.0.0`.
 
 **Verification:** publish a canary, install it in bankshot-web, confirm
-`npm view @caper-engine/core dist-tags` still points `latest` at the stable
+`npm view @caperjs/core dist-tags` still points `latest` at the stable
 release.
 
 ---

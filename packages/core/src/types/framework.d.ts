@@ -24,7 +24,7 @@ declare module '../utils/types' {
   }
 }
 
-declare module '@caper-engine/core' {
+declare module '@caperjs/core' {
   export interface AppTypeOverrides {
     App: Application;
     Data: DataSchema;

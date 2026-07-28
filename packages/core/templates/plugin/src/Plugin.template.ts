@@ -1,4 +1,4 @@
-import { IApplication, IPlugin, Logger, Plugin } from '@caper-engine/core';
+import { IApplication, IPlugin, Logger, Plugin } from '@caperjs/core';
 
 export type ~PluginName~PluginOptions = {
   // TODO: add plugin options here

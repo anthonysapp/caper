@@ -11,7 +11,7 @@ import {
   Joystick,
   Signal,
   UICanvas,
-} from '@caper-engine/core';
+} from '@caperjs/core';
 import {
   Actor,
   ActorCollisionResult,
@@ -21,7 +21,7 @@ import {
   ICrunchPhysicsPlugin,
   Sensor,
   Solid,
-} from '@caper-engine/plugin-crunch';
+} from '@caperjs/plugin-crunch';
 import gsap from 'gsap';
 
 import { FederatedPointerEvent, Point, Pool, Rectangle } from 'pixi.js';

@@ -1,8 +1,8 @@
 import { Schema } from '@colyseus/schema';
 import * as Colyseus from 'colyseus.js';
 import { Room } from 'colyseus.js';
-import type { IApplication, IPlugin } from '@caper-engine/core';
-import { Logger, Plugin } from '@caper-engine/core';
+import type { IApplication, IPlugin } from '@caperjs/core';
+import { Logger, Plugin } from '@caperjs/core';
 
 export type SchemaConstructor<T = Schema> = new (...args: any[]) => T;
 

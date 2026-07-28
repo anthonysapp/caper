@@ -34,7 +34,7 @@ import { ICoreSignals } from './ICoreSignals';
  *
  * @example
  * ```typescript
- * import { Application } from '@caper-engine/framework';
+ * import { Application } from '@caperjs/framework';
  *
  * // Define your data schema, action context, and actions
  * interface MyDataSchema {

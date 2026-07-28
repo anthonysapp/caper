@@ -1,5 +1,5 @@
 {
-  "name": "@caper-engine/plugin-@pluginName",
+  "name": "@caperjs/plugin-@pluginName",
   "version": "x.x.x",
   "description": "",
   "files": [
@@ -23,11 +23,11 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@caper-engine/core": "workspace:*",
+    "@caperjs/core": "workspace:*",
     "vite-plugin-dts": "^3.9.1"
   },
   "peerDependencies": {
-    "@caper-engine/core": "next"
+    "@caperjs/core": "next"
   },
   "dependencies": {}
 }

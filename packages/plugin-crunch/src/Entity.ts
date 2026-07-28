@@ -8,7 +8,7 @@ import {
   resolvePointLike,
   SignalConnection,
   SignalConnections,
-} from '@caper-engine/core';
+} from '@caperjs/core';
 import CrunchPhysicsPlugin from './CrunchPhysicsPlugin';
 import { Group } from './Group';
 import { System } from './System';

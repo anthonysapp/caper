@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { CaperColors } from '@/theme';
 import { FONT_BODY } from '@/utils/Constants';
-import { defineUI } from '@caper-engine/core';
+import { defineUI } from '@caperjs/core';
 
 export const ui = defineUI({ id: 'caper-panel' });
 

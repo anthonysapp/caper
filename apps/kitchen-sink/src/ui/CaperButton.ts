@@ -1,6 +1,6 @@
 import { CaperColors } from '@/theme';
 import { FONT_BODY } from '@/utils/Constants';
-import { Container, defineUI } from '@caper-engine/core';
+import { Container, defineUI } from '@caperjs/core';
 import { Graphics, Text } from 'pixi.js';
 
 export const ui = defineUI({ id: 'caper-button' });

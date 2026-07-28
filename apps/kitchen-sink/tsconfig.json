@@ -5,11 +5,11 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@caper-engine/core/*": ["../../packages/core/src/*"],
-      "@caper-engine/plugin-google-analytics/*": ["../../packages/plugin-google-analytics/src/*"],
-      "@caper-engine/plugin-firebase/*": ["../../packages/plugin-firebase/src/*"]
+      "@caperjs/core/*": ["../../packages/core/src/*"],
+      "@caperjs/plugin-google-analytics/*": ["../../packages/plugin-google-analytics/src/*"],
+      "@caperjs/plugin-firebase/*": ["../../packages/plugin-firebase/src/*"]
     },
-    "types": ["vite/client", "vite-plugin-pwa/client", "@caper-engine/core/client"]
+    "types": ["vite/client", "vite-plugin-pwa/client", "@caperjs/core/client"]
   },
   "references": [
     {

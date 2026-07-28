@@ -2,7 +2,7 @@
 
 ## Context
 
-This is a clean personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel) by Relish Studios, rebranded to **Caper** (`@caper-engine/core`) in Phase 6, for solo game dev use. Full audit findings are in [audit.md](./audit.md). The goal is to keep what's genuinely good (Pixi v8 native, opinionated scenes, auto asset types, exported build config, mixin stack, signals) and cut the scope problems (3 physics engines, split plugin/adapter contracts, zero tests, silent failures).
+This is a clean personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel) by Relish Studios, rebranded to **Caper** (`@caperjs/core`) in Phase 6, for solo game dev use. Full audit findings are in [audit.md](./audit.md). The goal is to keep what's genuinely good (Pixi v8 native, opinionated scenes, auto asset types, exported build config, mixin stack, signals) and cut the scope problems (3 physics engines, split plugin/adapter contracts, zero tests, silent failures).
 
 The TL;DR from the audit: **the core is good, the plugin/adapter sprawl is what makes it feel unfocused**. This fork narrows the sprawl without touching the core's strengths.
 
@@ -124,7 +124,7 @@ Since this is a hard fork with a breaking plugin API, a Pixi upgrade, and a diff
 
 **Execution note:** whatever the name, keep the old `dill-pixel` package published at its last version with a README pointing at the fork. Don't orphan anyone mid-project.
 
-**Locked (Phase 6):** **Caper**, published as `@caper-engine/core`. Unscoped `caper` and `caperjs` were both 2022 dead squats; rather than chase a dispute the `@caper` scope was free and gives a cleaner `@caper-engine/plugin-*` namespace (matches Vitest/Pixi/SvelteKit/Astro precedent). `create-caper` CLI binary free. Directory layout flattened at the same time: `packages/framework` → `packages/core`, `packages/plugins/*` → `packages/plugin-*` siblings (the `plugins/` nesting was load-bearing only when it sat next to `storage-adapters/`; Phase 1 killed that distinction). `physics-crunch` → `plugin-crunch` since the physics- disambiguator is dead weight now that matter/snap are gone. Docs domain deferred — not a code change.
+**Locked (Phase 6):** **Caper**, published as `@caperjs/core`. Unscoped `caper` and `caperjs` were both 2022 dead squats; rather than chase a dispute the `@caper` scope was free and gives a cleaner `@caperjs/plugin-*` namespace (matches Vitest/Pixi/SvelteKit/Astro precedent). `create-caper` CLI binary free. Directory layout flattened at the same time: `packages/framework` → `packages/core`, `packages/plugins/*` → `packages/plugin-*` siblings (the `plugins/` nesting was load-bearing only when it sat next to `storage-adapters/`; Phase 1 killed that distinction). `physics-crunch` → `plugin-crunch` since the physics- disambiguator is dead weight now that matter/snap are gone. Docs domain deferred — not a code change.
 
 ### 7. DX improvements (asset pipeline, scene gen, vite 7)
 

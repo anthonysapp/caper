@@ -1,5 +1,5 @@
 import { FONT_BODY } from '@/utils/Constants';
-import { AlignItems, clamp, FlexContainer, FlexDirection, FlexWrap, JustifyContent, defineScene } from '@caper-engine/core';
+import { AlignItems, clamp, FlexContainer, FlexDirection, FlexWrap, JustifyContent, defineScene } from '@caperjs/core';
 import { TextStyleOptions } from 'pixi.js';
 
 import BaseScene from '@/scenes/BaseScene';

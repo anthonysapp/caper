@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: () => `caper-plugin-rollbar.mjs`,
     },
     rollupOptions: {
-      external: ['@caper-engine/core', 'pixi.js', 'rollbar'], // External dependencies
+      external: ['@caperjs/core', 'pixi.js', 'rollbar'], // External dependencies
     },
   },
   plugins: [dts()],

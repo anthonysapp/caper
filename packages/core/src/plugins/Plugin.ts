@@ -34,7 +34,7 @@ import { type AppTypeOverrides, bindAllMethods, ImportListItemModule } from '../
  *
  * @example
  * ```ts
- * import { definePlugin, IApplication, Plugin } from '@caper-engine/core';
+ * import { definePlugin, IApplication, Plugin } from '@caperjs/core';
  *
  * export const plugin = definePlugin({
  *   id: 'leaderboard',

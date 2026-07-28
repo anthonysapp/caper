@@ -1,6 +1,6 @@
 import BaseScene from '@/scenes/BaseScene';
 import { FONT_BODY } from '@/utils/Constants';
-import { FlexContainer, formatTime, type SceneAssets, Timer, UICanvas, wait, defineScene } from '@caper-engine/core';
+import { FlexContainer, formatTime, type SceneAssets, Timer, UICanvas, wait, defineScene } from '@caperjs/core';
 import { Text } from 'pixi.js';
 
 export const scene = defineScene({

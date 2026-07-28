@@ -1,5 +1,5 @@
 import { COLOR_SLATE } from '@/utils/Constants';
-import { Scene } from '@caper-engine/core';
+import { Scene } from '@caperjs/core';
 
 // include this scene in the bundle
 export const dynamic = false;

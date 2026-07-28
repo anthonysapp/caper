@@ -1,6 +1,6 @@
 import BaseScene from '@/scenes/BaseScene';
 import { FONT_BODY } from '@/utils/Constants';
-import { TextStyle, UICanvas, defineScene } from '@caper-engine/core';
+import { TextStyle, UICanvas, defineScene } from '@caperjs/core';
 
 export const scene = defineScene({
   id: 'ui-canvas',

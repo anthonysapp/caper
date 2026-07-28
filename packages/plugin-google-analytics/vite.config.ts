@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: () => `caper-plugin-google-analytics.mjs`,
     },
     rollupOptions: {
-      external: ['@caper-engine/core', 'pixi.js'], // External dependencies
+      external: ['@caperjs/core', 'pixi.js'], // External dependencies
     },
   },
   plugins: [dts()],

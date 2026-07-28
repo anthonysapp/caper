@@ -1,4 +1,4 @@
-import { ActionDetail, Button, FlexContainer, IFocusable, Input, Logger, defineScene } from '@caper-engine/core';
+import { ActionDetail, Button, FlexContainer, IFocusable, Input, Logger, defineScene } from '@caperjs/core';
 import { collection, DocumentData, limit, onSnapshot, orderBy, QuerySnapshot, where } from 'firebase/firestore';
 import { Container, Graphics, Text } from 'pixi.js';
 

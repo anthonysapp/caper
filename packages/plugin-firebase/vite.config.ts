@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: () => `caper-plugin-firebase.mjs`,
     },
     rollupOptions: {
-      external: ['pixi.js', '@caper-engine/core', 'firebase/app', 'firebase/firestore'], // External dependencies
+      external: ['pixi.js', '@caperjs/core', 'firebase/app', 'firebase/firestore'], // External dependencies
     },
   },
   plugins: [dts()],

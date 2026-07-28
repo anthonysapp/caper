@@ -1,6 +1,6 @@
 # Crunch Physics Plugin
 
-#### @caper-engine/physics-crunch
+#### @caperjs/physics-crunch
 
 A lightweight, grid-based AABB physics plugin for Caper games. Optimized for 2D platformers and games requiring precise, pixel-perfect collisions.
 
@@ -17,7 +17,7 @@ A lightweight, grid-based AABB physics plugin for Caper games. Optimized for 2D 
 ## Installation
 
 ```bash
-npm install @caper-engine/physics-crunch
+npm install @caperjs/physics-crunch
 ```
 
 ## Quick Start
@@ -30,7 +30,7 @@ defineConfig({
 });
 
 // in your scene file
-import { Scene } from '@caper-engine/core';
+import { Scene } from '@caperjs/core';
 
 // exports
 export const plugins = ['crunch']; // loads the plugin for your scene

@@ -10,7 +10,7 @@ import {
   ToastType,
   UICanvasEdge,
   defineScene,
-} from '@caper-engine/core';
+} from '@caperjs/core';
 import { Graphics, TextStyleOptions, Texture } from 'pixi.js';
 export const scene = defineScene({
   id: 'ui-toaster',

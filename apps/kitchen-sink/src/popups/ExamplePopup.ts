@@ -1,4 +1,4 @@
-import { Container, definePopup, Focusable, IPopup, Popup } from '@caper-engine/core';
+import { Container, definePopup, Focusable, IPopup, Popup } from '@caperjs/core';
 import { Text } from 'pixi.js';
 
 import { FONT_BODY } from '@/utils/Constants';

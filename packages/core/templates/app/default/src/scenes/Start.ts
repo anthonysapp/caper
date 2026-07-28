@@ -1,5 +1,5 @@
 import Base from '@/scenes/Base';
-import { FlexContainer } from '@caper-engine/core';
+import { FlexContainer } from '@caperjs/core';
 
 export const id = 'start';
 export const debug = {

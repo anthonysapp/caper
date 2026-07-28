@@ -1,5 +1,5 @@
 {
-  "name": "@caper-engine/plugin-firebase",
+  "name": "@caperjs/plugin-firebase",
   "version": "0.1.0",
   "description": "Firebase plugin for caper",
   "files": [
@@ -22,19 +22,19 @@
   "keywords": [
     "firebase",
     "plugin",
-    "@caper-engine/core",
+    "@caperjs/core",
     "caper"
   ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.14.1",
-    "@caper-engine/core": "workspace:*",
+    "@caperjs/core": "workspace:*",
     "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3"
   },
   "peerDependencies": {
-    "@caper-engine/core": "workspace:*"
+    "@caperjs/core": "workspace:*"
   },
   "dependencies": {
     "firebase": "^10.12.1"

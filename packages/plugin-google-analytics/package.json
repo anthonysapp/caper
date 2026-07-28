@@ -1,5 +1,5 @@
 {
-  "name": "@caper-engine/plugin-google-analytics",
+  "name": "@caperjs/plugin-google-analytics",
   "version": "0.1.0",
   "description": "Google Analytics",
   "files": [
@@ -24,18 +24,18 @@
     "google",
     "analytics",
     "google-analytics",
-    "@caper-engine/core",
+    "@caperjs/core",
     "caper"
   ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@caper-engine/core": "workspace:*",
+    "@caperjs/core": "workspace:*",
     "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3"
   },
   "peerDependencies": {
-    "@caper-engine/core": "workspace:*"
+    "@caperjs/core": "workspace:*"
   },
   "dependencies": {
     "@types/gtag.js": "^0.0.20"

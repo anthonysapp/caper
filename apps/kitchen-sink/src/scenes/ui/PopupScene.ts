@@ -1,5 +1,5 @@
 import { FONT_BODY } from '@/utils/Constants';
-import { Button, FlexContainer, PopupConfig, PopupId, defineScene } from '@caper-engine/core';
+import { Button, FlexContainer, PopupConfig, PopupId, defineScene } from '@caperjs/core';
 
 import BaseScene from '@/scenes/BaseScene';
 

@@ -1,4 +1,4 @@
-# @caper-engine/storage-adapter-firebase
+# @caperjs/storage-adapter-firebase
 
 ## 8.7.6
 

@@ -1,5 +1,5 @@
 import { COLOR_GREEN } from '@/utils/Constants';
-import { FlexContainer, SceneTransition } from '@caper-engine/core';
+import { FlexContainer, SceneTransition } from '@caperjs/core';
 import { gsap } from 'gsap';
 import { Sprite, Text } from 'pixi.js';
 

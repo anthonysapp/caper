@@ -1,15 +1,15 @@
 # Caper — llms.txt
 
 **What Caper is.** An opinionated HTML game framework built on **PixiJS v8**. Ships
-as `@caper-engine/core` plus a set of `@caper-engine/plugin-*` packages. Scene-oriented
+as `@caperjs/core` plus a set of `@caperjs/plugin-*` packages. Scene-oriented
 architecture, plugin dependency ordering, typed-signal wiring, a factory surface
 on every `Container`, build-time auto-discovery of scenes/plugins/popups/entities,
 and generated TypeScript types for app IDs and assets. Caper is a personal fork
 of `dill-pixel` by Relish Studios.
 
-**Package version:** `@caper-engine/core@6.2.2` · **Peer deps:** `pixi.js@8.x`, `@pixi/sound@^6`, `gsap@^3.13`.
+**Package version:** `@caperjs/core@6.2.2` · **Peer deps:** `pixi.js@8.x`, `@pixi/sound@^6`, `gsap@^3.13`.
 
-**File citations in this guide** point at the `@caper-engine/core` package source
+**File citations in this guide** point at the `@caperjs/core` package source
 (paths relative to this file, e.g. `../src/core/Application.ts`) — those ship
 with the npm package and resolve wherever the agent is reading from. Code
 snippets are self-contained; you shouldn't need to fetch anything external to
@@ -17,7 +17,7 @@ produce working code.
 
 **External references worth fetching when deeper context is needed:**
 - `pixijs.com/llms.txt` — PixiJS v8 API reference
-- `@caper-engine/core` README on npm — package overview
+- `@caperjs/core` README on npm — package overview
 
 ---
 
@@ -35,7 +35,7 @@ produce working code.
 10. [Display objects beyond UI](#10-display-objects-beyond-ui)
 11. [Assets & AssetPack](#11-assets--assetpack)
 12. [Signals, Store, mixins](#12-signals-store-mixins)
-13. [First-party plugins (`@caper-engine/plugin-*`)](#13-first-party-plugins-caperplugin-)
+13. [First-party plugins (`@caperjs/plugin-*`)](#13-first-party-plugins-caperplugin-)
 14. [Generated types & virtual modules](#14-generated-types--virtual-modules)
 15. [Common recipes](#15-common-recipes)
 16. [Gotchas & verification loop](#16-gotchas--verification-loop)
@@ -157,7 +157,7 @@ an existing scene that's not itself discoverable.
 ### 1.6 Verify in the running app, not in isolation
 
 Caper changes are verified by running the app in a browser, not by unit tests
-alone. The framework's own type-check + test suite (`pnpm --filter @caper-engine/core
+alone. The framework's own type-check + test suite (`pnpm --filter @caperjs/core
 test`) catches a lot, but UI/scene/asset behavior only shows up live.
 
 After any non-trivial change:
@@ -196,14 +196,14 @@ my-app/
 ├── public/                        # static passthroughs
 ├── caper.config.ts                # app config — source of truth (§4)
 ├── vite.config.mjs                # usually minimal; just path aliases
-├── tsconfig.json                  # extends @caper-engine/core/config/tsconfig
+├── tsconfig.json                  # extends @caperjs/core/config/tsconfig
 ├── index.html                     # Vite entry
 └── package.json
 ```
 
 ### 2.2 CLI — `caper <subcommand>`
 
-Installed via `@caper-engine/core` package. Binary at [cli.mjs](../cli.mjs). All
+Installed via `@caperjs/core` package. Binary at [cli.mjs](../cli.mjs). All
 subcommands run from the app root.
 
 | Command | Purpose |
@@ -295,8 +295,8 @@ Provide a class in `config.application` to add typed getters for plugins, a
 `setup()` hook, and convenience methods on `app`. Pattern:
 
 ```ts
-import { Application, PopupId } from '@caper-engine/core';
-import { IFirebasePlugin } from '@caper-engine/plugin-firebase';
+import { Application, PopupId } from '@caperjs/core';
+import { IFirebasePlugin } from '@caperjs/plugin-firebase';
 
 export class MyApplication extends Application {
   get firebase(): IFirebasePlugin {
@@ -355,7 +355,7 @@ Canonical scene file shape:
 
 ```ts
 // src/scenes/Menu.ts
-import { defineScene, Scene } from '@caper-engine/core';
+import { defineScene, Scene } from '@caperjs/core';
 
 export const scene = defineScene({
   id: 'menu',
@@ -369,7 +369,7 @@ export default class MenuScene extends Scene {
 
 ### 4.3 Action / input helpers
 
-Four cooperating helpers, all imported from `@caper-engine/core`:
+Four cooperating helpers, all imported from `@caperjs/core`:
 
 ```ts
 const contexts = defineContexts(['default', 'game', 'menu', 'popup']);
@@ -526,7 +526,7 @@ Module-level export on the scene file:
 
 ```ts
 // src/scenes/Level.ts
-import { defineScene, Scene, SceneAssets } from '@caper-engine/core';
+import { defineScene, Scene, SceneAssets } from '@caperjs/core';
 
 export const scene = defineScene({ id: 'level' });
 
@@ -586,7 +586,7 @@ key. It's a full-screen container that overlays between scenes:
 
 ```ts
 // src/scenes/Transition.ts
-import { SceneTransition } from '@caper-engine/core';
+import { SceneTransition } from '@caperjs/core';
 import { gsap } from 'gsap';
 
 export class Transition extends SceneTransition {
@@ -632,7 +632,7 @@ Definition in [src/mixins/factory/const.ts](../src/mixins/factory/const.ts)
 | Method | Shape / notable keys |
 | --- | --- |
 | `existing(entity, props?)` | Wrap an already-instantiated object with position/scale/pivot/anchor resolution. Use for 3rd-party or hand-constructed instances. |
-| `container(props?)` | `ContainerProps`. A `@caper-engine/core` Container (Animated + WithSignals + Factory). |
+| `container(props?)` | `ContainerProps`. A `@caperjs/core` Container (Animated + WithSignals + Factory). |
 | `particleContainer(props?)` | `ParticleContainerProps`. |
 | `sprite(props?)` | `{ asset, sheet, anchor, x, y, scale, alpha, label, layout, ... }`. `asset` is a string ID from the asset manifest — **not** a raw Texture. |
 | `tilingSprite(props?)` | Same as sprite + tiling. |
@@ -774,7 +774,7 @@ the focus stack and action context.
 
 ```ts
 // src/popups/Confirm.ts
-import { Container, definePopup, IPopup, Popup } from '@caper-engine/core';
+import { Container, definePopup, IPopup, Popup } from '@caperjs/core';
 
 export const popup = definePopup({ id: 'confirm', active: true });
 
@@ -871,7 +871,7 @@ full `packages/plugin-<name>/` workspace package.
 
 ```ts
 // src/plugins/MyPlugin.ts
-import { definePlugin, IApplication, Plugin } from '@caper-engine/core';
+import { definePlugin, IApplication, Plugin } from '@caperjs/core';
 
 export const plugin = definePlugin({
   id: 'my-plugin',
@@ -939,7 +939,7 @@ export default class MyPlugin extends Plugin {
 
 A plugin that implements `IStorageCapability` (has `save(key, data)` and
 `load(key)` methods) is **automatically** picked up by `app.store`. No separate
-registration. The first-party `@caper-engine/plugin-firebase` package is the reference
+registration. The first-party `@caperjs/plugin-firebase` package is the reference
 implementation. See §12.2.
 
 ### 9.7 Fail-loud in `initialize`
@@ -974,8 +974,8 @@ Under [src/display/](../src/display/).
 
 ```ts
 // src/entities/Hero.ts
-import type { Spine } from '@caper-engine/core';
-import { Container, defineEntity, Interactive } from '@caper-engine/core';
+import type { Spine } from '@caperjs/core';
+import { Container, defineEntity, Interactive } from '@caperjs/core';
 import { Rectangle } from 'pixi.js';
 
 export const entity = defineEntity({ id: 'hero', active: true });
@@ -1111,7 +1111,7 @@ manifest. Unknown names fail at runtime with a named error.
 Based on `typed-signals`. See [src/signals/Signal.ts](../src/signals/Signal.ts).
 
 ```ts
-import { Signal, SignalConnections } from '@caper-engine/core';
+import { Signal, SignalConnections } from '@caperjs/core';
 
 const onPowerup = new Signal<(kind: 'life' | 'coin', n: number) => void>();
 
@@ -1185,19 +1185,19 @@ class MyThing extends Focusable(Interactive(Container)) {}
 
 ---
 
-## 13. First-party plugins (`@caper-engine/plugin-*`)
+## 13. First-party plugins (`@caperjs/plugin-*`)
 
 Each is a separate npm package. Install → list in `plugins: [...]` → use via
 `app.getPlugin(id)` or a typed getter on a custom `Application` subclass.
 
 | Package | ID | Purpose |
 | --- | --- | --- |
-| `@caper-engine/plugin-firebase` | `firebase` | Firebase Firestore save/load. Implements `IStorageCapability` → auto-registered with `app.store`. |
-| `@caper-engine/plugin-rive` | `rive` | Rive animation runtime. `RiveEntity` for scene-level use. |
-| `@caper-engine/plugin-colyseus` | `colyseus` | Colyseus multiplayer rooms. |
-| `@caper-engine/plugin-google-analytics` | `google-analytics` | GA event tracking. Generic `IGoogleAnalyticsPlugin<Events>` for typed events. |
-| `@caper-engine/plugin-crunch` | `crunch` | Crunch 2D rigid-body physics. |
-| `@caper-engine/plugin-rollbar` | `rollbar` | Rollbar error tracking. |
+| `@caperjs/plugin-firebase` | `firebase` | Firebase Firestore save/load. Implements `IStorageCapability` → auto-registered with `app.store`. |
+| `@caperjs/plugin-rive` | `rive` | Rive animation runtime. `RiveEntity` for scene-level use. |
+| `@caperjs/plugin-colyseus` | `colyseus` | Colyseus multiplayer rooms. |
+| `@caperjs/plugin-google-analytics` | `google-analytics` | GA event tracking. Generic `IGoogleAnalyticsPlugin<Events>` for typed events. |
+| `@caperjs/plugin-crunch` | `crunch` | Crunch 2D rigid-body physics. |
+| `@caperjs/plugin-rollbar` | `rollbar` | Rollbar error tracking. |
 
 Install via pnpm/npm, then register in `caper.config.ts plugins: [...]`.
 Deep API lives in each plugin's own README on npm.
@@ -1229,7 +1229,7 @@ Augments `AppTypeOverrides` with unions derived from disk:
 | Type | Derived from |
 | --- | --- |
 | `AppScenes` | `src/scenes/*` `defineScene.id` values |
-| `AppPlugins` | `src/plugins/*` `definePlugin.id` ∪ discovered `@caper-engine/plugin-*` |
+| `AppPlugins` | `src/plugins/*` `definePlugin.id` ∪ discovered `@caperjs/plugin-*` |
 | `AppPopups` | `src/popups/*` `definePopup.id` |
 | `AppEntities` | `src/entities/*` `defineEntity.id` |
 | `AppActions` | keys of `defineActions` in `caper.config.ts` |
@@ -1598,5 +1598,5 @@ Flat jump table. Name → section → one-line.
 
 ---
 
-**Last updated:** `@caper-engine/core@6.2.2` (PixiJS 8.x). When in doubt, read the
+**Last updated:** `@caperjs/core@6.2.2` (PixiJS 8.x). When in doubt, read the
 cited framework source file — signatures and defaults are authoritative there.
