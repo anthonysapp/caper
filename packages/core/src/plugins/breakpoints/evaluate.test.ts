@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { defaultBreakpoints } from './types';
-import type { BreakpointContext } from './types';
-import { matchesMode, normalizeTiers, resolveTier, resolveStop } from './evaluate';
+import type { BreakpointContext, BreakpointMode } from './types';
+import { activeNames, buildContext, diffNames, matchesMode, normalizeTiers, resolveTier, resolveStop } from './evaluate';
 
 const ladder = normalizeTiers({ ...defaultBreakpoints });
 
@@ -140,5 +140,68 @@ describe('matchesMode', () => {
       throw new Error('boom');
     };
     expect(matchesMode(ctx(), boom, ladder, 'boom')).toBe(false);
+  });
+});
+
+describe('buildContext', () => {
+  it('derives tier, orientation and aspect', () => {
+    const c = buildContext({ width: 1000, height: 500 }, ladder, 'fine');
+    expect(c.tier).toBe('tablet');
+    expect(c.orientation).toBe('landscape');
+    expect(c.aspect).toBe(2);
+    expect(c.pointer).toBe('fine');
+  });
+
+  it('treats equal width and height as portrait', () => {
+    expect(buildContext({ width: 600, height: 600 }, ladder, 'fine').orientation).toBe('portrait');
+  });
+
+  it('survives a zero size without dividing by zero', () => {
+    const c = buildContext({ width: 0, height: 0 }, ladder, 'fine');
+    expect(c.tier).toBe('mobile');
+    expect(c.orientation).toBe('portrait');
+    expect(c.aspect).toBe(0);
+  });
+});
+
+describe('activeNames', () => {
+  const modes = new Map<string, BreakpointMode>([
+    ['stacked', { below: 880 }],
+    ['roomy', { atLeast: 'desktop' }],
+  ]);
+
+  it('collects tier, axes and matching modes into one set', () => {
+    const c = buildContext({ width: 800, height: 600 }, ladder, 'coarse');
+    expect(activeNames(c, modes, ladder)).toEqual(new Set(['tablet', 'landscape', 'coarse', 'stacked']));
+  });
+
+  it('drops modes that stop matching', () => {
+    const c = buildContext({ width: 1200, height: 600 }, ladder, 'fine');
+    expect(activeNames(c, modes, ladder)).toEqual(new Set(['desktop', 'landscape', 'fine', 'roomy']));
+  });
+});
+
+describe('diffNames', () => {
+  it('reports an empty diff when nothing changed', () => {
+    const a = new Set(['tablet', 'landscape']);
+    expect(diffNames(a, new Set(['tablet', 'landscape']))).toEqual({ entered: [], left: [] });
+  });
+
+  it('reports a tier change', () => {
+    const d = diffNames(new Set(['tablet']), new Set(['desktop']));
+    expect(d.entered).toEqual(['desktop']);
+    expect(d.left).toEqual(['tablet']);
+  });
+
+  it('reports an orientation change', () => {
+    const d = diffNames(new Set(['tablet', 'portrait']), new Set(['tablet', 'landscape']));
+    expect(d.entered).toEqual(['landscape']);
+    expect(d.left).toEqual(['portrait']);
+  });
+
+  it('reports a mode flip independently of the tier', () => {
+    const d = diffNames(new Set(['tablet', 'stacked']), new Set(['tablet']));
+    expect(d.entered).toEqual([]);
+    expect(d.left).toEqual(['stacked']);
   });
 });

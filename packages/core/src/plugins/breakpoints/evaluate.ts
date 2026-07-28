@@ -1,6 +1,7 @@
 import { Logger } from '../../utils';
+import type { Size } from '../../utils';
 
-import type { BreakpointContext, BreakpointMode, BreakpointNameLike } from './types';
+import type { BreakpointContext, BreakpointMode, BreakpointNameLike, Pointer } from './types';
 
 /**
  * A tier ladder, validated and sorted ascending by stop. `names[i]` and
@@ -129,4 +130,46 @@ export function matchesMode(
   if (mode.maxHeight !== undefined && ctx.height > mode.maxHeight) return false;
 
   return true;
+}
+
+/** Build the evaluated state from a raw size plus the pointer axis. */
+export function buildContext(size: Size, ladder: NormalizedLadder, pointer: Pointer): BreakpointContext {
+  const { width, height } = size;
+  return {
+    width,
+    height,
+    aspect: height === 0 ? 0 : width / height,
+    tier: resolveTier(ladder, width),
+    orientation: width > height ? 'landscape' : 'portrait',
+    pointer,
+  };
+}
+
+/**
+ * Every name currently true: the active tier, both axis values, and each
+ * matching mode. One set backs `is()`, the enter/leave signals and the diff,
+ * so they can never disagree.
+ */
+export function activeNames(
+  ctx: BreakpointContext,
+  modes: ReadonlyMap<string, BreakpointMode>,
+  ladder: NormalizedLadder,
+): Set<string> {
+  const active = new Set<string>([ctx.tier as string, ctx.orientation, ctx.pointer]);
+  for (const [name, mode] of modes) {
+    if (matchesMode(ctx, mode, ladder, name)) active.add(name);
+  }
+  return active;
+}
+
+/** Names that turned on and off between two active sets. */
+export function diffNames(
+  prev: ReadonlySet<string>,
+  next: ReadonlySet<string>,
+): { entered: string[]; left: string[] } {
+  const entered: string[] = [];
+  const left: string[] = [];
+  for (const name of next) if (!prev.has(name)) entered.push(name);
+  for (const name of prev) if (!next.has(name)) left.push(name);
+  return { entered, left };
 }
