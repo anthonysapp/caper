@@ -9,6 +9,7 @@ vi.mock('../../core/Application', () => ({
   Application: { getInstance: () => ({}) },
 }));
 
+import { coreSignalRegistry } from '../../core';
 import { Signal } from '../../signals';
 import type { Size } from '../../utils';
 import { BreakpointPlugin } from './BreakpointPlugin';
@@ -146,13 +147,32 @@ describe('BreakpointPlugin', () => {
   });
 
   it('a normal-priority onResize listener sees the updated tier', async () => {
-    const { app, plugin, resize } = await setup();
+    // Connect the normal-priority listener BEFORE the plugin connects, so
+    // insertion order alone would run it first. Only a genuine 'highest'
+    // priority on the plugin's handler can make it run before this one.
+    const app = makeApp();
+    const plugin = new BreakpointPlugin();
+    Object.defineProperty(plugin, 'app', { get: () => app, configurable: true });
+
     let seen: string | undefined;
     app.onResize.connect(() => {
       seen = plugin.current as string;
     });
-    resize({ width: 1200, height: 800 });
+
+    await plugin.initialize({});
+    await plugin.postInitialize(app as never);
+
+    app.onResize.emit({ width: 1200, height: 800 });
     expect(seen).toBe('desktop');
+  });
+
+  it('registerCoreSignals() exposes onBreakpointChanged under its own registry key', async () => {
+    const { plugin } = await setup();
+    plugin.registerCoreSignals();
+    // `onBreakpointChanged` isn't declared on ICoreSignals until Task 6 wires
+    // the plugin into the core registry; cast around that for this test.
+    const registry = coreSignalRegistry as unknown as Record<string, unknown>;
+    expect(registry.onBreakpointChanged).toBe(plugin.onChange);
   });
 
   it('destroy() disconnects enter/leave listeners', async () => {
