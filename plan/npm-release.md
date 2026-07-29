@@ -177,6 +177,14 @@ Four issues found in the current tree:
 
 ---
 
+## Status
+
+- **Phase 1: DONE 2026-07-28.** `@caperjs/*` 0.1.1 is live on npm, and bankshot-web
+  resolves it from the registry with no link overrides. See "What actually happened".
+- Phases 2-4 not started.
+
+---
+
 ## Phase 1: publish once, by hand
 
 Establish a real baseline and prove the consumer story works before adding any
@@ -201,6 +209,44 @@ dependency entries to `@caperjs/core` and
 `overrides` in `pnpm-workspace.yaml`, `pnpm install`, and confirm `tsc --noEmit`,
 `pnpm build`, and the reducer suite all pass against the registry copy. This is the
 step that actually unblocks off-laptop builds (Cloudflare, CI, fresh clones).
+
+---
+
+### What actually happened
+
+Shipped as 0.1.1, not 0.1.0. Five things the plan did not anticipate:
+
+1. **`zod` was in core's `devDependencies`** while the shipped `config/vite.mjs`
+   imports it. Consumers got whatever stray zod was hoisted (v3) and crashed with
+   `z.object(...).loose is not a function`. Linking hid this completely, because
+   caper's own `node_modules` had zod 4. Moved to `dependencies` in 0.1.1.
+   **Lesson: publishing is the only thing that catches dev/prod dependency errors.**
+   A scan of shipped `config/`, `cli/`, `lib/`, `templates/` for undeclared imports is
+   worth repeating before any future first-publish.
+2. **`@caperjs/plugin-rive@0.1.0` published into a ghost state**: reported success,
+   listed by `npm access` as public, but 404 on the read path forever, and
+   unrepublishable. 0.1.1 resolved it. If this recurs, bump the version, do not fight it.
+3. **Publishing needs a granular token with Bypass 2FA.** A `npm login` token only
+   yields an OTP prompt. The token lives in caper's gitignored `.npmrc`. Phase 2
+   removes the need for it entirely.
+4. **`.pnpmfile.cjs` contaminates the lockfile.** bankshot-web already had a
+   `CAPER_LINK=1` overlay, which is a better mechanism than the deleted `overrides`
+   block, but pnpm persists the rewritten spec into `pnpm-lock.yaml`. A lockfile
+   generated under `CAPER_LINK=1` breaks CI exactly the way the overrides did.
+   Recovery is awkward: plain `pnpm install` says "Already up to date" and refuses to
+   re-resolve; `pnpm add "@caperjs/core@^x.y.z"` forces it.
+5. **pnpm 11's publish-age gate blocks fresh releases.** It auto-wrote pinned
+   `minimumReleaseAgeExclude` entries for the exact versions installed. Replaced with
+   a `'@caperjs/*'` pattern in bankshot-web, otherwise every future release, and every
+   Phase 4 canary, is gated until it ages.
+
+**CI verified:** a `--frozen-lockfile` install in a clean directory with no caper
+checkout, no `HOME`, and no npmrc succeeds and pulls 0.1.1 from the registry.
+`pnpm build` under CI is still untested; AssetPack over the raw asset tree is a much
+bigger surface than dependency resolution.
+
+Still open: `src/core/interfaces/IApplication.ts:37` has a JSDoc example importing
+from `@caperjs/framework`, which is not a real package.
 
 ---
 

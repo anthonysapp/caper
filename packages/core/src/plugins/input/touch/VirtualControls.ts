@@ -8,7 +8,7 @@ import { type IButton, type IJoystick } from '../../../ui';
 import type { Action } from '../../actions';
 import { AbstractControls } from '../AbstractControls';
 
-export class TouchControls extends WithSignals(AbstractControls) {
+export class VirtualControls extends WithSignals(AbstractControls) {
   protected scheme: Partial<TouchControlsMap>;
   private _buttons: Set<IButton> = new Set();
   private _joystickMap: Partial<JoystickControlsScheme>;
@@ -235,3 +235,6 @@ export class TouchControls extends WithSignals(AbstractControls) {
     }
   }
 }
+
+/** @deprecated Use {@link VirtualControls} instead. */
+export { VirtualControls as TouchControls };

@@ -140,7 +140,7 @@ export class Application extends PIXIPApplication implements IApplication {
   public static instance: IApplication;
 
   // method binding root
-  private readonly __caper_method_binding_root = true;
+  private static readonly __caper_method_binding_root = true;
 
   // debug overlay (lazy, see getter)
   private _debugContainer: PIXIContainer;

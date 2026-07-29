@@ -1,3 +1,3 @@
 export * from './constants';
 export * from './interfaces';
-export * from './TouchControls';
+export * from './VirtualControls';

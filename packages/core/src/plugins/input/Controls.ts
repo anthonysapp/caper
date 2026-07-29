@@ -4,11 +4,12 @@ import { bindAllMethods } from '../../utils';
 import { Action } from '../actions';
 import { IControls, UserControls } from './interfaces';
 import { KeyboardControls } from './keyboard';
-import { TouchControls } from './touch';
+import { VirtualControls } from './touch';
 
 export class Controls implements IControls {
   keyboard: KeyboardControls;
-  touch: TouchControls;
+  /** @deprecated Use {@link Controls.virtual} instead. */
+  touch: VirtualControls;
 
   constructor() {
     bindAllMethods(this);
@@ -16,6 +17,11 @@ export class Controls implements IControls {
 
   get app(): IApplication {
     return Application.getInstance();
+  }
+
+  /** Virtual on-screen buttons (joystick/buttons) — the same instance as {@link Controls.touch}. */
+  get virtual(): VirtualControls {
+    return this.touch;
   }
 
   destroy() {
@@ -39,7 +45,7 @@ export class Controls implements IControls {
     }
 
     if (scheme.touch) {
-      this.touch = new TouchControls();
+      this.touch = new VirtualControls();
       this.touch.initialize(scheme.touch);
     }
   }

@@ -35,7 +35,7 @@ export interface IParticleContainer {
  */
 export class ParticleContainer extends PIXIParticleContainer implements IParticleContainer {
   onDestroy: Signal<() => void> = new Signal();
-  __caper_method_binding_root = true;
+  static __caper_method_binding_root = true;
   private __config: ParticleContainerConfig;
 
   /**

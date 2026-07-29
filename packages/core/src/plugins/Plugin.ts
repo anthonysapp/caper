@@ -114,7 +114,7 @@ export interface PluginListItem {
 }
 
 export class Plugin<O = any> implements IPlugin<O> {
-  private readonly __caper_method_binding_root = true;
+  private static readonly __caper_method_binding_root = true;
   // A collection of signal connections.
   protected _signalConnections: SignalConnections = new SignalConnections();
 

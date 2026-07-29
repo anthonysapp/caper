@@ -13,6 +13,7 @@ import { ActionsPlugin } from './actions';
 import { AudioManagerPlugin } from './audio';
 import { BreakpointPlugin } from './breakpoints';
 import { FocusManagerPlugin } from './focus';
+import { GesturePlugin } from './gesture';
 import { i18nPlugin } from './i18nPlugin';
 import { InputPlugin } from './input';
 
@@ -61,6 +62,11 @@ export const defaultPlugins: ImportList<IPlugin> = [
     id: 'input',
     module: InputPlugin,
     namedExport: 'InputPlugin',
+  },
+  {
+    id: 'gesture',
+    module: GesturePlugin,
+    namedExport: 'GesturePlugin',
   },
   {
     id: 'keyboard',

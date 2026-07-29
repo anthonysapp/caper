@@ -16,6 +16,7 @@ export type InputManagerOptions = {
 
 export interface IInputPlugin extends IPlugin<InputManagerOptions> {
   readonly controls: Controls;
+  readonly lastUsedController: InputController | null;
   activeGamepads: Map<string, Gamepad>;
   activeControllers: Set<string>;
   options: InputManagerOptions;
@@ -23,6 +24,7 @@ export interface IInputPlugin extends IPlugin<InputManagerOptions> {
   onGamepadDisconnected: Signal<(gamepad: Gamepad) => void>;
   onControllerActivated: Signal<(controller: string) => void>;
   onControllerDeactivated: Signal<(controller: string) => void>;
+  onControllerChanged: Signal<(controller: InputController) => void>;
 
   isControllerActive(controller: InputController): boolean;
 
@@ -44,11 +46,20 @@ export class InputPlugin extends Plugin<InputManagerOptions> implements IInputPl
   // properties
   public activeGamepads = new Map<string, Gamepad>();
   public activeControllers = new Set<string>([]);
+  private _lastUsedController: InputController | null = null;
+  private _canvas: HTMLCanvasElement | null = null;
   // signals
   public onGamepadConnected: Signal<(gamepad: Gamepad) => void> = new Signal<(gamepad: Gamepad) => void>();
   public onGamepadDisconnected: Signal<(gamepad: Gamepad) => void> = new Signal<(gamepad: Gamepad) => void>();
   public onControllerActivated: Signal<(controller: string) => void> = new Signal<(controller: string) => void>();
   public onControllerDeactivated: Signal<(controller: string) => void> = new Signal<(controller: string) => void>();
+  public onControllerChanged: Signal<(controller: InputController) => void> = new Signal<
+    (controller: InputController) => void
+  >();
+
+  get lastUsedController(): InputController | null {
+    return this._lastUsedController;
+  }
 
   isActionActive(action: Action): boolean {
     return this.controls.isActionActive(action);
@@ -58,8 +69,9 @@ export class InputPlugin extends Plugin<InputManagerOptions> implements IInputPl
     this._options = { ...defaultOptions, ...options };
 
     app.stage.eventMode = 'static';
-    app.stage.on('touchstart', this._onTouchStart);
-    app.stage.on('globalmousemove', this._onMouseMove);
+    this._canvas = app.canvas as HTMLCanvasElement;
+    this._canvas.addEventListener('pointerdown', this._onPointerDown);
+    this._canvas.addEventListener('pointermove', this._onPointerMove);
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('gamepadconnected', this._onGamepadConnected);
     window.addEventListener('gamepaddisconnected', this._onGamepadDisconnected);
@@ -77,11 +89,22 @@ export class InputPlugin extends Plugin<InputManagerOptions> implements IInputPl
 
   destroy(): void {
     // unregister all event listeners
-    this.app.stage.off('touchstart', this._onTouchStart);
-    this.app.stage.off('globalmousemove', this._onMouseMove);
+    if (this._canvas) {
+      this._canvas.removeEventListener('pointerdown', this._onPointerDown);
+      this._canvas.removeEventListener('pointermove', this._onPointerMove);
+      this._canvas = null;
+    }
     window.removeEventListener('keydown', this._onKeyDown);
     window.removeEventListener('gamepadconnected', this._onGamepadConnected);
     window.removeEventListener('gamepaddisconnected', this._onGamepadDisconnected);
+
+    this.controls.destroy();
+
+    this.onGamepadConnected.disconnectAll();
+    this.onGamepadDisconnected.disconnectAll();
+    this.onControllerActivated.disconnectAll();
+    this.onControllerDeactivated.disconnectAll();
+    this.onControllerChanged.disconnectAll();
 
     super.destroy();
   }
@@ -95,16 +118,36 @@ export class InputPlugin extends Plugin<InputManagerOptions> implements IInputPl
   }
 
   protected getCoreSignals(): string[] {
-    return ['onGamepadConnected', 'onGamepadDisconnected', 'onControllerActivated', 'onControllerDeactivated'];
+    return [
+      'onGamepadConnected',
+      'onGamepadDisconnected',
+      'onControllerActivated',
+      'onControllerDeactivated',
+      'onControllerChanged',
+    ];
+  }
+
+  private _isInputControllerType(value: string): value is InputController {
+    return (Object.values(InputControllerTypes) as string[]).includes(value);
   }
 
   private _activateController(inputController: string): void {
-    if (this.activeControllers.has(inputController)) {
-      return;
+    const isNewController = !this.activeControllers.has(inputController);
+    if (isNewController) {
+      this.activeControllers.add(inputController);
     }
-    this.activeControllers.add(inputController);
-    // emit the controller activated signal
-    this.onControllerActivated.emit(inputController);
+
+    // only the four InputControllerTypes values are valid "last used" values —
+    // a raw gamepad device id (see _onGamepadConnected) must never land here
+    if (this._isInputControllerType(inputController) && inputController !== this._lastUsedController) {
+      this._lastUsedController = inputController;
+      this.onControllerChanged.emit(inputController);
+    }
+
+    if (isNewController) {
+      // emit the controller activated signal
+      this.onControllerActivated.emit(inputController);
+    }
   }
 
   private _deactivateController(inputController: InputController): void {
@@ -125,12 +168,16 @@ export class InputPlugin extends Plugin<InputManagerOptions> implements IInputPl
     this.activeGamepads.delete(gamepadId);
   }
 
-  private _onTouchStart(): void {
-    this._activateController(InputControllerTypes.Touch);
+  private _onPointerDown(event: PointerEvent): void {
+    if (event.pointerType === 'touch') {
+      this._activateController(InputControllerTypes.Touch);
+    }
   }
 
-  private _onMouseMove(): void {
-    this._activateController(InputControllerTypes.Mouse);
+  private _onPointerMove(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') {
+      this._activateController(InputControllerTypes.Mouse);
+    }
   }
 
   private _onKeyDown(): void {

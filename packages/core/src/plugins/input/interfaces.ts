@@ -1,6 +1,6 @@
 import { ActionContext, ActionMap, UserActions, UserButtons } from '../actions';
 import { IKeyboardControlScheme, KeyboardControls } from './keyboard';
-import { ITouchControlScheme, TouchControls } from './touch';
+import { ITouchControlScheme, VirtualControls } from './touch';
 import { AbstractControlScheme, ControlsActionMap, KeyboardControlsMap, TouchControlsMap } from './types';
 
 export interface ControlsAction {
@@ -17,12 +17,13 @@ export interface IGamepadControlScheme extends AbstractControlScheme<'buttonDown
 export interface ControlScheme {
   keyboard?: IKeyboardControlScheme;
   touch?: ITouchControlScheme;
-  gamepad?: IGamepadControlScheme;
 }
 
 export interface IControls {
   readonly keyboard: KeyboardControls;
-  readonly touch: TouchControls;
+  /** @deprecated Use {@link IControls.virtual} instead. */
+  readonly touch: VirtualControls;
+  readonly virtual: VirtualControls;
 
   isActionActive(action: string): boolean;
 
@@ -33,5 +34,6 @@ export interface IControls {
 
 export interface UserControls<U extends UserActions = UserActions, B extends UserButtons = UserButtons> {
   keyboard: Partial<KeyboardControlsMap<U>>;
+  /** Virtual on-screen buttons (joystick/buttons) — despite the key name, this is not touchscreen input. */
   touch: Partial<TouchControlsMap<U, B>>;
 }

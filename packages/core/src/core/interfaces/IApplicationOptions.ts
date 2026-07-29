@@ -2,6 +2,7 @@ import type {
   ActionMap,
   BreakpointsConfig,
   FocusManagerPluginOptions,
+  GesturePluginOptions,
   i18nOptions,
   InputManagerOptions,
   LoadSceneMethod,
@@ -66,6 +67,7 @@ export interface IApplicationOptions extends ApplicationOptions {
   scenesLocation: string;
   actions: Partial<ActionMap>;
   input: Partial<InputManagerOptions>;
+  gesture?: Partial<GesturePluginOptions>;
   focus: Partial<FocusManagerPluginOptions>;
   splash: Partial<SplashOptions>;
   defaultScene: AppTypeOverrides['Scenes'];

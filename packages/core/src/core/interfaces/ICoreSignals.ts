@@ -3,7 +3,11 @@ import type {
   ChannelMutedDetail,
   ChannelVolumeDetail,
   FocusChangeDetail,
+  GestureChangeDetail,
+  GestureEndDetail,
+  GestureStartDetail,
   IAudioInstance,
+  InputController,
   KeyboardEventDetail,
   PopupSignalDetail,
   SoundDetail,
@@ -43,6 +47,11 @@ export interface ICoreSignals {
   onGamepadDisconnected: Signal<(gamepad: Gamepad) => void>;
   onControllerActivated: Signal<(controller: string) => void>;
   onControllerDeactivated: Signal<(controller: string) => void>;
+  onControllerChanged: Signal<(controller: InputController) => void>;
+  // GesturePlugin;
+  onGestureStart: Signal<(detail: GestureStartDetail) => void>;
+  onGestureChange: Signal<(detail: GestureChangeDetail) => void>;
+  onGestureEnd: Signal<(detail: GestureEndDetail) => void>;
   // KeyboardManager;
   onGlobalKeyDown: Signal<(detail: KeyboardEventDetail) => void>;
   onGlobalKeyUp: Signal<(detail: KeyboardEventDetail) => void>;

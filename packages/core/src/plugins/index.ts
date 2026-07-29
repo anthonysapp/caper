@@ -5,6 +5,7 @@ export * from './DataAdapter';
 export * from './audio';
 export * from './focus';
 export * from './FullScreenPlugin';
+export * from './gesture';
 export * from './i18nPlugin';
 export * from './input';
 export * from './KeyboardPlugin';
