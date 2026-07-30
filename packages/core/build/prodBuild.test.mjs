@@ -26,14 +26,10 @@ const fixtureRoot = path.resolve(here, '../test/fixtures/app');
 const coreSrc = path.resolve(here, '../src');
 
 let outDir;
-let originalCwd;
 let result;
 let buildError;
 
 beforeAll(async () => {
-  // Discovery resolves against process.cwd(); see devServer.test.mjs.
-  originalCwd = process.cwd();
-  process.chdir(fixtureRoot);
   outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'caper-prod-build-'));
 
   try {
@@ -51,7 +47,6 @@ beforeAll(async () => {
 }, 180_000);
 
 afterAll(() => {
-  if (originalCwd) process.chdir(originalCwd);
   if (outDir) fs.rmSync(outDir, { recursive: true, force: true });
 });
 

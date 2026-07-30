@@ -151,6 +151,9 @@ export function findExportedConstants(ast) {
     }
   }
 
+  // Export names whose value came out of a `define*()` helper, in source order.
+  const wrapperKeys = [];
+
   for (const node of ast.body) {
     if (
       node.type === AST_NODE_TYPES.ExportNamedDeclaration &&
@@ -159,17 +162,32 @@ export function findExportedConstants(ast) {
       for (const declarator of node.declaration.declarations) {
         if (declarator.id.type === AST_NODE_TYPES.Identifier && declarator.init) {
           exports[declarator.id.name] = extractValue(declarator.init);
+          if (
+            declarator.init.type === AST_NODE_TYPES.CallExpression &&
+            DEFINE_HELPER_NAMES.has(declarator.init.callee?.name)
+          ) {
+            wrapperKeys.push(declarator.id.name);
+          }
         }
       }
     }
   }
 
-  // Flatten `export const scene = defineScene({...})` / `export const plugin
-  // = definePlugin({...})` wrappers onto the top level so discovery code can
-  // stay agnostic: `exports.id`, `exports.active`, `exports.assets`, etc.
-  // work whether the user wrote individual exports or the helper form.
-  // Individual file-level exports take precedence on conflict.
-  for (const wrapperKey of ['scene', 'plugin', 'popup', 'entity']) {
+  // Flatten `export const scene = defineScene({...})` / `export const ui =
+  // defineUI({...})` wrappers onto the top level so discovery code can stay
+  // agnostic: `exports.id`, `exports.active`, `exports.assets` etc. work whether
+  // the file used individual exports or the helper form.
+  //
+  // Which exports get flattened is decided by *what they are* — a call to a
+  // define helper — rather than by matching a hardcoded list of export names.
+  // That list read ['scene', 'plugin', 'popup', 'entity'], so `defineUI` was
+  // silently ignored and every UI element registered under its class name
+  // instead of its declared id. Naming the export anything other than the kind
+  // (`export const ui_ = defineUI(...)`) failed the same way.
+  //
+  // Individual file-level exports still take precedence on conflict, and earlier
+  // wrappers win over later ones.
+  for (const wrapperKey of wrapperKeys) {
     const wrapped = exports[wrapperKey];
     if (wrapped && typeof wrapped === 'object' && !Array.isArray(wrapped)) {
       for (const [k, v] of Object.entries(wrapped)) {

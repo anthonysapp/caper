@@ -10,6 +10,11 @@
  * The fixture is deliberately tiny and independent of kitchen-sink, so an app
  * change can't quietly alter what these assertions mean. `assets: false` keeps
  * AssetPack (and its ffmpeg/sharp work) out of the test.
+ *
+ * Note there is no `process.chdir()` here: the suite runs from the package
+ * directory while `root` points at the fixture, so discovery finding anything at
+ * all is the assertion that it resolves against vite's root rather than the
+ * working directory.
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,17 +27,8 @@ const fixtureRoot = path.resolve(here, '../test/fixtures/app');
 const coreSrc = path.resolve(here, '../src');
 
 let server;
-let originalCwd;
 
 beforeAll(async () => {
-  // The discovery plugins resolve `src/scenes` and friends against
-  // `process.cwd()` rather than vite's resolved root, so the fixture is only
-  // visible from inside it. Restored in afterAll; vitest runs one file at a time
-  // per worker, so no other suite sees this. Making the root explicit is a
-  // follow-up in the split step — see plan/vite-preset-rework.md.
-  originalCwd = process.cwd();
-  process.chdir(fixtureRoot);
-
   server = await createServer({
     configFile: false,
     root: fixtureRoot,
@@ -56,7 +52,6 @@ afterAll(async () => {
   // optimizer to finish the work the transform requests kicked off — hence the
   // raised timeout rather than the default 10s.
   await server?.close();
-  if (originalCwd) process.chdir(originalCwd);
 }, 60_000);
 
 /** Transformed source of a virtual module, via vite's own module pipeline. */
@@ -97,7 +92,10 @@ describe('dev server', () => {
   it('discovers popups, entities and uis', async () => {
     expect(await load('virtual:caper-popups')).toContain('example');
     expect(await load('virtual:caper-entities')).toContain('marker');
-    expect(await load('virtual:caper-uis')).toContain('badge');
+    const uis = await load('virtual:caper-uis');
+    // Both come from `defineUI({ id })`, one under a non-standard export name.
+    expect(uis).toContain('badge');
+    expect(uis).toContain('chip');
   });
 
   it('exposes the plugin list module', async () => {

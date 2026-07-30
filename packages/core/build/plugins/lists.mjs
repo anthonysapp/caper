@@ -19,6 +19,9 @@ import { logger } from '../internal/util.mjs';
 import { loadManifestBundleNames } from '../internal/manifest.mjs';
 
 export function createClassListPlugin({ virtualModuleId, discoverFn, exportName, pluginName }) {
+  // vite's resolved project root, captured for the discovery pass. See
+  // internal/discovery.mjs for why this is not process.cwd().
+  let root;
   const resolvedVirtualModuleId = '\0' + virtualModuleId;
   let server;
 
@@ -54,6 +57,9 @@ export function createClassListPlugin({ virtualModuleId, discoverFn, exportName,
 
   return {
     name: pluginName,
+    configResolved(config) {
+      root = config.root;
+    },
     configureServer(s) {
       server = s;
     },
@@ -62,7 +68,7 @@ export function createClassListPlugin({ virtualModuleId, discoverFn, exportName,
     },
     async load(id) {
       if (id === resolvedVirtualModuleId) {
-        const items = await discoverFn(server);
+        const items = await discoverFn(server, root);
         return generate(items);
       }
     },
@@ -179,10 +185,14 @@ export function pluginListPlugin(isProject = true) {
   const virtualModuleId = 'virtual:caper-plugins';
   const resolvedVirtualModuleId = '\0' + virtualModuleId;
 
+  let root;
   let server;
 
   return {
     name: 'vite-plugin-plugins',
+    configResolved(config) {
+      root = config.root;
+    },
     configureServer(s) {
       server = s;
     },
@@ -193,7 +203,7 @@ export function pluginListPlugin(isProject = true) {
     },
     async load(id) {
       if (id === resolvedVirtualModuleId) {
-        const plugins = isProject ? await discoverPlugins(server) : [];
+        const plugins = isProject ? await discoverPlugins(server, root) : [];
         return generatePluginListModule(plugins);
       }
     },
@@ -241,10 +251,14 @@ export function sceneListPlugin(isProject = true) {
   const virtualModuleId = 'virtual:caper-scenes';
   const resolvedVirtualModuleId = '\0' + virtualModuleId;
 
+  let root;
   let server;
 
   return {
     name: 'vite-plugin-scenes',
+    configResolved(config) {
+      root = config.root;
+    },
     configureServer(s) {
       server = s;
     },
@@ -257,7 +271,7 @@ export function sceneListPlugin(isProject = true) {
       if (id === resolvedVirtualModuleId) {
         let scenes = [];
         if (isProject) {
-          scenes = await discoverScenes(server);
+          scenes = await discoverScenes(server, root);
         }
         return generateSceneListModule(scenes);
       }

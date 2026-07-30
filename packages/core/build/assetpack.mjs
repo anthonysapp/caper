@@ -219,7 +219,7 @@ export function assetpackPlugin(manifestUrl = defaultManifestUrl, pixiPipesConfi
       if (!resolvedConfig.publicDir) return;
       await getConfig();
       if (apConfig.output) return;
-      const publicDir = resolvedConfig.publicDir.replace(cwd, '');
+      const publicDir = resolvedConfig.publicDir.replace(resolvedConfig.root, '');
       const outputPath = path.join(publicDir, 'assets');
       apConfig.output = path.isAbsolute(publicDir)
         ? path.join('.', outputPath).replace(/\\/g, '/')

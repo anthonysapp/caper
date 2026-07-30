@@ -44,7 +44,8 @@ type AppPlugins =
   | 'google-analytics'
   | 'rive'
   | 'rollbar'
-  | 'firebase';
+  | 'firebase'
+  | 'test';
 
 // Popups
 type AppPopups = 
@@ -60,9 +61,9 @@ type AppEntities =
 
 // UI Elements
 type AppUIs = 
-  | 'CaperButton'
-  | 'CaperPanel'
-  | 'CloseButton';
+  | 'caper-button'
+  | 'caper-panel'
+  | 'close-button';
 
 // Class maps — typeof-import pointers to the real discovered classes. The
 // framework uses these with ConstructorParameters<> + InstanceType<> + infer
@@ -107,13 +108,19 @@ type AppEntityClasses = {
 };
 
 type AppUIClasses = {
-  "CaperButton": typeof import('@/ui/CaperButton').default;
-  "CaperPanel": typeof import('@/ui/CaperPanel').default;
-  "CloseButton": typeof import('@/ui/CloseButton').default;
+  "caper-button": typeof import('@/ui/CaperButton').default;
+  "caper-panel": typeof import('@/ui/CaperPanel').default;
+  "close-button": typeof import('@/ui/CloseButton').default;
 };
 
 // Locale keys (flattened dot-paths from src/locales/<reference>.ts)
-type AppLocaleKeys = string;
+type AppLocaleKeys = 
+  | 'foo'
+  | 'html'
+  | 'obj.foo'
+  | 'opts'
+  | 'replace.replace'
+  | 'replace.replaceOpts';
 
 // Breakpoints
 type AppBreakpoints = keyof (typeof breakpoints)['tiers'] & string;

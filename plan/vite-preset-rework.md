@@ -315,18 +315,25 @@ Two process lessons worth keeping:
 
 Deliberately out of scope, in rough priority order:
 
-1. **`defineUI({ id })` is ignored.** `findExportedConstants` flattens wrapper
-   exports for 'scene', 'plugin', 'popup' and 'entity' but not 'ui', so a UI
-   element registers under its class name. Latent today (neither app looks UI up
-   by id), and fixing it changes every app's `uiList`, so it wants its own commit.
-2. **Discovery resolves against `process.cwd()`**, not vite's resolved root, so
-   `vite --root elsewhere` finds no scenes. The tests `process.chdir()` around it.
-3. **`plugins/assetTypes.mjs` and `plugins/caperConfig.mjs` are ~475 lines each.**
+1. ~~**`defineUI({ id })` is ignored.**~~ Fixed: the flatten step now keys on the
+   value being a `define*()` call rather than on a hardcoded list of export names,
+   so `defineUI` works and so does any export name (bankshot uses `ui_`).
+2. ~~**Discovery resolves against `process.cwd()`**.~~ Fixed: vite's resolved
+   `config.root` is threaded explicitly through every discovery entry point and
+   the caper.config / asset-types plugins. The dev-server and production-build
+   tests no longer need `process.chdir()` — they run from the package directory
+   against a fixture root, which is the assertion.
+3. **`readCaperBuildFlags` still reads from `process.cwd()`**, and has to: it runs
+   when `caper()` is called, while the project's vite.config is still evaluating,
+   so no resolved root exists yet and vite forbids adding plugins later (which is
+   what `useWasm` does). Only affects `vite --root elsewhere`, where `useWasm`
+   would be missed.
+4. **`plugins/assetTypes.mjs` and `plugins/caperConfig.mjs` are ~475 lines each.**
    Both are dominated by a generated-`.d.ts` template string that could move to a
    sibling `*.template.mjs`.
-4. **`caper create` has no end-to-end smoke test.** It needs a TTY, and the
+5. **`caper create` has no end-to-end smoke test.** It needs a TTY, and the
    template pins `@caperjs/core: latest`, so a real scaffold-install-build check
    only becomes possible once 0.2.0 is published.
-5. **Spine `.png.atlas` fallbacks** are pruned, but the prune reads page names by
+6. **Spine `.png.atlas` fallbacks** are pruned, but the prune reads page names by
    scanning for lines ending in `.png` — a more precise atlas parse would be
    sturdier if the format grows.

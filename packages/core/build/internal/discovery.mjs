@@ -5,9 +5,12 @@
  * Split from the list plugins so the plugins are only about emitting virtual
  * modules, and the crawling can be reasoned about (and fixed) on its own.
  *
- * Directories resolve against `process.cwd()`, which is the project root under
- * any normal invocation but not under `vite --root elsewhere`. Threading vite's
- * resolved root through here is a known follow-up.
+ * Every entry point takes an explicit `root` — vite's resolved `config.root`,
+ * passed down by the plugin that called it. That is the project root by
+ * definition; `process.cwd()` only happens to be the same one, and differs the
+ * moment anyone runs `vite --root elsewhere` or invokes vite from a parent
+ * directory in a monorepo. It is threaded as a parameter rather than kept in a
+ * module-level variable so nothing depends on load order or on who ran first.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,7 +22,7 @@ import {
   findExportedConstants,
   parse,
 } from './ast.mjs';
-import { cwd, logger } from './util.mjs';
+import { logger } from './util.mjs';
 
 
 export async function findTypeScriptFiles(dir) {
@@ -47,8 +50,8 @@ export async function findTypeScriptFiles(dir) {
 // unwrapped into the exported constant's value. Keep in sync with the
 // identity helpers in src/utils/define.ts.
 
-export async function discoverScenes(server) {
-  const scenesDir = path.resolve(process.cwd(), 'src/scenes');
+export async function discoverScenes(server, root) {
+  const scenesDir = path.resolve(root, 'src/scenes');
   const scenes = [];
 
   if (!fs.existsSync(scenesDir)) {
@@ -71,7 +74,7 @@ export async function discoverScenes(server) {
 
       const exports = findExportedConstants(ast);
 
-      const relativePath = file.replace(process.cwd(), '').replace(/\\/g, '/').split('/src')[1];
+      const relativePath = file.replace(root, '').replace(/\\/g, '/').split('/src')[1];
       // remove /src — the runtime import uses the raw alias (Vite resolves
       // `.ts` automatically) while the typeof-import codegen needs the
       // extension stripped so TypeScript's path-alias resolution finds it.
@@ -119,8 +122,8 @@ export async function discoverScenes(server) {
   return scenes;
 }
 
-export async function discoverLocalPlugins(server) {
-  const pluginsDir = path.resolve(process.cwd(), 'src/plugins');
+export async function discoverLocalPlugins(server, root) {
+  const pluginsDir = path.resolve(root, 'src/plugins');
   const plugins = [];
 
   if (!fs.existsSync(pluginsDir)) {
@@ -153,7 +156,7 @@ export async function discoverLocalPlugins(server) {
 
       const exports = findExportedConstants(ast);
 
-      const relativePath = file.replace(process.cwd(), '').replace(/\\/g, '/').split('/src')[1];
+      const relativePath = file.replace(root, '').replace(/\\/g, '/').split('/src')[1];
       const importPath = `@${relativePath.replace(/\.ts$/, '')}`;
       const id = exports.id || pluginClass.id?.name || path.basename(file, '.ts');
       const name = pluginClass.id?.name || id;
@@ -201,8 +204,8 @@ export async function discoverLocalPlugins(server) {
  * project's `package.json`. Always emitted as dynamic imports.
  */
 
-export function discoverNpmPlugins() {
-  const packageJsonPath = path.resolve(process.cwd(), 'package.json');
+export function discoverNpmPlugins(root) {
+  const packageJsonPath = path.resolve(root, 'package.json');
   if (!fs.existsSync(packageJsonPath)) return [];
 
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
@@ -233,8 +236,8 @@ export function discoverNpmPlugins() {
     });
 }
 
-export async function discoverPlugins(server) {
-  const [local, npm] = [await discoverLocalPlugins(server), discoverNpmPlugins()];
+export async function discoverPlugins(server, root) {
+  const [local, npm] = [await discoverLocalPlugins(server, root), discoverNpmPlugins(root)];
   return [...npm, ...local];
 }
 
@@ -251,8 +254,8 @@ export async function discoverPlugins(server) {
  * constructor; popups default to `true` because `show()` is async.
  */
 
-export async function discoverLocalClassFiles({ dir, kind, server, defaultDynamic = true }) {
-  const rootDir = path.resolve(process.cwd(), dir);
+export async function discoverLocalClassFiles({ dir, kind, server, root, defaultDynamic = true }) {
+  const rootDir = path.resolve(root, dir);
   if (!fs.existsSync(rootDir)) return [];
 
   const files = await findTypeScriptFiles(rootDir);
@@ -268,7 +271,7 @@ export async function discoverLocalClassFiles({ dir, kind, server, defaultDynami
 
       const exports = findExportedConstants(ast);
 
-      const relativePath = file.replace(process.cwd(), '').replace(/\\/g, '/').split('/src')[1];
+      const relativePath = file.replace(root, '').replace(/\\/g, '/').split('/src')[1];
       const importPath = `@${relativePath.replace(/\.ts$/, '')}`;
       const id = exports.id || cls.id?.name || path.basename(file, '.ts');
       const name = cls.id?.name || id;
@@ -307,21 +310,21 @@ export async function discoverLocalClassFiles({ dir, kind, server, defaultDynami
   return results;
 }
 
-export async function discoverPopups(server) {
-  return discoverLocalClassFiles({ dir: 'src/popups', kind: 'popup', server });
+export async function discoverPopups(server, root) {
+  return discoverLocalClassFiles({ dir: 'src/popups', kind: 'popup', server, root });
 }
 
-export async function discoverEntities(server) {
+export async function discoverEntities(server, root) {
   // Entities default to static imports so `this.add.entity(id, props)` can
   // synchronously construct without awaiting a dynamic import. Opt into
   // code-splitting per-entity with `defineEntity({ dynamic: true })`.
-  return discoverLocalClassFiles({ dir: 'src/entities', kind: 'entity', server, defaultDynamic: false });
+  return discoverLocalClassFiles({ dir: 'src/entities', kind: 'entity', server, root, defaultDynamic: false });
 }
 
-export async function discoverUIs(server) {
+export async function discoverUIs(server, root) {
   // UI elements default to static imports so `this.add.ui(id, props)` can
   // synchronously construct. Same rationale as entities.
-  return discoverLocalClassFiles({ dir: 'src/ui', kind: 'ui', server, defaultDynamic: false });
+  return discoverLocalClassFiles({ dir: 'src/ui', kind: 'ui', server, root, defaultDynamic: false });
 }
 
 /**
@@ -331,8 +334,8 @@ export async function discoverUIs(server) {
  * virtual modules.
  */
 
-export async function discoverLocaleKeys(server) {
-  const localesDir = path.resolve(process.cwd(), 'src/locales');
+export async function discoverLocaleKeys(server, root) {
+  const localesDir = path.resolve(root, 'src/locales');
   if (!fs.existsSync(localesDir)) return [];
 
   const files = (await fs.promises.readdir(localesDir)).filter((f) => /\.ts$/.test(f)).sort();

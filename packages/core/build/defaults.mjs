@@ -28,7 +28,7 @@ import path from 'node:path';
  * `vite build` from a shell used to bake `undefined` into the bundle. Fall back
  * to reading package.json, which is where the env vars came from anyway.
  */
-export function readAppIdentity() {
+export function readAppIdentity(root = process.cwd()) {
   const fromEnv = {
     name: process.env.npm_package_name,
     version: process.env.npm_package_version,
@@ -37,7 +37,7 @@ export function readAppIdentity() {
   if (fromEnv.name && fromEnv.version && fromEnv.description) return fromEnv;
 
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
     return {
       name: fromEnv.name ?? pkg.name,
       version: fromEnv.version ?? pkg.version,
@@ -92,8 +92,8 @@ export function fillMissing(target, defaults) {
  */
 export function caperDefaultValues(env, userConfig = {}) {
   const isServe = env.command === 'serve';
-  const app = readAppIdentity();
   const root = userConfig.root ? path.resolve(userConfig.root) : process.cwd();
+  const app = readAppIdentity(root);
 
   return {
     cacheDir: '.cache',

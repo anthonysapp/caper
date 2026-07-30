@@ -29,7 +29,8 @@ type AppEntities =
 
 // UI Elements
 type AppUIs = 
-  | 'badge';
+  | 'badge'
+  | 'chip';
 
 // Class maps — typeof-import pointers to the real discovered classes. The
 // framework uses these with ConstructorParameters<> + InstanceType<> + infer
@@ -49,6 +50,7 @@ type AppEntityClasses = {
 
 type AppUIClasses = {
   "badge": typeof import('@/ui/Badge').default;
+  "chip": typeof import('@/ui/Chip').default;
 };
 
 // Locale keys (flattened dot-paths from src/locales/<reference>.ts)

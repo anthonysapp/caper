@@ -23,9 +23,9 @@ import { cwd, DTS_FILE_NAME, logger } from '../internal/util.mjs';
 import { runBuildTimeValidation } from '../internal/validate.mjs';
 import { loadManifestBundleNames } from '../internal/manifest.mjs';
 
-async function validateCaperConfig(server) {
+async function validateCaperConfig(server, root) {
   if (!server || typeof server.ssrLoadModule !== 'function') return true;
-  const configPath = path.resolve(cwd, 'caper.config.ts');
+  const configPath = path.resolve(root, 'caper.config.ts');
   if (!fs.existsSync(configPath)) return true;
 
   // caper.config.ts pulls in @caperjs/core, which statically bundles
@@ -94,13 +94,17 @@ async function validateCaperConfig(server) {
 // write a debounce function
 
 export function caperConfigPlugin(isProject = true) {
+  // vite's resolved project root. Everything below resolves against this rather
+  // than process.cwd(), so `vite --root elsewhere` and monorepo invocations from
+  // a parent directory find the right caper.config.ts and src/ tree.
+  let root = cwd;
   const virtualModuleId = 'virtual:caper-config';
   const resolvedVirtualModuleId = '\0' + virtualModuleId;
 
-  async function generateTypes(server) {
+  async function generateTypes(server, root) {
     if (!isProject) return { types: 'export {}' };
 
-    const configPath = path.resolve(cwd, 'caper.config.ts');
+    const configPath = path.resolve(root, 'caper.config.ts');
 
     let ast;
     try {
@@ -206,12 +210,12 @@ export function caperConfigPlugin(isProject = true) {
     }
 
     // Discover scenes, plugins, popups, entities, and locale keys.
-    const scenes = await discoverScenes(server);
-    const plugins = await discoverPlugins(server);
-    const popups = await discoverPopups(server);
-    const entities = await discoverEntities(server);
-    const uis = await discoverUIs(server);
-    const localeKeys = await discoverLocaleKeys(server);
+    const scenes = await discoverScenes(server, root);
+    const plugins = await discoverPlugins(server, root);
+    const popups = await discoverPopups(server, root);
+    const entities = await discoverEntities(server, root);
+    const uis = await discoverUIs(server, root);
+    const localeKeys = await discoverLocaleKeys(server, root);
 
     const sceneIds = scenes.filter((s) => s.active !== false).map((s) => s.id);
     const pluginIds = plugins.filter((p) => p.active !== false).map((p) => p.id);
@@ -379,7 +383,7 @@ declare module '@caperjs/core' {
 
   async function build(msg = `Building ${DTS_FILE_NAME}`, server) {
     logger.info(msg);
-    const { types, error } = await generateTypes(server);
+    const { types, error } = await generateTypes(server, root);
 
     if (error) {
       if (server) {
@@ -388,7 +392,7 @@ declare module '@caperjs/core' {
           err: {
             message: error.message,
             stack: error.stack,
-            id: path.resolve(cwd, 'caper.config.ts'),
+            id: path.resolve(root, 'caper.config.ts'),
             plugin: 'vite-plugin-caper-config',
           },
         });
@@ -396,7 +400,7 @@ declare module '@caperjs/core' {
       return;
     }
 
-    const typesDir = path.resolve(cwd, 'src/types');
+    const typesDir = path.resolve(root, 'src/types');
     await fs.promises.mkdir(typesDir, { recursive: true });
     await fs.promises.writeFile(path.join(typesDir, DTS_FILE_NAME), types, 'utf-8');
 
@@ -404,13 +408,16 @@ declare module '@caperjs/core' {
     // module graph. Failures surface in the overlay with file:line detail.
     // Prod builds skip this (no server).
     if (server) {
-      await validateCaperConfig(server);
+      await validateCaperConfig(server, root);
       server.ws.send({ type: 'full-reload' });
     }
   }
 
   return {
     name: 'vite-plugin-caper-config',
+    configResolved(config) {
+      root = config.root;
+    },
     enforce: 'pre',
     resolveId(id) {
       if (id === virtualModuleId) {
@@ -432,12 +439,12 @@ declare module '@caperjs/core' {
     configureServer(server) {
       if (!isProject) return;
 
-      const configPath = path.resolve(cwd, 'caper.config.ts');
-      const scenesDir = path.resolve(cwd, 'src/scenes');
-      const pluginsDir = path.resolve(cwd, 'src/plugins');
-      const popupsDir = path.resolve(cwd, 'src/popups');
-      const entitiesDir = path.resolve(cwd, 'src/entities');
-      const localesDir = path.resolve(cwd, 'src/locales');
+      const configPath = path.resolve(root, 'caper.config.ts');
+      const scenesDir = path.resolve(root, 'src/scenes');
+      const pluginsDir = path.resolve(root, 'src/plugins');
+      const popupsDir = path.resolve(root, 'src/popups');
+      const entitiesDir = path.resolve(root, 'src/entities');
+      const localesDir = path.resolve(root, 'src/locales');
 
       const handleFileChange = async (file) => {
         const isScene = file.startsWith(scenesDir);

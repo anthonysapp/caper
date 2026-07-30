@@ -13,7 +13,7 @@ import { ASSET_DTS_FILE_NAME, debounce, delay, logger } from '../internal/util.m
 
 export { loadManifestBundleNames };
 
-async function generateAssetTypes(manifest) {
+async function generateAssetTypes(manifest, assetsDir) {
   // Flat totals per category (back-compat: AssetTextures, AssetAudio, etc.)
   const assetsByType = {
     textures: new Set(),
@@ -76,7 +76,7 @@ async function generateAssetTypes(manifest) {
             const jsonSrc = srcs.find((src) => src.endsWith('.json'));
             if (jsonSrc) {
               // Construct the full path to the JSON file
-              const jsonPath = path.join(process.cwd(), 'public', 'assets', jsonSrc);
+              const jsonPath = path.join(assetsDir, jsonSrc);
 
               // Read and parse the JSON file
               const jsonContent = await fs.promises.readFile(jsonPath, 'utf8');
@@ -348,10 +348,10 @@ declare module '@caperjs/core' {
 
 // Function to write types file
 
-async function writeAssetTypes(manifest, outputDir) {
-  const types = await generateAssetTypes(manifest);
+async function writeAssetTypes(manifest, outputDir, assetsDir, root) {
+  const types = await generateAssetTypes(manifest, assetsDir);
   // Change output path to ./src/types/
-  const srcTypesDir = path.join(process.cwd(), 'src', 'types');
+  const srcTypesDir = path.join(root, 'src', 'types');
 
   try {
     // Ensure the directory exists
@@ -371,19 +371,23 @@ async function writeAssetTypes(manifest, outputDir) {
 // Asset types generation plugin
 
 export function assetTypesPlugin(manifestUrl = 'assets.json') {
+  // vite's resolved publicDir/root rather than process.cwd() — same reasoning as
+  // internal/discovery.mjs.
+  let publicDir;
+  let root;
   let viteServer;
   let manifestWatcher;
   let ispPwaEnabled = false;
 
   async function generate(manifestUrl) {
     try {
-      const manifestPath = path.join(process.cwd(), 'public', 'assets', manifestUrl);
+      const manifestPath = path.join(publicDir, 'assets', manifestUrl);
       if (!fs.existsSync(manifestPath)) {
         logger.warn(`Caper asset types plugin:: manifest not found at ${manifestPath}, skipping type generation`);
         return;
       }
       const manifest = JSON.parse(await fs.promises.readFile(manifestPath, 'utf8'));
-      await writeAssetTypes(manifest, path.dirname(manifestPath));
+      await writeAssetTypes(manifest, path.dirname(manifestPath), path.join(publicDir, 'assets'), root);
       logger.info('Caper asset types plugin:: manifest changed, reloading browser...');
       viteServer?.ws?.send({ type: 'full-reload' });
     } catch (error) {
@@ -398,6 +402,10 @@ export function assetTypesPlugin(manifestUrl = 'assets.json') {
     config(config) {
       ispPwaEnabled = config.plugins.some((p) => p.name === 'vite-plugin-pwa');
     },
+    configResolved(config) {
+      publicDir = config.publicDir;
+      root = config.root;
+    },
     async buildStart() {
       // a short delay to allow assetpack to generate the manifest
       await delay(500);
@@ -408,7 +416,7 @@ export function assetTypesPlugin(manifestUrl = 'assets.json') {
       viteServer = server;
 
       // Watch for manifest changes in development
-      const manifestPath = path.join(process.cwd(), 'public', 'assets', manifestUrl);
+      const manifestPath = path.join(publicDir, 'assets', manifestUrl);
       server.watcher.add(manifestPath);
       logger.info(`Caper asset types plugin:: watching manifest at ${manifestPath}`);
 
@@ -426,10 +434,10 @@ export function assetTypesPlugin(manifestUrl = 'assets.json') {
 
       // Generate types in build mode as well
       try {
-        const manifestPath = path.join(process.cwd(), 'public', 'assets', manifestUrl);
+        const manifestPath = path.join(publicDir, 'assets', manifestUrl);
         if (fs.existsSync(manifestPath)) {
           const manifest = JSON.parse(await fs.promises.readFile(manifestPath, 'utf8'));
-          await writeAssetTypes(manifest, path.dirname(manifestPath));
+          await writeAssetTypes(manifest, path.dirname(manifestPath), path.join(publicDir, 'assets'), root);
         }
       } catch (error) {
         logger.error('Caper asset types plugin:: Error generating types during build:', error);
