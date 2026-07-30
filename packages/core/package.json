@@ -14,14 +14,14 @@
     "cli",
     "build",
     "config/tsconfig.base.json",
-    "config/.prettierrc.json",
     "extras/llms.txt",
     "extras/css/accessibility.css",
     "extras/css/loader.css",
     "extras/css/fullscreen.css",
     "templates",
     "types",
-    "client.d.ts"
+    "client.d.ts",
+    "!build/**/*.test.mjs"
   ],
   "exports": {
     ".": {
