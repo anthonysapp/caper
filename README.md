@@ -17,7 +17,7 @@ This is a personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel)
 - **Plugin dependency declarations.** `definePlugin({ requires: ['firebase'] })` and the framework topologically sorts at bootstrap. No more "wrong order" foot-guns.
 - **Build-time validation.** Missing asset bundles, unknown plugin IDs, plugin dependency cycles, duplicate scene IDs — all caught during the build, before the runtime ever sees them.
 - **One CLI.** `caper add scene|plugin|entity|popup` scaffolds a stub that builds and runs immediately.
-- **Exported Vite + AssetPack config.** Apps consume `@caperjs/core/config/vite` instead of duplicating ~300 lines of boilerplate.
+- **A Vite preset.** An app's whole build config is `plugins: [caper()]` from `@caperjs/core/vite` — no bespoke CLI, and caper only fills in settings the app leaves unset.
 - **Signals over events.** Strongly typed pub/sub via `typed-signals`.
 - **Tested.** Vitest covers `Plugin`, `Store`, `Scene`, `SignalRegistry`, and the storage interfaces. Not exhaustive, but it catches the bone-headed regressions.
 

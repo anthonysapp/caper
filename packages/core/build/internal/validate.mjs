@@ -6,6 +6,8 @@
  * These run before the app ever boots, so a typo in a bundle name fails the
  * build instead of throwing at runtime in front of a player.
  */
+import { loadManifestBundleNames } from './manifest.mjs';
+import { AST_NODE_TYPES, extractConfigReferences } from './ast.mjs';
 import { logger } from './util.mjs';
 
 export function runBuildTimeValidation({

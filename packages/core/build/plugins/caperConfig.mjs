@@ -10,10 +10,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { AST_NODE_TYPES, extractConfigReferences, findConfigObject, parse } from '../internal/ast.mjs';
+import {
+  discoverEntities,
+  discoverLocaleKeys,
+  discoverPlugins,
+  discoverPopups,
+  discoverScenes,
+  discoverUIs,
+} from '../internal/discovery.mjs';
 import { caperConfigSchema } from '../internal/schema.mjs';
 import { cwd, DTS_FILE_NAME, logger } from '../internal/util.mjs';
 import { runBuildTimeValidation } from '../internal/validate.mjs';
-import { loadManifestBundleNames } from './assetTypes.mjs';
+import { loadManifestBundleNames } from '../internal/manifest.mjs';
 
 async function validateCaperConfig(server) {
   if (!server || typeof server.ssrLoadModule !== 'function') return true;

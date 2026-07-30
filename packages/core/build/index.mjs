@@ -46,6 +46,11 @@ function caperPluginList({ assets = {}, pwa } = {}) {
     ...(buildFlags.useWasm ? [wasm()] : []),
     createCaperRuntimePlugin({ pwa }),
     viteStaticCopy({
+      // The captions plugin's bitmap font. `silent` matters: without it,
+      // vite-plugin-static-copy *throws* when the glob matches nothing, so any
+      // install layout that doesn't put caper's source at exactly this path
+      // fails the whole build over an optional font.
+      silent: true,
       targets: [
         {
           src: './node_modules/@caperjs/core/src/plugins/captions/font/*.*',

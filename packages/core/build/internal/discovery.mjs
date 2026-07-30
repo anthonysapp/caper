@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  AST_NODE_TYPES,
   DEFINE_HELPER_NAMES,
   findDefaultExportedClass,
   findDefaultExportedScene,

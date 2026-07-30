@@ -1,6 +1,7 @@
 # Vite preset rework (0.2.0)
 
-Status: **awaiting review**. Nothing here is implemented yet.
+Status: **done** (0.2.0, not yet published). Every step below landed and is
+verified; the follow-ups it turned up are listed at the bottom.
 
 ## Why
 
@@ -276,3 +277,56 @@ kitchen-sink change can't quietly alter what the tests assert.
 - **Nothing verifies the CLI today.** The 102 vitest cases cover runtime code
   only, which is why the double-plugin bug survived. Steps 1–3 add the first
   config-level tests; the consumer builds in 5–7 are the end-to-end check.
+
+
+## What it turned up
+
+Bugs found and fixed on the way, each caught by one of the four test layers:
+
+- **Every project plugin ran twice.** Vite re-resolved `vite.config.ts` after the
+  CLI had already merged it. Duplicate `<link rel="manifest">` and `registerSW.js`
+  tags, `closeBundle` firing twice, dev middleware registered twice.
+- **`resolutions` was deep-merged** when it is a whole set of tiers, putting
+  caper's retina default back into kitchen-sink's 1x art. Caught by the
+  fingerprint on the first migration build.
+- **Production-ness came from `process.env.NODE_ENV`**, which vite does not
+  guarantee. A production build silently lost cache-busting hashes and shipped
+  dev-effort compression. Now `resolvedConfig.isProduction`.
+- **The `@` alias was computed from `process.cwd()` at module load.** Now from
+  vite's resolved root, so `vite --root` works.
+- **Three modules referenced imports they did not have** after the split
+  (`AST_NODE_TYPES`, `loadManifestBundleNames`). A missing import is a
+  `ReferenceError` at *call* time, so importing the module proves nothing — this
+  is what `build/prodBuild.test.mjs` now exists to catch.
+- **`viteStaticCopy` failed the whole build** when the captions font glob matched
+  nothing. Now `silent: true`.
+
+Two process lessons worth keeping:
+
+- **A fingerprint comparison is meaningless unless the build's exit code was
+  checked.** A failed build leaves the previous `dist` in place, so the
+  fingerprint "matches" and the regression looks clean.
+- **Audio output is not reproducible.** Ogg encodes embed a random stream serial,
+  so re-encoded audio differs byte-for-byte between runs, and the couple of bytes
+  its cache-bust hash costs shifts `assets.json` too. Compare with a warm
+  AssetPack cache, or exclude audio.
+
+## Follow-ups
+
+Deliberately out of scope, in rough priority order:
+
+1. **`defineUI({ id })` is ignored.** `findExportedConstants` flattens wrapper
+   exports for 'scene', 'plugin', 'popup' and 'entity' but not 'ui', so a UI
+   element registers under its class name. Latent today (neither app looks UI up
+   by id), and fixing it changes every app's `uiList`, so it wants its own commit.
+2. **Discovery resolves against `process.cwd()`**, not vite's resolved root, so
+   `vite --root elsewhere` finds no scenes. The tests `process.chdir()` around it.
+3. **`plugins/assetTypes.mjs` and `plugins/caperConfig.mjs` are ~475 lines each.**
+   Both are dominated by a generated-`.d.ts` template string that could move to a
+   sibling `*.template.mjs`.
+4. **`caper create` has no end-to-end smoke test.** It needs a TTY, and the
+   template pins `@caperjs/core: latest`, so a real scaffold-install-build check
+   only becomes possible once 0.2.0 is published.
+5. **Spine `.png.atlas` fallbacks** are pruned, but the prune reads page names by
+   scanning for lines ending in `.png` — a more precise atlas parse would be
+   sturdier if the format grows.

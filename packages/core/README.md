@@ -18,7 +18,7 @@ This package is **not yet published to npm**. The recommended way to use it is t
 - **Per-bundle asset types** generated from your AssetPack manifest
 - **Plugin `requires: [...]`** declarations + topological sort at bootstrap
 - **Build-time validation** for asset bundles, plugin IDs, dependency cycles, duplicate IDs
-- **Exported Vite + AssetPack config** (`@caperjs/core/config/vite`, `@caperjs/core/config/assetpack`)
+- **A Vite preset** (`@caperjs/core/vite`) — `plugins: [caper()]`, then plain `vite` / `vite build`
 - **`caper add` CLI** for scaffolding scenes, plugins, entities, popups
 - **Signals** via `typed-signals`
 - **Tested** — Vitest covers `Plugin`, `Store`, `Scene`, `SignalRegistry`

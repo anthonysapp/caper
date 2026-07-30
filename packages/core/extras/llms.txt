@@ -163,10 +163,10 @@ test`) catches a lot, but UI/scene/asset behavior only shows up live.
 After any non-trivial change:
 
 1. Type-check the app (`pnpm types` or `tsc`).
-2. Build cleanly (`caper build` or the app's `build` script).
-3. **Ask the human to run `caper dev`** and eyeball the affected scene/feature.
+2. Build cleanly (`vite build`, or the app's `build` script).
+3. **Ask the human to run `vite`** (the app's `dev` script) and eyeball the affected scene/feature.
 
-Do **not** start `caper dev` yourself — it runs forever and will block. Ask the
+Do **not** start the dev server yourself — it runs forever and will block. Ask the
 user to verify visually and report back.
 
 ---
@@ -210,9 +210,9 @@ subcommands run from the app root.
 | --- | --- |
 | `caper create [path] [--use-pnpm\|--use-yarn]` | Interactive scaffolder for a new Caper app. Also exposed as `create-caper`. |
 | `caper add scene \| plugin \| popup \| entity <Name> [--dir path]` | **Primary scaffolding entry.** Emits `src/<kind>s/<Name>.ts` with `defineX` wrapper + default class + the correct import shape. |
-| `caper dev` (alias `caper start`) | Start Vite dev server with Caper plugin pre-wired. |
-| `caper build` | Production build. |
-| `caper preview` | Build then preview locally. |
+| `vite` | Start the dev server. Caper is wired in through `caper()` in the app's own `vite.config.ts`. |
+| `vite build` | Production build. |
+| `vite build && vite preview` | Build then preview locally. |
 | `caper update` | Update Caper to latest. |
 | `caper install` | Install peer deps (rarely needed; normally automatic). |
 | `caper vo generate [inputDir] [outputDir]` | Voiceover CSV generation from locales. Defaults: `./src/locales` → `./src/assets/audio/vo/csv`. |
@@ -230,9 +230,9 @@ required (plugins are the one exception — see §1.1).
 
 ```jsonc
 {
-  "dev":     "pnpm clean && caper dev",
-  "build":   "pnpm clean && caper build",
-  "preview": "pnpm clean && caper preview",
+  "dev":     "pnpm clean && vite",
+  "build":   "pnpm clean && vite build",
+  "preview": "pnpm clean && vite build && vite preview",
   "types":   "tsc",
   "clean":   "rimraf dist .assetpack .cache",
   "lint":    "eslint \"src/**/*.ts\""
@@ -915,7 +915,7 @@ export default class MyPlugin extends Plugin<MyPluginOptions> {
 - Listed dep IDs must exist in `caper.config.ts plugins: []` (see §1.1). Bootstrap
   throws with an actionable error if not.
 - Cycles fail bootstrap with the cycle path printed.
-- Build-time validation also warns at `caper dev`/`build` time.
+- Build-time validation also warns at dev/build time.
 
 ### 9.5 Exposing API
 
@@ -1077,9 +1077,15 @@ compression, spritesheets, webfonts, audio, Spine, Rive, and the custom
 **`fontWeights`** pipe that runs before the webfont pipe to convert
 `{weight=X}` to `weights: [X]` for PixiJS.
 
-### 11.4 Per-app override: `.assetpack.mjs`
+### 11.4 Per-app override: `caper({ assets })`
 
-If `.assetpack.mjs` exists at the app root, Caper's framework config loads it
+Pass `assets` to the preset in `vite.config.ts`. It is deep-merged over caper's
+defaults, so overriding one knob keeps its siblings; `resolutions` replaces
+outright because it is a whole set of tiers. `assets: false` turns the pipeline
+off, and `assets: { pngFallback: true }` keeps the png twins that a production
+build otherwise prunes.
+
+Removed in 0.2.0: `.assetpack.mjs`. If one exists at the app root, Caper
 via `import()` and merges it in. Only needed when injecting custom pipes.
 
 ### 11.5 Loading from code
@@ -1218,7 +1224,7 @@ plugins: [
 
 ## 14. Generated types & virtual modules
 
-The Vite plugin ([config/vite.mjs](../config/vite.mjs)) generates types on every
+The Vite plugin ([build/](../build)) generates types on every
 dev reload. **Do not hand-edit them** — delete stale copies after renames and let
 the next build regen.
 
@@ -1278,9 +1284,9 @@ implementation of the auto-wiring. Know they exist for debugging.
 
 Types regen on dev-server restart. After renaming a scene / plugin / popup /
 entity: delete the stale `caper-app.d.ts` / `caper-assets.d.ts`, then
-`caper dev` — they're re-emitted from scratch.
+the dev server — they're re-emitted from scratch.
 
-**Source references:** [config/vite.mjs](../config/vite.mjs).
+**Source references:** [build/plugins/assetTypes.mjs](../build/plugins/assetTypes.mjs).
 
 ---
 
@@ -1491,8 +1497,8 @@ Type-check and build don't catch UI/scene/asset regressions. After changes:
 
 ```bash
 pnpm types          # or tsc — compiles clean
-pnpm build          # or caper build — builds clean
-# then ask the human to run `pnpm dev` (or `caper dev`) and report visually
+pnpm build          # or vite build — builds clean
+# then ask the human to run `pnpm dev` and report visually
 ```
 
 Do not start the dev server yourself — it runs forever and blocks.

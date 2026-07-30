@@ -16,7 +16,7 @@ import {
   discoverUIs,
 } from '../internal/discovery.mjs';
 import { logger } from '../internal/util.mjs';
-import { loadManifestBundleNames } from './assetTypes.mjs';
+import { loadManifestBundleNames } from '../internal/manifest.mjs';
 
 export function createClassListPlugin({ virtualModuleId, discoverFn, exportName, pluginName }) {
   const resolvedVirtualModuleId = '\0' + virtualModuleId;

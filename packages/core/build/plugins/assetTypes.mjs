@@ -8,7 +8,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { loadManifestBundleNames } from '../internal/manifest.mjs';
 import { ASSET_DTS_FILE_NAME, debounce, delay, logger } from '../internal/util.mjs';
+
+export { loadManifestBundleNames };
 
 async function generateAssetTypes(manifest) {
   // Flat totals per category (back-compat: AssetTextures, AssetAudio, etc.)
@@ -446,31 +449,4 @@ export function assetTypesPlugin(manifestUrl = 'assets.json') {
  * Read the assetpack manifest from disk and return the set of bundle names.
  * Returns `null` if the manifest doesn't exist yet — in that case the caller
  * should skip bundle-name validation rather than spam false warnings.
- */
-
-export function loadManifestBundleNames(manifestUrl = 'assets.json') {
-  const manifestPath = path.join(process.cwd(), 'public', 'assets', manifestUrl);
-  if (!fs.existsSync(manifestPath)) return null;
-  try {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    const names = new Set();
-    for (const bundle of manifest.bundles || []) {
-      if (bundle?.name) names.add(bundle.name);
-    }
-    return names;
-  } catch (e) {
-    logger.warn(`[caper] Could not parse manifest for build-time validation: ${e.message}`);
-    return null;
-  }
-}
-
-/**
- * Extract `defaultScene` string and the `plugins: [...]` id list from an
- * already-parsed `defineConfig({...})` ObjectExpression AST node. Returns
- * `{ defaultScene, pluginIds }` where either may be undefined if absent.
- *
- * Plugin entries can be either a string literal or a tuple literal whose
- * first element is a string literal — anything else (dynamic expressions,
- * spreads, non-literal identifiers) is skipped silently, since we can't
- * statically know the ID.
  */

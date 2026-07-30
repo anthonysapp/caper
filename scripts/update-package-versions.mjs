@@ -15,9 +15,15 @@ const { version: caperVersion } = mainPackageJson;
 const frameworkPackageJsonPath = resolve(__dirname, './packages/core/package.json');
 const frameworkPackageJson = JSON.parse(readFileSync(frameworkPackageJsonPath, 'utf8'));
 const {
-  dependencies: { 'pixi.js': pixiJsVersion, '@pixi/sound': pixiSoundVersion, vite: viteVersion },
+  dependencies: { 'pixi.js': pixiJsVersion, '@pixi/sound': pixiSoundVersion },
   devDependencies: { 'vite-plugin-dts': vitePluginDtsVersion },
 } = frameworkPackageJson;
+
+// vite became a peer dependency of the framework in 0.2.0 (an app owns its build
+// tool), so read it from there. The `dependencies` fallback keeps this working
+// against an older checkout; without it a missing key would write `undefined` and
+// silently delete vite from every plugin package.
+const viteVersion = frameworkPackageJson.peerDependencies?.vite ?? frameworkPackageJson.dependencies?.vite;
 
 // Function to update package.json files
 function updatePackageJson(packageJsonPath) {

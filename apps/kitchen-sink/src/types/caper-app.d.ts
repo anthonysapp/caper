@@ -44,8 +44,7 @@ type AppPlugins =
   | 'google-analytics'
   | 'rive'
   | 'rollbar'
-  | 'firebase'
-  | 'test';
+  | 'firebase';
 
 // Popups
 type AppPopups = 
@@ -114,13 +113,7 @@ type AppUIClasses = {
 };
 
 // Locale keys (flattened dot-paths from src/locales/<reference>.ts)
-type AppLocaleKeys = 
-  | 'foo'
-  | 'html'
-  | 'obj.foo'
-  | 'opts'
-  | 'replace.replace'
-  | 'replace.replaceOpts';
+type AppLocaleKeys = string;
 
 // Breakpoints
 type AppBreakpoints = keyof (typeof breakpoints)['tiers'] & string;
