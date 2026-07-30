@@ -7,7 +7,7 @@
     "kitchen-sink:build": "turbo build --filter={./apps/kitchen-sink}",
     "kitchen-sink:dev": "turbo dev --filter={./apps/kitchen-sink}",
     "framework:build": "turbo build --filter={./packages/core}",
-    "framework:publish": "cd packages/core && npm publish",
+    "framework:publish": "node ./scripts/publish-packages.mjs packages/core",
     "framework:all": "pnpm framework:build && pnpm framework:publish",
     "packages:update": "node ./scripts/update-package-versions.mjs",
     "packages:build": "sh ./scripts/build-packages.sh",
