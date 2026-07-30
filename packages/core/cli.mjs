@@ -10,7 +10,6 @@ import { compress } from './cli/audio/index.mjs';
 import { create } from './cli/create.mjs';
 import { installPeerDeps } from './cli/install-peerdeps.mjs';
 import { update } from './cli/update.mjs';
-import { runBuild, runPreview, startDevServer } from './cli/vite.mjs';
 import { generateVoiceoverCSV } from './cli/voiceover/index.mjs';
 
 const currentVersion = process.versions.node;
@@ -48,15 +47,19 @@ switch (args[0]) {
     break;
   case 'version':
     break;
+  // `dev` / `build` / `preview` / `start` were removed in 0.2.0: a project runs
+  // vite directly now, with `caper()` in its own vite.config. Named here so the
+  // error says what to do rather than just "unknown subcommand".
   case 'dev':
   case 'start':
-    await startDevServer();
-    break;
   case 'build':
-    await runBuild();
-    break;
   case 'preview':
-    await runPreview();
+    console.error(
+      bold(bgRed(white(`Caper - "${args[0]}" was removed in 0.2.0.`))),
+      red(`Run vite directly: \`vite\` to develop, \`vite build\` to build.`),
+    );
+    console.error(red(`Your vite.config should contain: plugins: [caper()] — from '@caperjs/core/vite'.`));
+    process.exit(1);
     break;
   case 'add':
     await add(args.slice(1));

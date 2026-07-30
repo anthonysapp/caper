@@ -5,13 +5,17 @@
   "main": "index.html",
   "scripts": {
     "clean": "rimraf .assetpack .cache dist",
-    "start": "~PACKAGE_MANAGER~ clean && caper start",
-    "dev": "~PACKAGE_MANAGER~ clean && caper dev",
-    "preview": "~PACKAGE_MANAGER~ clean && caper preview",
-    "build": "~PACKAGE_MANAGER~ clean && caper build",
+    "start": "~PACKAGE_MANAGER~ clean && vite",
+    "dev": "~PACKAGE_MANAGER~ clean && vite",
+    "preview": "~PACKAGE_MANAGER~ clean && vite build && vite preview",
+    "build": "~PACKAGE_MANAGER~ clean && vite build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@caperjs/core": "latest"
+  },
+  "devDependencies": {
+    "vite": "^8.1.3",
+    "workbox-window": "^7.4.0"
   }
 }

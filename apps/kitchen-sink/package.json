@@ -1,16 +1,16 @@
 {
   "name": "caper-kitchen-sink",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Examples of Caper Features (V8)",
   "main": "index.html",
   "scripts": {
     "clean": "rimraf dist .assetpack .cache",
     "clean:dev": "rimraf dist .cache",
-    "start": "pnpm clean && caper start",
-    "dev": "pnpm clean:dev && caper dev",
-    "build": "pnpm clean && caper build",
+    "start": "pnpm clean && vite",
+    "dev": "pnpm clean:dev && vite",
+    "build": "pnpm clean && vite build",
     "types": "tsc",
-    "preview": "pnpm clean && caper preview",
+    "preview": "pnpm clean && vite build && vite preview",
     "lint": "eslint \"src/**/*.ts\"",
     "lint-fix": "eslint \"src/**/*.ts\" --fix",
     "visualize": "npx vite-bundle-visualizer -c vite.config.mjs",
@@ -28,7 +28,8 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "@types/dat.gui": "^0.7.13"
+    "@types/dat.gui": "^0.7.13",
+    "vite": "^8.1.3"
   },
   "dependencies": {
     "@assetpack/core": "^1.7.0",

@@ -182,7 +182,7 @@ importers:
         version: 4.1.5
       oxc-parser:
         specifier: ^0.124.0
-        version: 0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)
+        version: 0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.2)
       pixi-filters:
         specifier: ^6.1.2
         version: 6.1.3(pixi.js@8.19.0)
@@ -207,9 +207,6 @@ importers:
       typescript:
         specifier: ^5.9.0
         version: 5.9.3
-      vite:
-        specifier: ^8.0.7
-        version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
       vite-bundle-visualizer:
         specifier: ^1.2.1
         version: 1.2.1(rollup@4.44.1)
@@ -262,6 +259,9 @@ importers:
       typedoc:
         specifier: ^0.28.1
         version: 0.28.5(typescript@5.9.3)
+      vite:
+        specifier: ^8.0.7
+        version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
       vite-plugin-dts:
         specifier: ^4.5.3
         version: 4.5.4(@types/node@20.19.1)(rollup@4.44.1)(typescript@5.9.3)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))
@@ -279,8 +279,8 @@ importers:
         version: 0.15.28
     devDependencies:
       '@caperjs/core':
-        specifier: workspace:*
-        version: link:../core
+        specifier: 0.1.2
+        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -298,8 +298,8 @@ importers:
         version: 8.19.0
     devDependencies:
       '@caperjs/core':
-        specifier: workspace:*
-        version: link:../core
+        specifier: 0.1.2
+        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -314,8 +314,8 @@ importers:
         version: 10.14.1
     devDependencies:
       '@caperjs/core':
-        specifier: workspace:*
-        version: link:../core
+        specifier: 0.1.2
+        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
       '@types/node':
         specifier: ^20.14.1
         version: 20.19.1
@@ -333,8 +333,8 @@ importers:
         version: 0.0.20
     devDependencies:
       '@caperjs/core':
-        specifier: workspace:*
-        version: link:../core
+        specifier: 0.1.2
+        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -352,8 +352,8 @@ importers:
         version: 8.19.0
     devDependencies:
       '@caperjs/core':
-        specifier: workspace:*
-        version: link:../core
+        specifier: 0.1.2
+        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -368,8 +368,8 @@ importers:
         version: 2.26.4
     devDependencies:
       '@caperjs/core':
-        specifier: workspace:*
-        version: link:../core
+        specifier: 0.1.2
+        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -883,6 +883,14 @@ packages:
 
   '@canvas/image-data@1.0.0':
     resolution: {integrity: sha512-BxOqI5LgsIQP1odU5KMwV9yoijleOPzHL18/YvNqF9KFSGF2K/DLlYAbDQsWqd/1nbaFuSkYD/191dpMtNh4vw==}
+
+  '@caperjs/core@0.1.2':
+    resolution: {integrity: sha512-DZfJB5e3Xx3g/JFq3BkBcc3rUerhANRisGo3TP9VxFfP2XCD5FWfOCzZU0r4Q+OsDggkRClwxkwjsHmAspWqpw==}
+    hasBin: true
+    peerDependencies:
+      '@pixi/sound': ^6.0.1
+      gsap: ^3.15.0
+      pixi.js: 8.19.0
 
   '@clack/core@0.3.5':
     resolution: {integrity: sha512-5cfhQNH+1VQ2xLQlmzXMqUoiaH0lRBq9/CLW9lTyMbuKLC3+xEK01tHVvyut++mLOn5urSHmkm6I0Lg9MaJSTQ==}
@@ -6696,6 +6704,65 @@ snapshots:
 
   '@canvas/image-data@1.0.0': {}
 
+  '@caperjs/core@0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)':
+    dependencies:
+      '@assetpack/core': 1.7.0
+      '@clack/prompts': 0.8.2
+      '@esotericsoftware/spine-core': 4.2.84
+      '@pixi/devtools': 2.0.1(pixi.js@8.19.0)
+      '@pixi/layout': 3.2.0(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)(yoga-layout@3.2.1)
+      '@pixi/sound': 6.0.1(pixi.js@8.19.0)
+      '@types/stats.js': 0.17.4
+      '@vite-pwa/assets-generator': 1.0.0
+      csv-parse: 5.6.0
+      gsap: 3.15.0
+      kleur: 4.1.5
+      npm-run-all: 4.1.5
+      oxc-parser: 0.124.0
+      pixi-filters: 6.1.3(pixi.js@8.19.0)
+      pixi.js: 8.19.0
+      prettier: 3.6.2
+      rimraf: 5.0.5
+      shelljs: 0.8.5
+      stats.js: 0.17.0
+      typed-signals: 2.5.0
+      typescript: 5.9.3
+      vite: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
+      vite-bundle-visualizer: 1.2.1(rollup@4.44.1)
+      vite-plugin-pwa: 1.2.0(@vite-pwa/assets-generator@1.0.0)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))(workbox-build@7.3.0)(workbox-window@7.4.0)
+      vite-plugin-singlefile: 2.3.2(rollup@4.44.1)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))
+      vite-plugin-static-copy: 4.0.1(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))
+      vite-plugin-wasm: 3.6.0(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))
+      workbox-cacheable-response: 7.4.0
+      workbox-core: 7.4.0
+      workbox-expiration: 7.4.0
+      workbox-routing: 7.4.0
+      workbox-strategies: 7.4.0
+      workbox-window: 7.4.0
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
+      - '@types/node'
+      - '@types/react'
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
+      - react
+      - rolldown
+      - rollup
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - workbox-build
+      - yaml
+      - yoga-layout
+
   '@clack/core@0.3.5':
     dependencies:
       picocolors: 1.1.1
@@ -7856,10 +7923,22 @@ snapshots:
       '@tybys/wasm-util': 0.9.0
     optional: true
 
+  '@napi-rs/wasm-runtime@1.1.3':
+    dependencies:
+      '@tybys/wasm-util': 0.10.1
+    optional: true
+
   '@napi-rs/wasm-runtime@1.1.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)':
     dependencies:
       '@emnapi/core': 1.9.1
       '@emnapi/runtime': 1.9.1
+      '@tybys/wasm-util': 0.10.1
+    optional: true
+
+  '@napi-rs/wasm-runtime@1.1.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.2)':
+    dependencies:
+      '@emnapi/core': 1.9.1
+      '@emnapi/runtime': 1.9.2
       '@tybys/wasm-util': 0.10.1
     optional: true
 
@@ -8025,9 +8104,17 @@ snapshots:
   '@oxc-parser/binding-openharmony-arm64@0.124.0':
     optional: true
 
-  '@oxc-parser/binding-wasm32-wasi@0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)':
+  '@oxc-parser/binding-wasm32-wasi@0.124.0':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)
+      '@napi-rs/wasm-runtime': 1.1.3
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
+    optional: true
+
+  '@oxc-parser/binding-wasm32-wasi@0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.2)':
+    dependencies:
+      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.2)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -10724,7 +10811,7 @@ snapshots:
       object-keys: 1.1.1
       safe-push-apply: 1.0.0
 
-  oxc-parser@0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1):
+  oxc-parser@0.124.0:
     dependencies:
       '@oxc-project/types': 0.124.0
     optionalDependencies:
@@ -10744,7 +10831,35 @@ snapshots:
       '@oxc-parser/binding-linux-x64-gnu': 0.124.0
       '@oxc-parser/binding-linux-x64-musl': 0.124.0
       '@oxc-parser/binding-openharmony-arm64': 0.124.0
-      '@oxc-parser/binding-wasm32-wasi': 0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)
+      '@oxc-parser/binding-wasm32-wasi': 0.124.0
+      '@oxc-parser/binding-win32-arm64-msvc': 0.124.0
+      '@oxc-parser/binding-win32-ia32-msvc': 0.124.0
+      '@oxc-parser/binding-win32-x64-msvc': 0.124.0
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
+
+  oxc-parser@0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.2):
+    dependencies:
+      '@oxc-project/types': 0.124.0
+    optionalDependencies:
+      '@oxc-parser/binding-android-arm-eabi': 0.124.0
+      '@oxc-parser/binding-android-arm64': 0.124.0
+      '@oxc-parser/binding-darwin-arm64': 0.124.0
+      '@oxc-parser/binding-darwin-x64': 0.124.0
+      '@oxc-parser/binding-freebsd-x64': 0.124.0
+      '@oxc-parser/binding-linux-arm-gnueabihf': 0.124.0
+      '@oxc-parser/binding-linux-arm-musleabihf': 0.124.0
+      '@oxc-parser/binding-linux-arm64-gnu': 0.124.0
+      '@oxc-parser/binding-linux-arm64-musl': 0.124.0
+      '@oxc-parser/binding-linux-ppc64-gnu': 0.124.0
+      '@oxc-parser/binding-linux-riscv64-gnu': 0.124.0
+      '@oxc-parser/binding-linux-riscv64-musl': 0.124.0
+      '@oxc-parser/binding-linux-s390x-gnu': 0.124.0
+      '@oxc-parser/binding-linux-x64-gnu': 0.124.0
+      '@oxc-parser/binding-linux-x64-musl': 0.124.0
+      '@oxc-parser/binding-openharmony-arm64': 0.124.0
+      '@oxc-parser/binding-wasm32-wasi': 0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.2)
       '@oxc-parser/binding-win32-arm64-msvc': 0.124.0
       '@oxc-parser/binding-win32-ia32-msvc': 0.124.0
       '@oxc-parser/binding-win32-x64-msvc': 0.124.0

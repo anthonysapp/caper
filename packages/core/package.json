@@ -1,6 +1,6 @@
 {
   "name": "@caperjs/core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "title": "Caper",
   "description": "An opinionated HTML game framework built on PixiJS v8",
   "bin": {
@@ -12,10 +12,8 @@
     "lib",
     "src",
     "cli",
-    "config/vite.mjs",
-    "config/assetpack.mjs",
-    "config/tsconfig.base.json",
-    "config/.prettierrc.json",
+    "build",
+    "config",
     "extras/llms.txt",
     "extras/css/accessibility.css",
     "extras/css/loader.css",
@@ -29,17 +27,14 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/caper.mjs"
     },
+    "./vite": {
+      "default": "./build/index.mjs"
+    },
     "./client": {
       "types": "./client.d.ts"
     },
     "./extras/llms.txt": {
       "default": "./extras/llms.txt"
-    },
-    "./config/assetpack": {
-      "default": "./config/assetpack.mjs"
-    },
-    "./config/vite": {
-      "default": "./config/vite.mjs"
     },
     "./tsconfig": {
       "default": "./config/tsconfig.base.json"
@@ -92,13 +87,17 @@
     "standard-version": "^9.5.0",
     "turbo": "^2.0.3",
     "typedoc": "^0.28.1",
+    "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3",
-    "vitest": "^3"
+    "vitest": "^3",
+    "workbox-window": "^7.4.0"
   },
   "peerDependencies": {
     "@pixi/sound": "^6.0.1",
     "gsap": "^3.15.0",
-    "pixi.js": "8.19.0"
+    "pixi.js": "8.19.0",
+    "vite": "^8.0.7",
+    "workbox-window": "^7.4.0"
   },
   "dependencies": {
     "@assetpack/core": "^1.7.0",
@@ -122,7 +121,6 @@
     "stats.js": "^0.17.0",
     "typed-signals": "^2.5.0",
     "typescript": "^5.9.0",
-    "vite": "^8.0.7",
     "vite-bundle-visualizer": "^1.2.1",
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-singlefile": "^2.3.2",

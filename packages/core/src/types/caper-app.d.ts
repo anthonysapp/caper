@@ -1,0 +1,1 @@
+/* caper.config.ts not found, skipping augmentation. */

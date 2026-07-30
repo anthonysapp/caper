@@ -1,6 +1,6 @@
 {
   "name": "caper-main",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,7 @@
     "framework:all": "pnpm framework:build && pnpm framework:publish",
     "packages:update": "node ./scripts/update-package-versions.mjs",
     "packages:build": "sh ./scripts/build-packages.sh",
-    "packages:publish": "node ./scripts/publish-packages.mjs packages/plugin-*",
+    "packages:publish": "node ./scripts/publish-packages.mjs 'packages/plugin-*'",
     "packages:all": "pnpm packages:update && pnpm packages:build && pnpm packages:publish",
     "plugin:create": "node ./scripts/create-plugin.mjs",
     "build-publish-all": "npm run packages:update && npm run framework:build && npm run framework:publish && npm run packages:build && npm run packages:publish",

@@ -1,6 +1,6 @@
 {
   "name": "@caperjs/plugin-google-analytics",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Google Analytics",
   "files": [
     "lib",
@@ -30,12 +30,12 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@caperjs/core": "workspace:*",
+    "@caperjs/core": "0.1.2",
     "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3"
   },
   "peerDependencies": {
-    "@caperjs/core": "workspace:*"
+    "@caperjs/core": "0.1.2"
   },
   "dependencies": {
     "@types/gtag.js": "^0.0.20"

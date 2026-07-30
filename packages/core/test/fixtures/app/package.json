@@ -1,0 +1,7 @@
+{
+  "name": "caper-build-fixture",
+  "version": "1.2.3",
+  "description": "Fixture app for caper's build-layer tests.",
+  "private": true,
+  "type": "module"
+}

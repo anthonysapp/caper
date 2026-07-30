@@ -56,6 +56,8 @@ const cwd = process.cwd();
 const logger = createLogger('caper-config');
 
 import { assetpackPlugin } from './assetpack.mjs';
+import { pngFallbackPrunePlugin } from '../build/plugins/pruneFallbacks.mjs';
+import { caperPwaPlugins, pwaRuntimeSnippet } from '../build/plugins/pwa.mjs';
 
 const DTS_FILE_NAME = 'caper-app.d.ts';
 const ASSET_DTS_FILE_NAME = 'caper-assets.d.ts';
@@ -728,11 +730,12 @@ function findConfigObject(ast) {
 /**
  * Boolean build-time flags read straight out of `caper.config.ts`.
  *
- * Vite fixes a config's plugin list the moment the config object is created —
- * no plugin hook can add one later, and the CLI merges `defaultConfig` before
- * anything has evaluated the user's config module. So these are pulled with
- * the same oxc AST parse discovery already uses rather than by importing the
- * file: importing pulls in @caperjs/core, whose @pixi/sound + GSAP deps run
+ * Vite fixes a config's plugin list the moment the config object is created — no
+ * plugin hook can add one later, and `caper()` runs while the project's
+ * vite.config is still being evaluated, long before anything could execute
+ * caper.config.ts. So these are pulled with the same oxc AST parse discovery
+ * already uses rather than by importing the file: importing pulls in
+ * @caperjs/core, whose @pixi/sound + GSAP deps run
  * browser-only top-level side effects that throw under Node (see
  * `validateCaperConfig` for the gory details).
  *
@@ -2089,7 +2092,12 @@ export function sceneListPlugin(isProject = true) {
   };
 }
 
-function createCaperRuntimePlugin() {
+/**
+ * @param {{ pwa?: object }} [options] When `pwa` is set, the runtime module also
+ *   installs `Caper.pwa` and (unless `autoRegister: false`) registers the
+ *   service worker. See `../build/plugins/pwa.mjs`.
+ */
+function createCaperRuntimePlugin({ pwa } = {}) {
   const virtualModuleId = 'caper-runtime';
   const resolvedVirtualModuleId = '\0' + virtualModuleId;
 
@@ -2199,76 +2207,9 @@ function createCaperRuntimePlugin() {
             (globalThis).__CAPER_BOOTSTRAPPED__ = true;
             bootstrap();
           }
+${pwa ? pwaRuntimeSnippet(pwa) : ''}
         `;
       }
-    },
-  };
-}
-
-function createCaperPWAPlugin() {
-  const entryId = 'caper-pwa';
-  const resolvedVirtualModuleId = '\0' + entryId;
-
-  return {
-    name: 'vite-virtual-entry',
-    enforce: 'pre',
-    resolveId(id) {
-      if (id === entryId) {
-        return resolvedVirtualModuleId;
-      }
-    },
-    load(id) {
-      if (id === resolvedVirtualModuleId) {
-        return `
-          import {pwaInfo} from 'virtual:pwa-info';
-          import {registerSW} from 'virtual:pwa-register';
-
-          window.Caper = window.Caper || {};
-          window.Caper.pwa = window.Caper.pwa || {};
-
-          window.Caper.pwa.info = pwaInfo;
-
-          window.Caper.pwa.onRegisteredSW = function(swScriptUrl){
-            console.log('Caper PWA: SW registered: ', swScriptUrl)
-          }
-
-          window.Caper.pwa.offlineReady = function(){
-            console.log('Caper PWA: ready to work offline')
-          }
-
-          window.Caper.pwa.register = function(){
-            registerSW({
-              immediate: true,
-              onRegisteredSW(swScriptUrl) {
-                window.Caper.pwa.onRegisteredSW(swScriptUrl)
-              },
-              onOfflineReady() {
-                window.Caper.pwa.offlineReady()
-              },
-            });
-          }
-        `;
-      }
-    },
-    config(config) {
-      const input = config.build?.rolldownOptions?.input || config.build?.rollupOptions?.input || 'index.html';
-      const inputs = Array.isArray(input) ? input : [input];
-
-      return {
-        build: {
-          rolldownOptions: {
-            input: [entryId, ...inputs],
-            output: {
-              entryFileNames: (chunkInfo) => {
-                if (chunkInfo.facadeModuleId?.includes('caper-pqa')) {
-                  return 'assets/caper-[hash].js';
-                }
-                return 'assets/[name]-[hash].js';
-              },
-            },
-          },
-        },
-      };
     },
   };
 }
@@ -2305,52 +2246,31 @@ function caperDevHelperPlugin() {
 const buildFlags = readCaperBuildFlags();
 
 /**
- * @type {Partial<import('vite').UserConfig>}
+ * The plugins caper contributes, in order. Internal — the public surface is
+ * `caper()` in `../build/index.mjs`, which owns option handling and the config
+ * defaults. Lives here for now because every factory below is module-private;
+ * the split moves them out (see `plan/vite-preset-rework.md`).
+ *
+ * @param {{ assets?: object | false, pwa?: object }} [options]
+ * @returns {import('vite').PluginOption[]}
  */
-const defaultConfig = {
-  cacheDir: '.cache',
-  logLevel: 'info',
-  publicDir: './public',
-  base: env === 'development' ? '/' : './',
-  server: {
-    port: 3000,
-    host: true,
-    open: true,
-  },
-  preview: {
-    host: true,
-    port: 8080,
-  },
-  build: {
-    sourcemap: env === 'development',
-    rolldownOptions: {
-      external: ['caper-globals'],
-      output: {
-        // Rolldown requires manualChunks as a function (Rollup allowed an object).
-        manualChunks(id) {
-          if (id.includes('node_modules/gsap/')) return 'gsap';
-        },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]',
-      },
-    },
-  },
-  plugins: [
-    // wasm() only matters for ESM-integration `.wasm` imports (a bare
-    // `import init from './foo.wasm'`), and it costs an enforce:'pre'
-    // resolveId+load hook on every module in the graph. Nothing in caper
-    // needs it: Rive fetches its wasm at runtime via `locateFile`, pixi's
-    // KTX/basis transcoders fetch theirs from a CDN, spine-core is pure JS,
-    // and Vite 8 handles `?init` / `?url` wasm natively. Off by default —
-    // set `useWasm: true` in caper.config.ts if your project imports a
-    // .wasm module directly.
+export function caperPluginList({ assets = {}, pwa } = {}) {
+  // `assets: false` opts out of the asset pipeline entirely — no assetpack run,
+  // no generated asset types. Replaces the old `noAssetpackConfig` export.
+  const { manifestUrl = 'assets.json', pngFallback = false, ...pipes } = assets === false ? {} : assets;
+  const assetPlugins =
+    assets === false
+      ? []
+      : [
+          assetpackPlugin(manifestUrl, pipes),
+          assetTypesPlugin(manifestUrl),
+          // Production ships webp only unless the project asks for the fallback.
+          ...(pngFallback ? [] : [pngFallbackPrunePlugin({ manifestUrl })]),
+        ];
+
+  return [
     ...(buildFlags.useWasm ? [wasm()] : []),
-    // vite-plugin-top-level-await dropped in Vite 8 upgrade: Chrome 111 /
-    //   Safari 16.4 default targets support TLA natively.
-    // vite-plugin-html dropped: was called with no args, Vite handles
-    //   HTML transforms natively.
-    createCaperRuntimePlugin(),
+    createCaperRuntimePlugin({ pwa }),
     viteStaticCopy({
       targets: [
         {
@@ -2364,101 +2284,9 @@ const defaultConfig = {
     popupListPlugin(),
     entityListPlugin(),
     uiListPlugin(),
-    assetpackPlugin(),
-    assetTypesPlugin(),
+    ...assetPlugins,
     caperConfigPlugin(),
     caperDevHelperPlugin(),
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(cwd, './src'),
-    },
-    // Force a single instance of each singleton lib. pixi keeps global
-    // registries (extensions, TextureSource cache, Ticker.shared) and relies on
-    // instanceof; two copies (via linked/transitive installs) split its state.
-    dedupe: ['pixi.js', 'gsap', '@pixi/sound'],
-  },
-  // Don't prebundle @pixi/ui: esbuild inlines its own copy of pixi.js into the
-  // dep chunk, giving two pixi instances — every cross-boundary
-  // `instanceof Texture/Sprite` then fails. Served as source, its
-  // `import "pixi.js"` resolves to the same optimized pixi as the app. Its
-  // nested typed-signals dep (CJS) still needs prebundling for interop.
-  optimizeDeps: {
-    exclude: ['@pixi/ui'],
-    include: ['@pixi/ui > typed-signals'],
-  },
-  define: {
-    __CAPER_APP_NAME: JSON.stringify(process.env.npm_package_name),
-    __CAPER_APP_VERSION: JSON.stringify(process.env.npm_package_version),
-  },
-};
-
-// config without assetpack plugin
-const noAssetpackConfig = { ...defaultConfig };
-// remove assetpack plugin and asset types plugin
-noAssetpackConfig.plugins = noAssetpackConfig.plugins.filter(
-  (plugin) => plugin.name !== 'vite-plugin-assetpack' && plugin.name !== 'vite-plugin-asset-types',
-);
-
-// withPWA
-const injectRegister = process.env.SW_INLINE ?? 'auto';
-const selfDestroying = process.env.SW_DESTROY === 'true';
-/**
- * @type {Partial<import('vite-plugin-pwa').VitePWAOptions>}
- */
-const defaultPWAConfig = {
-  base: '/',
-  buildBase: './',
-  registerType: 'autoUpdate',
-  injectRegister,
-  selfDestroying,
-  devOptions: {
-    enabled: process.env.SW_DEV === 'true',
-    navigateFallback: 'index.html',
-    suppressWarnings: true,
-  },
-  manifest: {
-    name: process.env.npm_package_name,
-    short_name: process.env.npm_package_name,
-    description: process.env.npm_package_description,
-    theme_color: '#ffffff',
-    background_color: '#000000',
-    display: 'fullscreen',
-    orientation: 'portrait',
-    categories: ['game', 'application'],
-  },
-};
-
-/**
- * @param {Partial<import('vite-plugin-pwa').VitePWAOptions>} userPWAConfig
- * @param {Partial<import('vite').UserConfig>} userConfig
- * @returns {import('vite').UserConfig}
- */
-function withPWA(userPWAConfig = {}, userConfig = {}) {
-  const pwaConfig = {
-    ...defaultPWAConfig,
-    ...userPWAConfig,
-    devOptions: { ...defaultPWAConfig.devOptions, ...userPWAConfig.devOptions },
-    manifest: {
-      ...defaultPWAConfig.manifest,
-      ...(userPWAConfig?.manifest ?? {}),
-      icons: [...(userPWAConfig?.manifest?.icons ?? [])],
-    },
-  };
-  const config = mergeConfig(defaultConfig, userConfig);
-  config.plugins.push(VitePWA(pwaConfig));
-  config.plugins.push(createCaperPWAPlugin());
-  return config;
+    ...(pwa ? caperPwaPlugins(pwa) : []),
+  ];
 }
-
-/**
- * @param {Partial<import('vite').UserConfig>} userConfig
- * @returns {import('vite').UserConfig}
- */
-function extendConfig(userConfig = {}) {
-  return mergeConfig(defaultConfig, userConfig);
-}
-
-export { defaultConfig, extendConfig, noAssetpackConfig, withPWA };
-
-export default defaultConfig;
