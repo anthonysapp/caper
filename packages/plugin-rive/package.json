@@ -1,6 +1,6 @@
 {
   "name": "@caperjs/plugin-rive",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Rive",
   "files": [
     "lib",
@@ -31,12 +31,12 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@caperjs/core": "0.2.0",
+    "@caperjs/core": "0.2.1",
     "vite": "^8.0.7",
     "vite-plugin-dts": "^4.5.3"
   },
   "peerDependencies": {
-    "@caperjs/core": "0.2.0",
+    "@caperjs/core": "0.2.1",
     "pixi.js": "8.19.0"
   },
   "dependencies": {
