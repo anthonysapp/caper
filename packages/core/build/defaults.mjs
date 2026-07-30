@@ -20,6 +20,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { APP_ENTRY_FILE, CAPER_CONFIG_FILE, SOURCE_DIRS } from './internal/paths.mjs';
 
 /**
  * App identity for the `__CAPER_APP_*` defines and the PWA manifest skeleton.
@@ -143,6 +144,28 @@ export function caperDefaultValues(env, userConfig = {}) {
     optimizeDeps: {
       exclude: ['@pixi/ui'],
       include: ['@pixi/ui > typed-signals'],
+      // Every root of a caper app's module graph, because none of them are
+      // reachable from the default scan. Vite's cold-start dep scan reads the
+      // RAW index.html for <script> tags, and the runtime entry is injected by
+      // plugins/runtime.mjs at transformIndexHtml time — so the scan starts
+      // from nothing and prebundles nothing. Scenes, popups and `autoLoad:
+      // false` plugins then arrive through the virtual lists as dynamic
+      // imports the scanner cannot follow either. The first scene that pulls a
+      // new dep (physics, filters, gsap plugins) makes vite re-optimize
+      // mid-session and hard-reload the page. Scanning these roots up front
+      // prebundles the same deps at startup instead of on a click.
+      //
+      // The paths are SOURCE_DIRS, the same contract discovery crawls, so a
+      // project can't have code here that discovery misses or vice versa. A
+      // glob that matches nothing (no src/entities, say) is simply skipped.
+      entries: [
+        // Kept first so an app with a hand-written <script> keeps its entry:
+        // setting `entries` replaces the default html scan.
+        'index.html',
+        CAPER_CONFIG_FILE,
+        APP_ENTRY_FILE,
+        ...Object.values(SOURCE_DIRS).map((dir) => `${dir}/**/*.{ts,tsx,js,jsx}`),
+      ],
     },
     define: {
       __CAPER_APP_NAME: JSON.stringify(app.name),

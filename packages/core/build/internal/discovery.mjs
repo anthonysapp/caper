@@ -22,6 +22,7 @@ import {
   findExportedConstants,
   parse,
 } from './ast.mjs';
+import { SOURCE_DIRS } from './paths.mjs';
 import { logger } from './util.mjs';
 
 
@@ -51,7 +52,7 @@ export async function findTypeScriptFiles(dir) {
 // identity helpers in src/utils/define.ts.
 
 export async function discoverScenes(server, root) {
-  const scenesDir = path.resolve(root, 'src/scenes');
+  const scenesDir = path.resolve(root, SOURCE_DIRS.scenes);
   const scenes = [];
 
   if (!fs.existsSync(scenesDir)) {
@@ -123,7 +124,7 @@ export async function discoverScenes(server, root) {
 }
 
 export async function discoverLocalPlugins(server, root) {
-  const pluginsDir = path.resolve(root, 'src/plugins');
+  const pluginsDir = path.resolve(root, SOURCE_DIRS.plugins);
   const plugins = [];
 
   if (!fs.existsSync(pluginsDir)) {
@@ -311,20 +312,20 @@ export async function discoverLocalClassFiles({ dir, kind, server, root, default
 }
 
 export async function discoverPopups(server, root) {
-  return discoverLocalClassFiles({ dir: 'src/popups', kind: 'popup', server, root });
+  return discoverLocalClassFiles({ dir: SOURCE_DIRS.popups, kind: 'popup', server, root });
 }
 
 export async function discoverEntities(server, root) {
   // Entities default to static imports so `this.add.entity(id, props)` can
   // synchronously construct without awaiting a dynamic import. Opt into
   // code-splitting per-entity with `defineEntity({ dynamic: true })`.
-  return discoverLocalClassFiles({ dir: 'src/entities', kind: 'entity', server, root, defaultDynamic: false });
+  return discoverLocalClassFiles({ dir: SOURCE_DIRS.entities, kind: 'entity', server, root, defaultDynamic: false });
 }
 
 export async function discoverUIs(server, root) {
   // UI elements default to static imports so `this.add.ui(id, props)` can
   // synchronously construct. Same rationale as entities.
-  return discoverLocalClassFiles({ dir: 'src/ui', kind: 'ui', server, root, defaultDynamic: false });
+  return discoverLocalClassFiles({ dir: SOURCE_DIRS.ui, kind: 'ui', server, root, defaultDynamic: false });
 }
 
 /**
@@ -335,7 +336,7 @@ export async function discoverUIs(server, root) {
  */
 
 export async function discoverLocaleKeys(server, root) {
-  const localesDir = path.resolve(root, 'src/locales');
+  const localesDir = path.resolve(root, SOURCE_DIRS.locales);
   if (!fs.existsSync(localesDir)) return [];
 
   const files = (await fs.promises.readdir(localesDir)).filter((f) => /\.ts$/.test(f)).sort();

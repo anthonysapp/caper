@@ -74,6 +74,27 @@ describe('caperDefaults', () => {
     expect(out.resolve.dedupe).toContain('@pixi/sound');
   });
 
+  it('scans the code-split roots so the cold dep scan sees them', () => {
+    // The runtime entry is injected at transformIndexHtml time, which the dep
+    // scanner never runs, and scenes/popups/lazy plugins arrive through the
+    // virtual lists as dynamic imports. Without these entries the cold scan
+    // prebundles nothing, and vite re-optimizes (and hard-reloads) on the
+    // first scene that pulls a new dep.
+    const { entries } = caperDefaults({}, serve).optimizeDeps;
+    expect(entries).toContain('index.html');
+    expect(entries).toContain('caper.config.ts');
+    expect(entries).toContain('src/main.ts');
+    for (const dir of ['scenes', 'popups', 'entities', 'ui', 'plugins']) {
+      expect(entries).toContain(`src/${dir}/**/*.{ts,tsx,js,jsx}`);
+    }
+  });
+
+  it("contributes its scan entries even when the project sets its own", () => {
+    // vite concatenates array options, so both lists end up scanned.
+    const userConfig = { optimizeDeps: { entries: ['custom.html'] } };
+    expect(caperDefaults(userConfig, serve).optimizeDeps.entries).toContain('index.html');
+  });
+
   it('keeps caper-globals external and the gsap chunk split', () => {
     const out = caperDefaults({}, build);
     expect(out.build.rolldownOptions.external).toContain('caper-globals');
