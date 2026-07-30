@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePixiPipesConfig } from '../config/assetpack.mjs';
+import { resolvePixiPipesConfig } from './assetpack.mjs';
 import { caper } from './index.mjs';
 
 const names = (options) =>
