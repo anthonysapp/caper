@@ -1,6 +1,6 @@
 {
   "name": "@caperjs/core",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "title": "Caper",
   "description": "An opinionated HTML game framework built on PixiJS v8",
   "bin": {
