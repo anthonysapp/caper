@@ -50,6 +50,9 @@ export class WebEventsPlugin extends Plugin implements IWebEventsPlugin {
     window.addEventListener('resize', this._onResize);
     document.addEventListener('fullscreenchange', this._onResize);
     window.addEventListener('orientationchange', this._onOrientationChanged);
+    // installed PWAs (standalone/fullscreen display modes) can miss or mistime window.resize
+    // during launch transitions; visualViewport reports the settled size
+    window.visualViewport?.addEventListener('resize', this._onVisualViewportResize);
   }
 
   public destroy() {
@@ -58,6 +61,7 @@ export class WebEventsPlugin extends Plugin implements IWebEventsPlugin {
     document.removeEventListener('fullscreenchange', this._onResize);
     window.removeEventListener('pagehide', this._onPageHide, false);
     window.removeEventListener('pageshow', this._onPageShow, false);
+    window.visualViewport?.removeEventListener('resize', this._onVisualViewportResize);
   }
 
   protected getCoreSignals(): string[] {
@@ -83,6 +87,17 @@ export class WebEventsPlugin extends Plugin implements IWebEventsPlugin {
       screenHeight = el.offsetHeight;
     }
     this.onResize.emit({ width: screenWidth, height: screenHeight });
+  }
+
+  /**
+   * Called when the visual viewport resizes. Ignores pinch-zoom (scale !== 1),
+   * where the layout size hasn't actually changed.
+   */
+  private _onVisualViewportResize(): void {
+    if ((window.visualViewport?.scale ?? 1) !== 1) {
+      return;
+    }
+    this._onResize();
   }
 
   /**
