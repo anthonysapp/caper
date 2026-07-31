@@ -102,6 +102,7 @@ describe('caper() plugin list', () => {
       'caper:defaults',
       'caper:dedupe',
       'vite-plugin-caper-runtime',
+      'vite-plugin-caper-viewport',
       'vite-plugin-static-copy:serve',
       'vite-plugin-static-copy:build',
       'vite-plugin-plugins',

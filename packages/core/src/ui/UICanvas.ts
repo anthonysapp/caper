@@ -1,8 +1,9 @@
 import type { LayoutOptions } from '@pixi/layout';
 import { ContainerChild, Graphics, RenderLayer, Container as PIXIContainer, Text } from 'pixi.js';
 import { Application } from '../core/Application';
-import { Container } from '../display';
-import { Factory, WithSignals } from '../mixins';
+import { Container } from '../display/Container';
+import { Factory } from '../mixins/factory/Factory';
+import { WithSignals } from '../mixins/signals';
 import type { AppTypeOverrides, Padding, PointLike, Size, SizeLike } from '../utils';
 import {
   bindAllMethods,
@@ -72,20 +73,45 @@ export type UICanvasConfig = {
   padding: Padding;
   size: Size;
   useAppSize: boolean;
+  useSafeArea: boolean;
   layout?: Omit<LayoutOptions, 'target'> | null | boolean;
   autoLayoutChildren?: boolean;
 };
 
-export const UICanvasConfigKeys: (keyof UICanvasConfig)[] = ['debug', 'padding', 'size', 'useAppSize', 'layout'];
+export const UICanvasConfigKeys: (keyof UICanvasConfig)[] = [
+  'debug',
+  'padding',
+  'size',
+  'useAppSize',
+  'useSafeArea',
+  'layout',
+];
 
 export type UICanvasProps = {
   debug: boolean;
   padding: Partial<Padding> | PointLike;
   size?: SizeLike;
   useAppSize?: boolean;
+  useSafeArea?: boolean;
   layout?: Omit<LayoutOptions, 'target'> | null | boolean;
   autoLayoutChildren?: boolean;
 };
+
+const zeroPadding: Padding = { top: 0, right: 0, bottom: 0, left: 0 };
+
+/**
+ * The padding the canvas actually lays out with: the configured padding plus the
+ * device's safe-area insets. Kept separate from `config.padding` so it can be
+ * re-derived on every resize without compounding.
+ */
+export function computeEffectivePadding(padding: Padding, safeArea: Padding): Padding {
+  return {
+    top: padding.top + safeArea.top,
+    right: padding.right + safeArea.right,
+    bottom: padding.bottom + safeArea.bottom,
+    left: padding.left + safeArea.left,
+  };
+}
 
 const defaultLayout = {
   flexGrow: 0,
@@ -124,6 +150,7 @@ export class UICanvas extends _UICanvas {
       padding: ensurePadding(config?.padding ?? 0),
       size: config.size !== undefined ? resolveSizeLike(config.size) : { width: 0, height: 0 },
       useAppSize: config.useAppSize === true,
+      useSafeArea: config.useSafeArea ?? true,
       autoLayoutChildren: config.autoLayoutChildren ?? true,
     };
 
@@ -414,13 +441,22 @@ export class UICanvas extends _UICanvas {
   set padding(value: Partial<Padding> | PointLike) {
     this.config.padding = ensurePadding(value);
     // Update position to account for padding
-    this.layout = {
-      paddingLeft: this.config.padding.left,
-      paddingTop: this.config.padding.top,
-      paddingRight: this.config.padding.right,
-      paddingBottom: this.config.padding.bottom,
-    };
+    this._applyPadding();
     this._updateLayout();
+  }
+
+  /** Writes the effective padding (configured padding + safe-area insets) into the layout. */
+  private _applyPadding() {
+    const padding = computeEffectivePadding(
+      this.config.padding,
+      this.config.useSafeArea ? this.app.safeArea : zeroPadding,
+    );
+    this.layout = {
+      paddingLeft: padding.left,
+      paddingTop: padding.top,
+      paddingRight: padding.right,
+      paddingBottom: padding.bottom,
+    };
   }
 
   private static isFlexContainer(child: PIXIContainer): boolean {
@@ -494,6 +530,8 @@ export class UICanvas extends _UICanvas {
   }
 
   public resize() {
+    // Re-derived rather than cached: the safe area changes with the viewport.
+    this._applyPadding();
     if (this.config.useAppSize) {
       this.size = { width: this.app.size.width, height: this.app.size.height };
       this.position.set(-this.app.size.width * 0.5, -this.app.size.height * 0.5);

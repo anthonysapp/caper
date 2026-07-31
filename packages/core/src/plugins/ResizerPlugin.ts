@@ -1,6 +1,6 @@
 import { Graphics } from 'pixi.js';
 
-import { Container } from '../display';
+import { Container } from '../display/Container';
 import type { Size } from '../utils';
 import type { IPlugin } from './Plugin';
 import { Plugin } from './Plugin';
@@ -11,6 +11,8 @@ import { Plugin } from './Plugin';
 export interface IResizerPlugin extends IPlugin {
   readonly size: Size;
   readonly scale: number;
+  /** Device safe-area insets, in logical render units (already scaled like `size`). */
+  readonly safeArea: { top: number; right: number; bottom: number; left: number };
   resize(): Promise<Size>;
 }
 
@@ -30,6 +32,8 @@ export type ResizerPluginOptions = {
   center: boolean;
   /** Whether to draw debug information for visualizing canvas bounds */
   debug: boolean;
+  /** Whether to measure the device safe-area insets (notch / status bar / gesture bar) */
+  useSafeArea: boolean;
 };
 
 /**
@@ -42,6 +46,7 @@ const defaultOptions: ResizerPluginOptions = {
   letterbox: false,
   center: false,
   debug: false,
+  useSafeArea: true,
 };
 
 export class ResizerPlugin extends Plugin<ResizerPluginOptions> implements IResizerPlugin {
@@ -51,6 +56,8 @@ export class ResizerPlugin extends Plugin<ResizerPluginOptions> implements IResi
   private _size: Size;
   private _scale: number;
   private _resizeId: number | null;
+  private _safeArea = { top: 0, right: 0, bottom: 0, left: 0 };
+  private _safeAreaProbe: HTMLDivElement | null = null;
 
   get size(): Size {
     return this._size;
@@ -58,6 +65,10 @@ export class ResizerPlugin extends Plugin<ResizerPluginOptions> implements IResi
 
   get scale(): number {
     return this._scale;
+  }
+
+  get safeArea(): { top: number; right: number; bottom: number; left: number } {
+    return this._safeArea;
   }
 
   /**
@@ -73,6 +84,39 @@ export class ResizerPlugin extends Plugin<ResizerPluginOptions> implements IResi
    */
   async postInitialize() {
     this.resize();
+  }
+
+  public destroy(): void {
+    if (this._safeAreaProbe) {
+      this._safeAreaProbe.remove();
+      this._safeAreaProbe = null;
+    }
+    super.destroy();
+  }
+
+  /**
+   * Measures the device safe-area insets in CSS pixels, via a hidden probe element
+   * padded with `env(safe-area-inset-*)`. The probe is created once and reused.
+   * Browsers without env() support (and happy-dom) report empty strings, which fall back to 0.
+   */
+  _measureSafeAreaCssPx(): { top: number; right: number; bottom: number; left: number } {
+    if (!this._safeAreaProbe) {
+      const probe = document.createElement('div');
+      probe.style.cssText =
+        'position:fixed; top:0; left:0; width:0; height:0; visibility:hidden; pointer-events:none;' +
+        'padding-top:env(safe-area-inset-top, 0px); padding-right:env(safe-area-inset-right, 0px);' +
+        'padding-bottom:env(safe-area-inset-bottom, 0px); padding-left:env(safe-area-inset-left, 0px);';
+      document.body.appendChild(probe);
+      this._safeAreaProbe = probe;
+    }
+
+    const style = getComputedStyle(this._safeAreaProbe);
+    return {
+      top: parseFloat(style.paddingTop) || 0,
+      right: parseFloat(style.paddingRight) || 0,
+      bottom: parseFloat(style.paddingBottom) || 0,
+      left: parseFloat(style.paddingLeft) || 0,
+    };
   }
 
   async resize(): Promise<Size> {
@@ -150,6 +194,20 @@ export class ResizerPlugin extends Plugin<ResizerPluginOptions> implements IResi
     const scale = scaleX > scaleY ? scaleX : scaleY;
 
     this._scale = scale;
+
+    // Safe-area insets are measured in CSS pixels; the renderer's logical size is
+    // CSS pixels * scale, so the insets have to be scaled the same way.
+    if (this._options.useSafeArea) {
+      const insets = this._measureSafeAreaCssPx();
+      this._safeArea = {
+        top: insets.top * scale,
+        right: insets.right * scale,
+        bottom: insets.bottom * scale,
+        left: insets.left * scale,
+      };
+    } else {
+      this._safeArea = { top: 0, right: 0, bottom: 0, left: 0 };
+    }
 
     // Update canvas style dimensions and scroll window up to avoid issues on mobile resize
     if (letterbox) {

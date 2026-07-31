@@ -25,6 +25,7 @@ import { entityListPlugin, pluginListPlugin, popupListPlugin, sceneListPlugin, u
 import { pngFallbackPrunePlugin } from './plugins/pruneFallbacks.mjs';
 import { caperPwaPlugins } from './plugins/pwa.mjs';
 import { createCaperRuntimePlugin } from './plugins/runtime.mjs';
+import { createCaperViewportPlugin } from './plugins/viewport.mjs';
 
 const buildFlags = readCaperBuildFlags();
 
@@ -55,6 +56,7 @@ function caperPluginList({ assets = {}, pwa } = {}) {
     },
     ...(buildFlags.useWasm ? [wasm()] : []),
     createCaperRuntimePlugin({ pwa }),
+    createCaperViewportPlugin(),
     viteStaticCopy({
       // The captions plugin's bitmap font. `silent` matters: without it,
       // vite-plugin-static-copy *throws* when the glob matches nothing, so any
