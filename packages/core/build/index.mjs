@@ -43,6 +43,16 @@ function caperPluginList({ assets = {}, pwa } = {}) {
         ];
 
   return [
+    {
+      // These must be singletons. A second copy — e.g. a @caperjs plugin
+      // package resolving @caperjs/core from its own node_modules — bundles two
+      // frameworks: registries register twice ("Plugin with id … already
+      // registered") and instanceof/signal identity breaks across the copies.
+      name: 'caper:dedupe',
+      config: () => ({
+        resolve: { dedupe: ['@caperjs/core', 'pixi.js', '@pixi/sound', 'gsap'] },
+      }),
+    },
     ...(buildFlags.useWasm ? [wasm()] : []),
     createCaperRuntimePlugin({ pwa }),
     viteStaticCopy({
@@ -76,7 +86,12 @@ function caperPluginList({ assets = {}, pwa } = {}) {
  *   over caper's defaults. `false` omits the asset plugins entirely. Set
  *   `pngFallback: true` to keep the png twins a production build otherwise prunes.
  * @property {object} [pwa] vite-plugin-pwa options, merged over caper's PWA
- *   defaults. Absent means no service worker and no web manifest.
+ *   defaults. Absent means no service worker and no web manifest. Two extras are
+ *   caper's own: `autoRegister` (default true) and
+ *   `update: 'prompt' | 'auto' | 'manual'` (default 'prompt', which shows caper's
+ *   DOM update banner; 'auto' reloads the page as soon as a new build lands;
+ *   'manual' installs no UI at all and leaves it to the game, which listens to
+ *   `app.onPwaUpdateAvailable`).
  */
 
 /**

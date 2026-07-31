@@ -100,6 +100,7 @@ describe('caper() plugin list', () => {
   it('keeps a stable plugin order', () => {
     expect(names()).toEqual([
       'caper:defaults',
+      'caper:dedupe',
       'vite-plugin-caper-runtime',
       'vite-plugin-static-copy:serve',
       'vite-plugin-static-copy:build',
