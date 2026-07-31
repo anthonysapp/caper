@@ -45,6 +45,7 @@ export interface ICoreFunctions {
   setLocale(localeId: string): void;
   t(key: string, params?: i18nTParams, locale?: string): string;
   translate(key: string, params?: i18nTParams, locale?: string): string;
+  tCount(key: string, count: number, params?: i18nTParams, locale?: string): string;
   // InputPlugin
   isControllerActive(controller: InputController): boolean;
   isGamepadActive(gamepad: Gamepad): boolean;

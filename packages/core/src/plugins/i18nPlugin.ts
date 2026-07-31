@@ -18,6 +18,17 @@ export type LocaleKey = AppTypeOverrides extends { LocaleKeys: infer K extends s
   : string;
 
 /**
+ * Base keys that have plural leaves (i.e. a `<base>.other` entry exists in the
+ * reference locale). These are the keys `tCount()` accepts.
+ *
+ * `(string & {})` preserves autocomplete for known keys while still
+ * accepting dynamic strings.
+ */
+export type PluralLocaleKey = AppTypeOverrides extends { LocaleKeys: infer K extends string }
+  ? (K extends `${infer B}.other` ? B : never) | (string & {})
+  : string;
+
+/**
  * Type definition for i18n dictionary.
  */
 export type i18nDict = Record<string, any>;
@@ -72,6 +83,8 @@ export interface Ii18nPlugin extends IPlugin {
   loadLocale(localeId: string): Promise<void>;
 
   t(key: LocaleKey, params?: i18nTParams, locale?: string): string;
+
+  tCount(key: PluralLocaleKey, count: number, params?: i18nTParams, locale?: string): string;
 
   parse(input: string, locale?: string): string;
 }
@@ -152,10 +165,13 @@ export class i18nPlugin extends Plugin<i18nOptions> implements Ii18nPlugin {
 
   /**
    * Translates a key into a string.
-   * If the key is not found, it will return an empty string.
+   * If the key is not found (or no dictionary is loaded), it returns the key itself, so a typo
+   * renders visibly on screen instead of blanking the UI.
    * If the key is found, it will replace any placeholders in the string with the values from the params object.
-   * If the key contains a variant, it will select a random variant if the variant param is set to 'random'.
-   * If the key contains a number variant, it will select the variant based on the variant param.
+   * Every `[a|b|c]` group in the string is resolved, whether or not params were passed:
+   * `variant: 'random'` picks a random item per group, `variant: <number>` picks that index for every
+   * group (clamped to the group's last item), and with no variant param index 0 is used. Brackets never
+   * survive into the output.
    * @param key The key to translate.
    * @param params The parameters to replace in the string.
    * @param locale The locale to use for translation.
@@ -166,7 +182,7 @@ export class i18nPlugin extends Plugin<i18nOptions> implements Ii18nPlugin {
     const dict = this._dicts[locale];
     if (!dict) {
       Logger.error(`i18n:: No dictionary loaded for current locale: ${locale}`);
-      return '';
+      return key as string;
     }
     // Dot-path resolution: `t('obj.nested')` walks the dict tree. Flat keys
     // still work (including keys that literally contain dots, via the
@@ -176,24 +192,26 @@ export class i18nPlugin extends Plugin<i18nOptions> implements Ii18nPlugin {
 
     if (!str) {
       Logger.error(`i18n:: No result found for the key ${key} in the locale: ${this._locale}`);
-      return '';
+      return key as string;
     }
 
-    if (params) {
-      if (typeof params.variant === 'number' || params.variant === 'random') {
-        const match = /\[(.*?)\]/.exec(str);
-        if (match) {
-          // Split the string by the "|" character to get an array of variations.
-          const items = match[1].split('|');
+    // Resolve every `[a|b|c]` group, whether or not params were passed, so brackets
+    // never leak into the rendered string.
+    const variant = params?.variant;
+    str = str.replace(/\[(.*?)\]/g, (_match, group: string) => {
+      // Split the group by the "|" character to get an array of variations.
+      const items = group.split('|');
 
-          // Get the selected variant based on the "variation" param.
-          const num = params.variant === 'random' ? Math.floor(Math.random() * items.length) : params.variant;
-
-          // Replace the original string with the selected variant
-          str = str.replace(match[0], items[num]);
-        }
+      if (variant === 'random') {
+        return items[Math.floor(Math.random() * items.length)];
       }
 
+      // A number picks that index for every group, clamped to the group's last item.
+      const num = typeof variant === 'number' ? Math.min(Math.max(variant, 0), items.length - 1) : 0;
+      return items[num];
+    });
+
+    if (params) {
       // Iterate over all params to replace placeholders in the string.
       for (const f in params) {
         // Create a regular expression to match the placeholder for the current param.
@@ -219,6 +237,27 @@ export class i18nPlugin extends Plugin<i18nOptions> implements Ii18nPlugin {
    */
   translate(key: LocaleKey, params?: i18nTParams, locale: string = this._locale): string {
     return this.t(key, params, locale);
+  }
+
+  /**
+   * Translates a pluralised key using the locale's own plural rules.
+   * The CLDR plural category for `count` (`one`, `other`, `few`, ...) is resolved against
+   * `<key>.<category>`, falling back to `<key>.other` when that leaf does not exist.
+   * `count` is passed through as a param, so `{count}` interpolates and variants still apply.
+   * @param key The base key holding the plural leaves.
+   * @param count The count used to pick the plural category.
+   * @param params Additional parameters to replace in the string.
+   * @param locale The locale to use for translation.
+   * @returns The translated string.
+   */
+  tCount(key: PluralLocaleKey, count: number, params?: i18nTParams, locale: string = this._locale): string {
+    const category = new Intl.PluralRules(locale).select(count);
+    const dict = this._dicts[locale];
+    let pluralKey = `${key}.${category}`;
+    if (!dict || typeof resolveLocalePath(dict, pluralKey) !== 'string') {
+      pluralKey = `${key}.other`;
+    }
+    return this.t(pluralKey, { count, ...params }, locale);
   }
 
   /**
@@ -263,7 +302,7 @@ export class i18nPlugin extends Plugin<i18nOptions> implements Ii18nPlugin {
   }
 
   protected getCoreFunctions(): string[] {
-    return ['t', 'translate', 'setLocale'];
+    return ['t', 'translate', 'tCount', 'setLocale'];
   }
 
   protected getCoreSignals(): string[] {
