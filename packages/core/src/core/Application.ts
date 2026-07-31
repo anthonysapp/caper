@@ -51,7 +51,12 @@ import type {
 import { bindAllMethods, deepMerge, getDynamicModuleFromImportListItem, isDev, isPromise, Logger } from '../utils';
 import { triggerViteError } from '../utils/vite';
 
-import { createFactoryMethods, defaultFactoryMethods } from '../mixins';
+// Type-only — the value is read lazily in the `make` getter via the import-free
+// registration slot, so Application never pulls the factory table (and with it
+// every ui/display class) into its own module graph. See mixins/factory/defaults.
+import type { defaultFactoryMethods } from '../mixins/factory/const';
+import { getDefaultFactoryMethods } from '../mixins/factory/defaults';
+import { createFactoryMethods } from '../mixins/factory/methods';
 import type { IActionsPlugin } from '../plugins/actions';
 import type { IVoiceOverPlugin } from '../plugins/audio/VoiceOverPlugin';
 import type { ICaptionsPlugin } from '../plugins/captions';
@@ -211,7 +216,11 @@ export class Application extends PIXIPApplication implements IApplication {
 
   get make(): typeof defaultFactoryMethods {
     if (!this._makeFactory) {
-      this._makeFactory = createFactoryMethods(defaultFactoryMethods, this, false);
+      this._makeFactory = createFactoryMethods(
+        getDefaultFactoryMethods() as typeof defaultFactoryMethods,
+        this,
+        false,
+      );
     }
     return this._makeFactory;
   }
@@ -524,6 +533,10 @@ export class Application extends PIXIPApplication implements IApplication {
 
   get size() {
     return this.resizer.size;
+  }
+
+  get safeArea() {
+    return this.resizer.safeArea;
   }
 
   public get popups(): IPopupManagerPlugin {

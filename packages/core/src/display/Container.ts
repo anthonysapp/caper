@@ -1,5 +1,7 @@
 import { DestroyOptions, Container as PIXIContainer, Sprite, Texture, Ticker } from 'pixi.js';
-import { Animated, Factory, WithSignals } from '../mixins';
+import { Animated } from '../mixins/animated';
+import { Factory } from '../mixins/factory/Factory';
+import { WithSignals } from '../mixins/signals';
 
 import { Application } from '../core/Application';
 import { Signal } from '../signals';

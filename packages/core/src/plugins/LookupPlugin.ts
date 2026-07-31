@@ -1,6 +1,6 @@
 import { Container as PIXIContainer } from 'pixi.js';
 import { IPlugin, Plugin } from '.';
-import { Container } from '../display';
+import { Container } from '../display/Container';
 
 /**
  * Interface for the LookupPlugin providing fast container lookup functionality.

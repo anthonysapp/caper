@@ -1,8 +1,10 @@
 import type { LayoutOptions } from '@pixi/layout';
 import { GraphicsContext, HTMLTextStyleOptions, TextStyleOptions } from 'pixi.js';
-import { ContainerConfig } from '../../display';
-import { ParticleContainerConfig } from '../../display/ParticleContainer';
-import { ButtonConfig, FlexContainerConfig, UICanvasProps } from '../../ui';
+import type { ContainerConfig } from '../../display/Container';
+import type { ParticleContainerConfig } from '../../display/ParticleContainer';
+import type { ButtonConfig } from '../../ui/Button';
+import type { FlexContainerConfig } from '../../ui/FlexContainer';
+import type { UICanvasProps } from '../../ui/UICanvas';
 import type {
   BitmapFontFamilyAsset,
   FontFamilyAsset,

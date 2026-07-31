@@ -1,8 +1,9 @@
 import type { LayoutOptions, NumberValue } from '@pixi/layout';
 import { BitmapText, Graphics, Container as PIXIContainer, Text } from 'pixi.js';
 import { Application } from '../core/Application';
-import { Container } from '../display';
-import { Factory, WithSignals } from '../mixins';
+import { Container } from '../display/Container';
+import { Factory } from '../mixins/factory/Factory';
+import { WithSignals } from '../mixins/signals';
 import { Signal } from '../signals';
 import {
   AppTypeOverrides,

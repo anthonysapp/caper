@@ -1,6 +1,6 @@
 import { gsap } from 'gsap';
 import { BitmapText, Container as PIXIContainer, Sprite, Texture } from 'pixi.js';
-import { Container } from '../../display';
+import { Container } from '../../display/Container';
 import { type Size } from '../../utils';
 import { CaptionsPlugin } from './CaptionsPlugin';
 

@@ -1,7 +1,8 @@
 import { type AnimationStateListener, type Event, type TrackEntry } from '@esotericsoftware/spine-core';
 import { Application } from '../core/Application';
-import type { SpineProps } from '../mixins';
-import { Factory, WithSignals } from '../mixins';
+import type { SpineProps } from '../mixins/factory/props';
+import { Factory } from '../mixins/factory/Factory';
+import { WithSignals } from '../mixins/signals';
 import { Signal } from '../signals';
 import { type AppTypeOverrides, bindAllMethods, Spine } from '../utils';
 

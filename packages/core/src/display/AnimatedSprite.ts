@@ -1,5 +1,6 @@
 import { AnimatedSprite as PIXIAnimatedSprite, Texture, Ticker } from 'pixi.js';
-import { AnimatedSpriteProps, resolveTexture } from '../mixins';
+import type { AnimatedSpriteProps } from '../mixins/factory/props';
+import { resolveTexture } from '../mixins/factory/utils';
 import { Signal } from '../signals';
 import {
   bindAllMethods,

@@ -12,7 +12,11 @@ import {
 import { type LayoutOptions } from '@pixi/layout';
 import type { IApplication } from '../core';
 import { Application } from '../core/Application';
-import { Factory, Focusable, HTMLTextProps, Interactive, type TextProps, WithSignals } from '../mixins';
+import { Factory } from '../mixins/factory/Factory';
+import type { HTMLTextProps, TextProps } from '../mixins/factory/props';
+import { Focusable } from '../mixins/focus';
+import { Interactive } from '../mixins/interaction';
+import { WithSignals } from '../mixins/signals';
 import { Signal } from '../signals';
 import { AudioAsset, bindAllMethods, type SpritesheetAsset, type TextureAsset } from '../utils';
 

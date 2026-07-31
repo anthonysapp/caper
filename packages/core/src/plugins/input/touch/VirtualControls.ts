@@ -3,8 +3,8 @@ import type { ControlsActionMap, JoystickControlsScheme, TouchControlsMap, Touch
 
 import { JoystickDirection } from '..';
 import { Application } from '../../../core/Application';
-import { WithSignals } from '../../../mixins';
-import { type IButton, type IJoystick } from '../../../ui';
+import { WithSignals } from '../../../mixins/signals';
+import type { IButton, IJoystick } from '../../../ui';
 import type { Action } from '../../actions';
 import { AbstractControls } from '../AbstractControls';
 

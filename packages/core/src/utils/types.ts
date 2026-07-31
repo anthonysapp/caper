@@ -1,7 +1,7 @@
 import type { AssetInitOptions, AssetsManifest, AssetsPreferences, Texture, UnresolvedAsset } from 'pixi.js';
 import { Point } from 'pixi.js';
 import type { Scene } from '../display/Scene';
-import { SceneAssets } from '../display';
+import type { SceneAssets } from '../display/Scene';
 import type { FilterBitmapFontNames, FilterCleanAssetNames, FilterSpineAssetNames } from './typefilters';
 
 /**

@@ -1,5 +1,5 @@
 import { Application } from '../../../core/Application';
-import { WithSignals } from '../../../mixins';
+import { WithSignals } from '../../../mixins/signals';
 import { bindAllMethods } from '../../../utils';
 import type { Action } from '../../actions';
 import { normalizeKey, type KeyboardEventDetail } from '../../KeyboardPlugin';

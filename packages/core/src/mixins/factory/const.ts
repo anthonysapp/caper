@@ -1,20 +1,23 @@
 import { BitmapText, Graphics, HTMLText, Sprite, Text, TilingSprite } from 'pixi.js';
 
-import { AnimatedSprite, Container, ContainerConfigKeys, SpineAnimation, Svg } from '../../display';
+import { AnimatedSprite } from '../../display/AnimatedSprite';
+import { Container, ContainerConfigKeys } from '../../display/Container';
 import { ParticleContainer, ParticleContainerConfigKeys } from '../../display/ParticleContainer';
-import {
-  Button,
-  ButtonConfigKeys,
-  FlexContainer,
-  FlexContainerConfigKeys,
-  Toaster,
-  UICanvas,
-  UICanvasConfigKeys,
-} from '../../ui';
-import type { ButtonConfig, FlexContainerConfig, ToastConfig, ToasterConfig, UICanvasProps } from '../../ui';
+import { SpineAnimation } from '../../display/SpineAnimation';
+import { Svg } from '../../display/Svg';
+import type { ButtonConfig } from '../../ui/Button';
+import { Button, ButtonConfigKeys } from '../../ui/Button';
+import type { FlexContainerConfig } from '../../ui/FlexContainer';
+import { FlexContainer, FlexContainerConfigKeys } from '../../ui/FlexContainer';
+import type { ToastConfig } from '../../ui/Toast';
+import type { ToasterConfig } from '../../ui/Toaster';
+import { Toaster } from '../../ui/Toaster';
+import type { UICanvasProps } from '../../ui/UICanvas';
+import { UICanvas, UICanvasConfigKeys } from '../../ui/UICanvas';
 import type { EntityId, EntityInstance, EntityProps, UIId, UIInstance, UIProps } from '../../utils';
 import { pluck, resolvePointLike, Spine, WithRequiredProps } from '../../utils';
 
+import { setDefaultFactoryMethods } from './defaults';
 import type { EntityFactoryProps } from './props';
 import {
   AnimatedSpriteProps,
@@ -361,3 +364,7 @@ export const defaultFactoryMethods = {
     return instance;
   },
 };
+
+// Hand the table to the import-free registration slot the moment it exists, so
+// `Factory()` can read it without importing this module. See ./defaults.ts.
+setDefaultFactoryMethods(defaultFactoryMethods);

@@ -19,7 +19,7 @@ import type {
 
 import type { ApplicationOptions, TextDropShadow } from 'pixi.js';
 import type { IScene, ISceneTransition, SceneTransition } from '../../display';
-import { TextStyle } from '../../mixins';
+import type { TextStyle } from '../../mixins/factory/props';
 import type { CaptionsOptions } from '../../plugins/captions';
 import { GSAPPluginOptions } from '../../plugins/GSAPPlugin';
 import type { IDataAdapterOptions } from '../../plugins/DataAdapter';

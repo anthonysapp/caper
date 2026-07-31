@@ -1,6 +1,6 @@
 import { gsap } from 'gsap';
 import { Container } from '../display/Container';
-import { WithSignals } from '../mixins';
+import { WithSignals } from '../mixins/signals';
 import { Signal } from '../signals';
 import { defaultToastConfig, Toast, ToastConfig } from './Toast';
 import { UICanvasEdge } from './UICanvas';

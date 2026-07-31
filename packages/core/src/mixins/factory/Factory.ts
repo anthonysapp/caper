@@ -1,5 +1,10 @@
 import { Container as PIXIContainer } from 'pixi.js';
-import { defaultFactoryMethods } from './index';
+// Type-only: `typeof defaultFactoryMethods` is erased at compile time, so this
+// import adds no runtime edge back into the table (which imports every ui and
+// display class, all of which extend this mixin). The value is read lazily,
+// inside the constructor, via the import-free registration slot in ./defaults.
+import type { defaultFactoryMethods } from './const';
+import { getDefaultFactoryMethods } from './defaults';
 import { createFactoryMethods } from './methods';
 
 export interface IFactory<T extends typeof defaultFactoryMethods = typeof defaultFactoryMethods> extends PIXIContainer {
@@ -16,7 +21,9 @@ export function Factory<T extends typeof defaultFactoryMethods = typeof defaultF
 
     constructor() {
       super();
-      extensions = Object.assign(defaultFactoryMethods, extensions);
+      // Merge into a copy — assigning into the shared table would leak this
+      // class's extensions into every other Factory() in the app.
+      extensions = Object.assign({}, getDefaultFactoryMethods(), extensions);
       this.make = createFactoryMethods(extensions, this, false);
       this.add = createFactoryMethods(extensions, this, true);
     }

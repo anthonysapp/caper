@@ -4,7 +4,7 @@
  * ported to TypeScript and adapted for Caper
  */
 import { DestroyOptions, FederatedPointerEvent, Graphics, Point, Sprite } from 'pixi.js';
-import { Container } from '../display';
+import { Container } from '../display/Container';
 import { JoystickDirection } from '../plugins';
 import { Signal } from '../signals';
 

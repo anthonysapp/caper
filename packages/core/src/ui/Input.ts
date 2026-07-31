@@ -11,7 +11,10 @@ import {
   Texture,
 } from 'pixi.js';
 
-import { Focusable, Interactive, TextProps, WithSignals } from '../mixins';
+import type { TextProps } from '../mixins/factory/props';
+import { Focusable } from '../mixins/focus';
+import { Interactive } from '../mixins/interaction';
+import { WithSignals } from '../mixins/signals';
 
 import {
   EaseString,
@@ -27,7 +30,7 @@ import {
 } from '../utils';
 
 import { gsap } from 'gsap';
-import { Container } from '../display';
+import { Container } from '../display/Container';
 import { Signal } from '../signals';
 
 /**

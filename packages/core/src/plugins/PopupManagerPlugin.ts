@@ -1,4 +1,4 @@
-import { Container } from '../display';
+import { Container } from '../display/Container';
 import { Signal } from '../signals';
 import type { IPopup, PopupConfig, PopupConstructor } from '../ui';
 import { bindAllMethods, getLastMapEntry } from '../utils';

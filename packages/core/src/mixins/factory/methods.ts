@@ -1,4 +1,4 @@
-import { defaultFactoryMethods } from './index';
+import type { defaultFactoryMethods } from './const';
 
 export function createFactoryMethods<T extends typeof defaultFactoryMethods = typeof defaultFactoryMethods>(
   methods: Partial<T>,

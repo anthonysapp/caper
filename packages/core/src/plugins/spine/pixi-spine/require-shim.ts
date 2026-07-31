@@ -28,7 +28,9 @@
  *****************************************************************************/
 
 declare global {
-  var require: any;
+  // @types/node (present via typeRoots) already declares `require: Require`;
+  // redeclaring it as `any` is a TS2403 conflict, so declare only what node
+  // doesn't, and keep the shim's loose typing at the use sites below.
   var PIXI: any;
 }
 

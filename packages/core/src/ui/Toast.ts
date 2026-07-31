@@ -1,7 +1,8 @@
 import { gsap } from 'gsap';
 import { Graphics, Text } from 'pixi.js';
 import { Container } from '../display/Container';
-import { type TextStyle, WithSignals } from '../mixins';
+import type { TextStyle } from '../mixins/factory/props';
+import { WithSignals } from '../mixins/signals';
 import { Signal } from '../signals';
 import { Button } from './Button';
 import { Toaster } from './Toaster';
