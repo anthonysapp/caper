@@ -85,7 +85,6 @@ function defaultWorkbox() {
       'index.html',
       'manifest.webmanifest',
       'assets/*.{js,css}',
-      'assets/assets.json',
       'assets/caper/**/*',
       'assets/required/**/*.{webp,png,json,woff2,ttf}',
       'assets/splash/**/*.{webp,png}',
@@ -98,9 +97,24 @@ function defaultWorkbox() {
     navigateFallback: 'index.html',
     runtimeCaching: [
       {
+        // The AssetPack manifest maps asset keys to hashed filenames, so a stale
+        // copy points at files a new deploy has already replaced — atomic hosts
+        // (Netlify, Vercel) delete the old ones and every lookup 404s until the
+        // worker updates. Never precached, never served from cache while online.
+        // Must stay ahead of the CacheFirst rule below, whose `.json` pattern
+        // would otherwise claim it — workbox matches routes in order.
+        urlPattern: /\/assets\/assets\.json$/,
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'caper-manifest',
+          networkTimeoutSeconds: 4,
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
+      {
         // Cache-busted filenames make these immutable: first fetch wins, and a
         // new build simply asks for new names.
-        urlPattern: /^\/assets\/.*\.(?:webp|png|jpg|json|mp3|ogg|woff2|ttf|atlas|skel|fnt)$/,
+        urlPattern: /\/assets\/.*\.(?:webp|png|jpg|json|mp3|ogg|woff2|ttf|atlas|skel|fnt)$/,
         handler: 'CacheFirst',
         options: {
           cacheName: 'caper-assets',
@@ -123,7 +137,9 @@ export function defaultPwaOptions() {
     // Root-absolute so the worker's scope and the manifest link don't depend on
     // vite's relative production `base`.
     base: '/',
-    registerType: 'autoUpdate',
+    // Prompt rather than reload out from under a game in progress; the caper
+    // `update: 'auto'` option maps this back to 'autoUpdate'.
+    registerType: 'prompt',
     // The caper runtime registers the worker (see pwaRuntimeSnippet), so the
     // plugin must not also inject a script for it.
     injectRegister: false,
@@ -184,13 +200,32 @@ function caperPwaDefaultsPlugin(options, projectSetIcons) {
 }
 
 /**
+ * Strips caper's own knobs off the project options and merges the rest over the
+ * defaults, producing the options vite-plugin-pwa is given.
+ *
+ * @param {object} pwa Project options, merged over `defaultPwaOptions()`.
+ */
+export function resolvePwaOptions(pwa) {
+  const { autoRegister: _autoRegister, update = 'prompt', ...projectOptions } = pwa;
+  const options = deepMerge(defaultPwaOptions(), projectOptions);
+
+  // `update` is caper's plain-language spelling of registerType. 'prompt' and
+  // 'manual' both wait for the user — they differ only in who draws the UI, which
+  // is the runtime snippet's business. A project that reaches for registerType
+  // itself has said the more specific thing, so it wins.
+  if (projectOptions.registerType === undefined) {
+    options.registerType = update === 'auto' ? 'autoUpdate' : 'prompt';
+  }
+
+  return { options, projectSetIcons: Boolean(projectOptions.manifest?.icons?.length) };
+}
+
+/**
  * @param {object} pwa Project options, merged over `defaultPwaOptions()`.
  * @returns {import('vite').PluginOption[]}
  */
 export function caperPwaPlugins(pwa) {
-  const { autoRegister: _autoRegister, ...projectOptions } = pwa;
-  const options = deepMerge(defaultPwaOptions(), projectOptions);
-  const projectSetIcons = Boolean(projectOptions.manifest?.icons?.length);
+  const { options, projectSetIcons } = resolvePwaOptions(pwa);
 
   return [caperPwaDefaultsPlugin(options, projectSetIcons), VitePWA(options)];
 }
@@ -203,21 +238,91 @@ export function caperPwaPlugins(pwa) {
  * The handlers are read off `Caper.pwa` at call time rather than captured, so an
  * app can assign `Caper.pwa.onNeedRefresh` after boot and still have it fire.
  */
-export function pwaRuntimeSnippet({ autoRegister = true } = {}) {
+export function pwaRuntimeSnippet({ autoRegister = true, update = 'prompt' } = {}) {
+  // 'prompt' is the only mode that gets the DOM banner: 'auto' reloads on its own,
+  // and 'manual' means the game draws its own in-pixi UI off `onPwaUpdateAvailable`.
+  const defaultNeedRefresh = update === 'prompt' ? 'showUpdateBanner' : 'undefined';
+
   return `
           import { pwaInfo } from 'virtual:pwa-info';
           import { registerSW } from 'virtual:pwa-register';
 
+          let updateSW;
+          let installEvent = null;
+
+          // Listen before anything else runs: the browser fires this early, and
+          // an event missed is an install button that never lights up.
+          if (typeof window !== 'undefined') {
+            window.addEventListener('beforeinstallprompt', (event) => {
+              event.preventDefault();
+              installEvent = event;
+              (globalThis).Caper.pwa.canInstall = true;
+              (globalThis).Caper.pwa.onCanInstall?.();
+            });
+            window.addEventListener('appinstalled', () => {
+              installEvent = null;
+              (globalThis).Caper.pwa.canInstall = false;
+              (globalThis).Caper.pwa.onInstalled?.();
+            });
+          }
+
+          // Deliberately DOM and not pixi: an update is most worth offering when
+          // the game itself failed to boot.
+          function showUpdateBanner() {
+            if (typeof document === 'undefined' || document.getElementById('caper-pwa-update')) return;
+
+            const banner = document.createElement('div');
+            banner.id = 'caper-pwa-update';
+            banner.style.cssText =
+              'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2147483647;' +
+              'display:flex;align-items:center;gap:12px;padding:10px 10px 10px 18px;border-radius:999px;' +
+              'background:rgba(17,17,17,0.92);color:#fff;font:14px/1 system-ui,sans-serif;' +
+              'box-shadow:0 4px 16px rgba(0,0,0,0.35);';
+
+            const label = document.createElement('span');
+            label.textContent = 'Update available';
+
+            const button = document.createElement('button');
+            button.textContent = 'Refresh';
+            button.style.cssText =
+              'cursor:pointer;border:0;border-radius:999px;padding:8px 14px;' +
+              'background:#fff;color:#111;font:600 14px/1 system-ui,sans-serif;';
+            button.addEventListener('click', () => (globalThis).Caper.pwa.applyUpdate());
+
+            banner.append(label, button);
+            document.body.appendChild(banner);
+          }
+
           (globalThis).Caper.pwa = {
             info: pwaInfo,
+            updateAvailable: false,
+            canInstall: false,
             onRegisteredSW(swScriptUrl) {
               console.log('Caper PWA: service worker registered:', swScriptUrl);
             },
             offlineReady() {
               console.log('Caper PWA: ready to work offline');
             },
+            // The default is the banner; an app opts out by assigning its own, or
+            // by choosing update: 'manual' and listening to app.onPwaUpdateAvailable.
+            onNeedRefresh: ${defaultNeedRefresh},
+            applyUpdate() {
+              // In prompt mode this tells the waiting worker to skipWaiting; the
+              // page reloads once it takes control.
+              updateSW?.(true);
+            },
+            async promptInstall() {
+              const event = installEvent;
+              if (!event) return null;
+              // A stashed prompt is good for exactly one use.
+              installEvent = null;
+              (globalThis).Caper.pwa.canInstall = false;
+              event.prompt();
+              const choice = await event.userChoice;
+              return choice.outcome;
+            },
             register() {
-              registerSW({
+              updateSW = registerSW({
                 immediate: true,
                 onRegisteredSW(swScriptUrl) {
                   (globalThis).Caper.pwa.onRegisteredSW?.(swScriptUrl);
@@ -226,6 +331,7 @@ export function pwaRuntimeSnippet({ autoRegister = true } = {}) {
                   (globalThis).Caper.pwa.offlineReady?.();
                 },
                 onNeedRefresh() {
+                  (globalThis).Caper.pwa.updateAvailable = true;
                   (globalThis).Caper.pwa.onNeedRefresh?.();
                 },
                 onRegisterError(error) {

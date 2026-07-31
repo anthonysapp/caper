@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import type {
   AppConfig,
+  CaperPWA,
   IApplication,
   IApplicationOptions,
   ICaperAutomation,
@@ -166,6 +167,24 @@ export class Application extends PIXIPApplication implements IApplication {
   public onPluginError = new Signal<
     (detail: { id: string; phase: 'initialize' | 'postInitialize'; error: unknown }) => void
   >();
+  /**
+   * Emitted when the browser offers its PWA install prompt, so a game can show its
+   * own in-pixi install UI.
+   *
+   * The browser usually fires this before the first scene exists, and signals do not
+   * replay — so UI that offers an install button must ALSO check `app.pwa?.canInstall`
+   * when it mounts. And `app.pwa.promptInstall()` only works from inside a user
+   * gesture, i.e. a button's click/tap handler, never a timer or a game event.
+   */
+  public onPwaInstallAvailable = new Signal<() => void>();
+  /**
+   * Emitted when a new build is waiting to take over. Call `app.pwa.applyUpdate()`
+   * to activate it — the page reloads once the new worker takes control.
+   *
+   * Use `pwa: { update: 'manual' }` in the vite preset to suppress caper's default
+   * DOM banner and present this in-game instead.
+   */
+  public onPwaUpdateAvailable = new Signal<() => void>();
   // plugins
   public readonly _plugins: Map<string, IPlugin> = new Map();
   // default plugins
@@ -199,6 +218,14 @@ export class Application extends PIXIPApplication implements IApplication {
 
   get env() {
     return this._env;
+  }
+
+  /**
+   * The `Caper.pwa` facade, or undefined when the app was built without the vite
+   * preset's `pwa` option. See {@link CaperPWA} for the install/update timing rules.
+   */
+  get pwa(): CaperPWA | undefined {
+    return (globalThis as any).Caper?.pwa;
   }
 
   get debugContainer(): PIXIContainer {
@@ -749,6 +776,8 @@ export class Application extends PIXIPApplication implements IApplication {
       }
     }
 
+    this._connectPwaSignals();
+
     this.webEvents.onVisibilityChanged.connect((visible) => {
       if (visible) {
         this.audio.restore();
@@ -762,6 +791,28 @@ export class Application extends PIXIPApplication implements IApplication {
     // User hook, run last. Framework wiring above always runs regardless of whether
     // a subclass override calls super, so overriding `postInitialize` is footgun-free.
     await this.postInitialize();
+  }
+
+  /**
+   * Republishes the `Caper.pwa` callbacks as app signals. The existing handlers are
+   * wrapped rather than replaced — clobbering them would cost `update: 'prompt'` its
+   * default banner, and an app that assigned an early handler its handler.
+   */
+  private _connectPwaSignals(): void {
+    const pwa = this.pwa;
+    if (!pwa) return;
+
+    const onCanInstall = pwa.onCanInstall;
+    pwa.onCanInstall = () => {
+      onCanInstall?.();
+      this.onPwaInstallAvailable.emit();
+    };
+
+    const onNeedRefresh = pwa.onNeedRefresh;
+    pwa.onNeedRefresh = () => {
+      onNeedRefresh?.();
+      this.onPwaUpdateAvailable.emit();
+    };
   }
 
   /**

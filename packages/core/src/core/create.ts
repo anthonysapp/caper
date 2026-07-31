@@ -11,13 +11,42 @@ import { AppConfig } from './types';
 
 type App = AppTypeOverrides['App'];
 
-interface CaperPWA {
+/**
+ * The `Caper.pwa` facade installed by the vite preset's runtime snippet. Reachable
+ * from game code as `app.pwa`, which is `undefined` when the app was built without
+ * the `pwa` option.
+ *
+ * Two timing rules matter:
+ *
+ * - `beforeinstallprompt` often fires before any scene exists, and signals do not
+ *   replay. UI that offers an install button must check `app.pwa?.canInstall` when
+ *   it mounts AND connect to `app.onPwaInstallAvailable` for the later case.
+ * - Browsers only honour {@link CaperPWA.promptInstall} from inside a user gesture.
+ *   Call it from a click/tap handler — an overlay with an Install button. Calling it
+ *   from a timer, a scene transition, or a game-over event is silently ignored.
+ */
+export interface CaperPWA {
   readonly info: any;
   register: () => void;
   onRegisteredSW: (swScriptUrl: string) => void;
   offlineReady: () => void;
+  /** Called when a new build is waiting. Defaults to caper's update banner; assign to replace it. */
   onNeedRefresh?: () => void;
   onRegisterError?: (error: any) => void;
+
+  /** True once a new build is waiting to take over. */
+  updateAvailable: boolean;
+  /** Activate the waiting worker; the page reloads once it takes control. */
+  applyUpdate: () => void;
+
+  /** True once the browser has offered an install prompt to stash. */
+  canInstall: boolean;
+  /** Called when the browser offers the install prompt. */
+  onCanInstall?: () => void;
+  /** Called after the app is installed. */
+  onInstalled?: () => void;
+  /** Show the stashed install prompt. Resolves null when there is nothing to show. */
+  promptInstall: () => Promise<'accepted' | 'dismissed' | null>;
 }
 interface CaperGlobal {
   APP_NAME: string;
