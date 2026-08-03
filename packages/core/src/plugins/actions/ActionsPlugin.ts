@@ -80,11 +80,11 @@ export class ActionsPlugin extends Plugin<IActionsPluginOptions> implements IAct
 
     // check if action is allowed for current context
     // send action if allowed
-    if (
-      this._actions[actionId]?.context === '*' ||
-      this._actions[actionId]?.context === this.context ||
-      this._actions[actionId]?.context?.includes(this.context)
-    ) {
+    const actionContext = this._actions[actionId]!.context;
+    const allowed = Array.isArray(actionContext)
+      ? actionContext.includes(this.context)
+      : actionContext === this.context || actionContext === '*';
+    if (allowed) {
       const detail: ActionDetail<TActionData> = { id: actionId, context: this.context, data };
       this.getAction<TActionData>(actionId).emit(detail);
       // notify automation / observers of the dispatched (allowed) action
