@@ -444,6 +444,7 @@ declare module '@caperjs/core' {
       const pluginsDir = path.resolve(root, 'src/plugins');
       const popupsDir = path.resolve(root, 'src/popups');
       const entitiesDir = path.resolve(root, 'src/entities');
+      const uisDir = path.resolve(root, 'src/ui');
       const localesDir = path.resolve(root, 'src/locales');
 
       const handleFileChange = async (file) => {
@@ -451,10 +452,11 @@ declare module '@caperjs/core' {
         const isPlugin = file.startsWith(pluginsDir);
         const isPopup = file.startsWith(popupsDir);
         const isEntity = file.startsWith(entitiesDir);
+        const isUI = file.startsWith(uisDir);
         const isLocale = file.startsWith(localesDir);
         const isConfig = file === configPath;
 
-        if (!isScene && !isPlugin && !isPopup && !isEntity && !isLocale && !isConfig) return;
+        if (!isScene && !isPlugin && !isPopup && !isEntity && !isUI && !isLocale && !isConfig) return;
 
         const msg = isScene
           ? 'Scene file changed'
@@ -464,9 +466,11 @@ declare module '@caperjs/core' {
               ? 'Popup file changed'
               : isEntity
                 ? 'Entity file changed'
-                : isLocale
-                  ? 'Locale file changed'
-                  : 'Config file changed';
+                : isUI
+                  ? 'UI file changed'
+                  : isLocale
+                    ? 'Locale file changed'
+                    : 'Config file changed';
         await build(`${msg}, regenerating types...`, server);
       };
 
@@ -475,6 +479,7 @@ declare module '@caperjs/core' {
       server.watcher.add(pluginsDir);
       server.watcher.add(popupsDir);
       server.watcher.add(entitiesDir);
+      server.watcher.add(uisDir);
       server.watcher.add(localesDir);
 
       server.watcher.on('change', handleFileChange);
