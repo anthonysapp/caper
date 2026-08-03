@@ -85,7 +85,7 @@ export class Camera extends Container implements ICamera {
         this.minY = config.minY;
       }
       this.viewportWidth = config.viewportWidth ?? this.app.size.width;
-      this.viewportHeight = config.viewportHeight ?? this.app.size.width;
+      this.viewportHeight = config.viewportHeight ?? this.app.size.height;
       this.worldWidth = config.worldWidth ?? this.viewportWidth;
       this.worldHeight = config.worldHeight ?? this.viewportHeight;
       this.maxX = config.maxX ?? this.worldWidth - this.viewportWidth;
@@ -125,7 +125,7 @@ export class Camera extends Container implements ICamera {
   protected _targetScale: Point = new Point(1, 1);
 
   get targetScale(): Point {
-    return this._targetPivot;
+    return this._targetScale;
   }
 
   private _lerp: number = 0;

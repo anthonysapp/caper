@@ -46,7 +46,7 @@ export class SceneTransition extends Container {
     this.addSignalConnection(
       this.app.assets.onLoadStart.connect(this.handleLoadStart),
       this.app.assets.onLoadProgress.connect(this.handleLoadProgress),
-      this.app.assets.onLoadProgress.connect(this.handleLoadComplete),
+      this.app.assets.onLoadComplete.connect(this.handleLoadComplete),
     );
   }
 
