@@ -64,7 +64,8 @@ export class Color {
   }
 
   public static rgbToHexString(pNumber: number): string {
-    let hex = Number(pNumber).toString(16);
+    const clamped = Math.max(0, Math.min(255, Math.round(Number(pNumber))));
+    let hex = clamped.toString(16);
     if (hex.length < 2) {
       hex = '0' + hex;
     }
