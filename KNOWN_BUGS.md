@@ -8,9 +8,7 @@ Severity: **High** = breaks behavior or destroys data in a way a game would hit.
 
 ## High
 
-| ✔ | Location | Bug |
-|---|---|---|
-|  | `packages/core/src/ui/UICanvas.ts:483` | `setChildIndex` always throws: Pixi's implementation calls `addChildAt`, which `UICanvas` overrides to throw with no escape hatch. No sanctioned z-order path exists. **Deferred: needs an interface design decision (what the sanctioned reorder path should be), not a patch.** |
+None remaining. (The last one — `UICanvas.setChildIndex` crashing with no sanctioned z-order path — was resolved by adding `reorderElement`/`bringToFront`/`sendToBack`; `setChildIndex` now throws a guard error pointing at them.)
 
 ## Medium
 

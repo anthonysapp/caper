@@ -248,24 +248,16 @@ already declared its own layout.
 
 ## Invariants & gotchas
 
-- **`UICanvas.setChildIndex` throws — no sanctioned z-order path exists.**
-  `UICanvas` overrides `addChildAt` to unconditionally throw
-  (`UICanvas.ts:483-488`, no `_disableAddChildError` escape hatch unlike
-  `addChild`/`removeChild`). But `setChildIndex` (`UICanvas.ts:493-496`)
-  just calls `super.setChildIndex(child, index)`, and Pixi's own
-  `Container` mixin implementation of `setChildIndex` (`eventemitter3`-style
-  `childrenHelperMixin.mjs` in `pixi.js`) is implemented as `this.getChildIndex(child);
-  this.addChildAt(child, index);` — since `this` resolves dynamically to
-  the `UICanvas` instance, that call lands on `UICanvas`'s own
-  `addChildAt` override and throws immediately, every time, regardless of
-  arguments. There is currently no way to reorder a `UICanvas`'s direct
-  children (the debug graphics/labels use `super.addChild` directly under
-  `_disableAddChildError = true` to sidestep this for their own internal
-  z-order needs — `UICanvas.ts:726-741, 799-806`). A fix would need
-  either a guarded internal path (mirroring `_disableAddChildError`) or a
-  dedicated `bringToFront`-style method that manipulates
-  `settingsMap`/`_childMap` and the underlying position container
-  directly.
+- **Z-order goes through `reorderElement` / `bringToFront` / `sendToBack`** —
+  the sanctioned reorder path, sibling to `addElement`/`removeElement`. Each
+  reorders the element within its shared region container (changing both
+  flex-flow order and paint order in that region; cross-region layering is
+  still not expressible — regions are separate containers). `setChildIndex`
+  now throws a guard error pointing at these methods, in the same style as
+  the `addChildAt`/`addChild` guards: `UICanvas`'s direct children are the
+  three internal rows, so a raw index reorder was never meaningful (and
+  previously crashed deep inside Pixi, whose `setChildIndex` routes through
+  the guarded `addChildAt`).
 - **`useLayout` must be `true` in app config** — both `UICanvas` and
   `FlexContainer` throw synchronously in their constructors otherwise
   (`UICanvas.ts:142-144`, `FlexContainer.ts:64-66`).
