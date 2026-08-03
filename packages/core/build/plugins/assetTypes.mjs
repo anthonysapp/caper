@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadManifestBundleNames } from '../internal/manifest.mjs';
-import { ASSET_DTS_FILE_NAME, debounce, delay, logger } from '../internal/util.mjs';
+import { ASSET_DTS_FILE_NAME, debounce, delay, env, logger } from '../internal/util.mjs';
 
 export { loadManifestBundleNames };
 
