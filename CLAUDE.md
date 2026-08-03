@@ -7,6 +7,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 For PixiJS API reference, fetch:
 https://pixijs.com/llms.txt
 
+### The wiki — read it before reading framework source
+
+[docs/wiki/](docs/wiki/) is a maintained map of `packages/core`, one page per
+subsystem ([Home.md](docs/wiki/Home.md) is the index,
+[architecture-overview.md](docs/wiki/architecture-overview.md) the layer map,
+[glossary.md](docs/wiki/glossary.md) the vocabulary). Written from a full read
+of the source specifically so future sessions don't have to repeat it:
+
+- **Before exploring or extending a subsystem**, read its wiki page first —
+  each covers the interface (what callers must know), module map, seams, and
+  recipes ("add a plugin", "add a factory method", …). Only drop into source
+  for the specific lines you're changing.
+- **When planning a new module**, start from the "Seams & extension points"
+  and "Recipes" sections of the relevant page, and use the glossary's terms in
+  code and discussion.
+- **Keep it current**: a PR that changes a subsystem's shape (new seam,
+  lifecycle step, renamed public API) updates its wiki page in the same PR.
+  Treat `path:line` references as "near here", refreshing them when touched.
+
+### KNOWN_BUGS.md — the defect ledger
+
+[KNOWN_BUGS.md](KNOWN_BUGS.md) tracks confirmed-but-unfixed defects with
+severity and `file:line`.
+
+- **Check it before diagnosing** odd framework behavior — it may already be a
+  documented defect (and before reporting a "new" bug, confirm it isn't
+  listed).
+- **Found a real defect you're not fixing now?** Add a row (severity,
+  location, one-line what + why wrong) instead of leaving it in a report.
+- **Fixed one?** Remove its row and update any matching gotcha in the wiki
+  page, in the same PR as the fix. Fixes are test-first: a failing test
+  reproduces the row before the fix lands.
+
 ## Overview
 
 **Caper** (`@caperjs/core`) is an opinionated **HTML game framework built on PixiJS v8**. It adds scene management, plugins, asset pipeline, build config, and project tooling on top of PixiJS, which is a renderer — not a game engine. Caper is a personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel) by Relish Studios; the fork narrows scope, modernizes the dep stack, unifies the plugin contract (no more separate "storage adapter" type), and ships fewer half-finished things. Full rationale in [plan/fork-plan.md](plan/fork-plan.md).
