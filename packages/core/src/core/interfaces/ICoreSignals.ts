@@ -1,4 +1,5 @@
 import type {
+  ActionDetail,
   BreakpointChangeDetail,
   ChannelMutedDetail,
   ChannelVolumeDetail,
@@ -42,6 +43,7 @@ export interface ICoreSignals {
   onLocaleChanged: Signal<(locale: string) => void>;
   // actionsPlugin;
   onActionContextChanged: Signal<(context: string | ActionContext) => void>;
+  onActionDispatched: Signal<(detail: ActionDetail) => void>;
   // InputManager;
   onGamepadConnected: Signal<(gamepad: Gamepad) => void>;
   onGamepadDisconnected: Signal<(gamepad: Gamepad) => void>;
