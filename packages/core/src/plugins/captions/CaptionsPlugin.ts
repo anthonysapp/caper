@@ -327,7 +327,7 @@ export class CaptionsPlugin extends Plugin<CaptionsOptions> implements ICaptions
    * @returns Promise<void>
    */
   async loadLocale(localeId: string) {
-    if (this._locale === 'localeId') {
+    if (this._dicts[localeId]) {
       return;
     }
     const file = this._options.files.find((file) => localeId === file.id);
