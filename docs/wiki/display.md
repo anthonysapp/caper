@@ -161,9 +161,9 @@ subclass instance's child add/remove across the whole app — a way for framewor
   so one class's extensions can't leak into another `Factory()` consumer.
 - **`SceneTransition`** is itself an extension point: subclass it, wire it up via
   `app.config.sceneTransition`, and `SceneManagerPlugin` will call your `initialize` /
-  `enter` / `exit` around every scene swap, feeding `progress` from
-  `app.assets.onLoadProgress` automatically (intent — see BUGS below for the actual wiring
-  defect).
+  `enter` / `exit` around every scene swap. Its constructor connects `handleLoadStart`
+  / `handleLoadProgress` / `handleLoadComplete` to `app.assets`' matching signals, so
+  `progress` tracks asset loading automatically.
 - **`addColoredBackground()`** (Container.ts:115-153) is a convenience seam for any
   `Container`/`Scene` that needs a full-bleed background sprite with optional
   auto-resize, without hand-building one via `this.add.sprite`.

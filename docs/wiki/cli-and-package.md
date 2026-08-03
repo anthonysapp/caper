@@ -70,7 +70,7 @@ banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 | `dev`/`start`/`build`/`preview` | rejected, exit 1 (`cli.mjs:50-63`) | removed in 0.2.0; kept as named cases purely to print "run vite directly" instead of "unknown subcommand" |
 | `add` | `add(args.slice(1))` (`cli/add.mjs`) | scaffold one scene/plugin/entity/popup file |
 | `create` | `create(projectPath, packageManager)` (`cli/create.mjs`) | parses `--use-yarn`/`--use-pnpm` and a positional path before delegating |
-| `update` | `update()` (`cli/update.mjs`) | see Gotchas — does not do what its message says |
+| `update` | `update()` (`cli/update.mjs`) | installs `@caperjs/core@latest` |
 | `vo generate [inputDir] [csvDir]` | `generateVoiceoverCSV()` (`cli/voiceover/`) | |
 | `audio compress [dir]` | `compress()` (`cli/audio/index.mjs`) | |
 | `audio captions [csvDir] [outDir]` | `generateCaptions()` (`cli/audio/cc.mjs`) | |
@@ -107,13 +107,14 @@ it) is the interactive project scaffolder. It:
    dependencies); `~NAME~` in `index.html`/`README.md`; `__APPLICATION_NAME__`
    in `caper.config.ts` and recursively across every file under `src/`
    (including renaming `src/__APPLICATION_NAME__.ts` itself); a plugins-array
-   patch in `caper.config.ts` via a regex against `plugins:\s*\[\s*\]`
-   (`create.mjs:184-187` — only matches an *empty* array, see Gotchas).
+   patch in `caper.config.ts` that handles both an empty `plugins: []` and a
+   non-empty array (matching brackets, then inserting alongside existing
+   entries).
 4. Deletes `.meta.json`/`package.template.json`, writes a
    `shamefully-hoist=true` `.npmrc`, and runs `<packageManager> install`.
 
 **`caper update`** (`cli/update.mjs`) runs
-`<package_manager> install github:anthonysapp/caper` — see Gotchas.
+`<package_manager> install @caperjs/core@latest`.
 
 **`caper install`** (`cli/install-peerdeps.mjs`) reads its *own*
 `package.json`'s `peerDependencies`, detects the consumer's package manager
@@ -192,32 +193,17 @@ not general logic.
   check of the child's exit code. It only works once `caper`'s own bin is
   already resolvable on `PATH` (true after npm/pnpm bin-linking), and any
   failure is silently swallowed.
-- `caper update` (`cli/update.mjs:5-9`) runs
-  `<pm> install github:anthonysapp/caper` — that installs the **monorepo
-  root**, whose `package.json` name is `caper-main` (repo root
-  `package.json:2`), not `@caperjs/core`. Run against a consumer project it
-  adds/updates a package literally named `caper-main`; it does not upgrade
-  the `@caperjs/core` dependency the project actually depends on, despite
-  `cli.mjs`'s surrounding message ("Updating Caper to the latest
-  version..."). Likely broken since before the pnpm-monorepo restructure.
-- `cli.mjs`'s post-`update` version print (`cli.mjs:88-90`) re-reads
-  `packages/core`'s own `package.json` relative to the *running* `cli.mjs`
-  file — i.e. the CLI's own installed copy, not the consumer project's
-  freshly-installed dependency. Combined with the point above, the printed
-  "Updated Caper to version X" is not a verification of anything that
-  actually changed.
-- `caper create`'s "Enter to use default" prompt is misleading:
-  `create.mjs:301-308` shows `defaultName` (PascalCase, derived from the
-  target directory) in the placeholder text, but if the user presses Enter
-  with empty input, `appName` falls back to the *raw* `name` (unmodified
-  cwd basename) rather than `defaultName`. A target directory named
-  `my-cool-game` would silently produce class name `my-cool-game` instead
-  of the promised `MyCoolGame`.
-- The `caper.config.ts` plugins-array patch
-  (`create.mjs:184-187`, regex `/plugins:\s*\[\s*\]/`) only matches a
-  literally-empty `plugins: []`. If a future app template ships a non-empty
-  default plugins array, selecting plugins in the wizard would silently
-  fail to inject them.
+- `caper update` (`cli/update.mjs`) runs `<pm> install @caperjs/core@latest`, so it
+  upgrades the actual dependency a consumer project depends on, matching
+  `cli.mjs`'s "Updating Caper to the latest version..." message.
+- `caper create`'s "Enter to use default" prompt does what it says: if the user
+  presses Enter with empty input, `appName` falls back to `defaultName` (PascalCase,
+  derived from the target directory), so a directory named `my-cool-game` produces
+  class name `MyCoolGame` as promised.
+- The `caper.config.ts` plugins-array patch (`create.mjs`) handles both cases: a
+  literally-empty `plugins: []` is replaced directly; a non-empty array is found by
+  matching brackets and has the selected plugins inserted alongside the existing
+  entries.
 - `audio/index.mjs` and `audio/cc.mjs` shell out to `ffmpeg`/`ffprobe` with
   no existence check or version pin; failures surface only as opaque `exec`
   errors, not an actionable "ffmpeg not found."

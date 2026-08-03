@@ -206,8 +206,8 @@ import('@/…').default }` class maps for scenes/popups/entities/UI
 type extraction. It lives inside the app so the app's tsconfig `paths` applies.
 
 **HMR behaviour.** `configureServer` (`caperConfig.mjs:439`) watches
-`caper.config.ts` plus `src/{scenes,plugins,popups,entities,locales}` — note
-**`src/ui` is missing**, so editing a UI file does not regenerate `caper-app.d.ts`.
+`caper.config.ts` plus `src/{scenes,plugins,popups,entities,ui,locales}`, so editing
+a UI file regenerates `caper-app.d.ts` the same as any other discovered kind.
 Any add/change/unlink of a watched path regenerates the dts, re-runs validation, and
 sends a **`full-reload`** (`caperConfig.mjs:412`), not an HMR update. The asset-types
 plugin does the same on manifest change (`assetTypes.mjs:392`), and AssetPack's
@@ -338,25 +338,23 @@ need the `seen` set) and spine `*.png.atlas`. A png is only dropped when a non-p
   it the plugin *throws* when its glob matches nothing, so any install layout that
   does not put Caper's source at exactly that path fails the build over an optional
   captions font.
-- **Discovery only matches `.ts`** — the regex at `discovery.mjs:40` is `/\.ts?$/`,
-  which accepts `.ts` and `.t` but not `.tsx`, even though `optimizeDeps.entries`
-  globs `.tsx`. A `.tsx` scene is invisible to Caper.
-- **Static-import identifiers come from the file basename** (`lists.mjs:28`). Two
-  entities named `Foo.ts` in different subdirectories produce two `import Foo from …`
-  lines in one virtual module, which then fails to parse. Same for UI and for local
+- **Discovery matches `.ts` and `.tsx`** — the regex at `discovery.mjs:40` is
+  `/\.tsx?$/`, in line with `optimizeDeps.entries`'s glob, so a `.tsx` scene is
+  discovered like any other.
+- **Static-import identifiers are suffixed with their index** (`lists.mjs:28`), so
+  two entities named `Foo.ts` in different subdirectories emit `Foo_0` / `Foo_1`
+  instead of colliding on a bare `import Foo from …`. Same for UI and for local
   plugins with `dynamic: false`.
 - **Every dts regeneration is a full page reload**, including a one-character scene
   edit. There is no HMR path for discovered code.
-- **`loadManifestBundleNames` ignores both `root` and `manifestUrl`.** It hardcodes
-  `process.cwd()/public/assets/assets.json` (`internal/manifest.mjs:14`) and
-  `internal/validate.mjs:24` calls it with no argument, so bundle-reference
-  validation silently no-ops under `--root` or a custom `assets.manifestUrl`.
-- **`assetTypesPlugin`'s `closeBundle` PWA branch is dead and would throw.**
-  `ispPwaEnabled` is computed from `config.plugins` in the `config` hook
-  (`plugins/assetTypes.mjs:403`), which sees the *unflattened* user array — the
-  nested `caper()` array has no `.name`, so it is always `false`. That is the only
-  thing keeping `env !== 'development'` at `assetTypes.mjs:448` from throwing:
-  `env` is never imported into that module.
+- **`loadManifestBundleNames(root, manifestUrl)` takes both as arguments**
+  (`internal/manifest.mjs:18`) and `internal/validate.mjs:26` passes the real
+  `root`/`manifestUrl` through, so bundle-reference validation honours `--root`
+  and a custom `assets.manifestUrl`.
+- **`assetTypesPlugin` computes `ispPwaEnabled` in `configResolved`**
+  (`plugins/assetTypes.mjs:402`), by which point Vite has flattened nested plugin
+  arrays, so a `vite-plugin-pwa` entry is detected correctly; `env` is imported from
+  `internal/util.mjs` so the `closeBundle` PWA branch has what it needs.
 - **Test layers are stratified.** `isolatedImports.test.mjs` imports each module in a
   fresh child process (cycles, TDZ); `devServer.test.mjs` boots a real Vite server
   against `test/fixtures/app` (serve-only plugins); `prodBuild.test.mjs` runs a real
@@ -415,7 +413,7 @@ Symptoms and where to look:
   wrapper is not being flattened — check the callee is in `DEFINE_HELPER_NAMES`.
 - **A scene/entity is simply not found.** In order: is it under the exact
   `SOURCE_DIRS` path; does it have a *default-exported class*; is the file `.ts`
-  (not `.tsx`); for local plugins, is there a literal `definePlugin(` call.
+  or `.tsx`; for local plugins, is there a literal `definePlugin(` call.
 - **Reproducing outside Vite.** Every module under `build/` is plain ESM with no
   Vite dependency at import time, so importing `internal/discovery.mjs` in bare Node
   and calling `discoverScenes(null, '/path/to/app')` is the fastest way to see what

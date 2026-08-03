@@ -246,10 +246,6 @@ explanation in-repo.
   `const`. It's contained to the constructor's local scope so it isn't a
   functional bug, but a reviewer skimming the diff may misread it as
   mutating the caller's object.
-- **`createFactoryMethods` has a stale commented-out duplicate line** —
-  `packages/core/src/mixins/factory/methods.ts:14-15` has `instance.addChild(obj);`
-  followed by a commented-out repeat of the same line. Dead, harmless,
-  pre-existing — leave it unless you're already editing that function.
 - **Props objects are widely typed as `any` internally.** `resolveUnknownKeys`,
   `createFactoryMethods`, and most resolver functions in `utils.ts` take
   `any`/`entity: any`. The type safety callers see (`this.add.sprite({...})`

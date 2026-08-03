@@ -244,12 +244,13 @@ always dynamically imported (static import is local-only —
   `undefined`. Compare `ResizerPlugin.ts:78` (correct) with plugins that ignore the
   argument entirely.
 - **Overriding `destroy()` without `super.destroy()` leaks every tracked signal
-  connection.** Several built-ins do exactly this; see the catalog. `SceneManagerPlugin`
-  overrides it to a no-op (`SceneManagerPlugin.ts:142`).
-- **`getCoreFunctions` is a protected *method*, not a getter.** Spelling it
-  `get coreFunctions()` silently registers nothing —
-  `LookupPlugin.ts:100` has this bug, which is why `app.func.getChildAtPath` is
-  undefined while `app.lookup.getChildAtPath` works.
+  connection.** `super.destroy()` unwinds them; call it whenever you override the
+  method. `SceneManagerPlugin.destroy()` (`SceneManagerPlugin.ts:142`) is the pattern
+  to follow — it removes its own `hashchange` listener and debug-menu DOM node, then
+  calls `super.destroy()`.
+- **`getCoreFunctions` is a protected *method*, not a getter.** Spell it as a method —
+  `LookupPlugin.getCoreFunctions()` (`LookupPlugin.ts:100`) does, which is why
+  `app.func.getChildAtPath` and `app.lookup.getChildAtPath` both work.
 - **Registry entries are last-writer-wins and global.** Two plugins exporting the same
   core-function name silently overwrite each other; the registries are module-level
   singletons (`core/registries.ts`), so two `Application`s in one page share them.

@@ -28,10 +28,10 @@ API is richer than generic save/load (`DataAdapter.ts:80`).
 (defaults to `app.appName`), `backupAll`, `backupKeys`,
 `overrideWithLocalStorage` (default `true`).
 
-**Gotchas.** `clear()` with no key calls `localStorage.clear()` (`:208`) — that wipes
-the whole origin, not just this namespace; `clear(key)` is correctly scoped.
-`destroy()` (`:104`) replaces `data` with `{}` and never calls `super.destroy()`, so
-tracked signal connections survive. `snapshot()` is `JSON.parse(JSON.stringify(...))`,
+**Gotchas.** `clear()` with no key only removes this namespace's own `localStorage`
+keys (`${namespace}-*`), not the whole origin; `clear(key)` is scoped the same way.
+`destroy()` (`:104`) calls `super.destroy()`, so tracked signal connections are
+released along with the in-memory `data`. `snapshot()` is `JSON.parse(JSON.stringify(...))`,
 so `Date`/`Map`/`undefined` values do not round-trip. Restore failures are
 `console.warn`-ed per key and fall back to the initial value (`:245`).
 
@@ -49,16 +49,14 @@ entries filtered out), `getPathForChild(container)` (`''` when untracked),
 Maintains two mirrored maps and subscribes to `Container.onGlobalChildAdded` /
 `onGlobalChildRemoved` in `initialize` (`:109`), recursing over whole subtrees.
 
-**Gotchas.** The core-function list is spelled `get coreFunctions()` (`:100`) instead
-of the contract's `protected getCoreFunctions()`, so **nothing is registered into
-`coreFunctionRegistry`** — `app.func.getChildAtPath` is `undefined` even though
-`ICoreFunctions` declares it. `Application.getChildAtPath` (`core/Application.ts:472`)
-works because it delegates to `app.lookup` directly. Paths are built from
-`container.label` only, walking up until a `'Stage'`-labelled ancestor
+**Gotchas.** Core functions are registered through `getCoreFunctions()` (`:100`), so
+`app.func.getChildAtPath` works the same as `app.lookup.getChildAtPath`. Paths are
+built from `container.label` only, walking up until a `'Stage'`-labelled ancestor
 (`:292`); unlabelled containers are skipped entirely, and two siblings sharing a label
 silently overwrite each other in the map. Renaming a `label` after insertion does not
-re-index. `initialize` never calls `addSignalConnection`, and `destroy` is not
-overridden, so the global subscriptions outlive the plugin.
+re-index. `destroy()` disconnects the global `Container.onGlobalChildAdded` /
+`onGlobalChildRemoved` subscriptions taken out in `initialize`, so the plugin doesn't
+outlive its teardown.
 
 ---
 
@@ -79,10 +77,10 @@ as core signals (`:67`); `onResize` deliberately is not — `Application` owns
 does not trigger a layout pass (`:96`, covered by `WebEventsPlugin.test.ts:48`).
 Visibility emits are debounced by 1ms (`:30`) to collapse `pagehide` +
 `visibilitychange` double-fires. Size is measured from the canvas's **parent element**
-when one exists, falling back to `window.inner*` (`:82`). `destroy()` (`:58`) does not
-call `super.destroy()` and does not remove the `orientationchange` listener — two
-leaks. `_onOrientationChanged` falls back to a 10ms `setTimeout` re-read when the event
-carries no `screen.orientation` (`:142`).
+when one exists, falling back to `window.inner*` (`:82`). `destroy()` (`:58`) removes
+every listener it attached — including `orientationchange` — then calls
+`super.destroy()`. `_onOrientationChanged` falls back to a 10ms `setTimeout` re-read
+when the event carries no `screen.orientation` (`:142`).
 
 ---
 
@@ -98,15 +96,13 @@ belief), `isFullscreen` (queried from the document, all four vendor properties),
 `onFullScreenChange(isFullscreen)`. All three setters are core functions (`:301`).
 
 **Gotchas.** Two very similar names: `isFullScreen` is cached state, `isFullscreen`
-(`:278`) is the truth. The change handler (`:356`) emits
-`document.fullscreenElement !== null` but **never updates `_isFullScreen`**, so a
-user-initiated exit (Esc) desyncs the cached flag and the next `toggleFullScreen()`
-tries to exit again; the emitted value also ignores the vendor-prefixed
-`*FullscreenElement` properties that `isFullscreen` checks. `_requestFullscreen`
-**throws** when no element is available (`:313`) while `setFullScreenElement(null)`
-only warns. `initialize` registers `fullscreenchange` twice (`:146`, `:150`);
-harmless, same function reference. `destroy()` removes listeners but skips
-`super.destroy()`.
+(`:278`) is the truth. The change handler (`:356`) re-reads `this.isFullscreen` (the
+vendor-prefixed-aware getter) and assigns it to `_isFullScreen` before emitting, so a
+user-initiated exit (Esc / browser chrome) keeps the cached flag in sync.
+`_requestFullscreen` **throws** when no element is available (`:313`) while
+`setFullScreenElement(null)` only warns. `initialize` registers `fullscreenchange`
+twice (`:146`, `:150`); harmless, same function reference. `destroy()` removes all
+four vendor-prefixed listeners and calls `super.destroy()`.
 
 ---
 
@@ -154,9 +150,9 @@ and re-dispatches a **single reused `CustomEvent` instance** per kind (`:394`), 
 `detail` is shared across dispatches. `.svg` sources are auto-flagged
 `data.parseAsGraphicsContext = true` (`:59`). Dedupe uses `Set`s keyed by the raw
 asset value — object-form assets are compared by reference, so the same asset passed as
-two distinct objects loads twice (`:324`). `loadRequired` filters already-loaded
-bundles into a local variable and then loads `this._required.bundles` anyway
-(`:189-190`), making the filter a no-op. `loadBackground` and the background branch of
+two distinct objects loads twice (`:324`). `loadRequired` filters out already-loaded
+bundles before calling `Assets.loadBundle`, so a repeat call only loads what's still
+unloaded (`:189-190`). `loadBackground` and the background branch of
 `loadSceneAssets` are fire-and-forget — nothing awaits them.
 
 ---
@@ -175,9 +171,9 @@ queue, splash handling, and the dev scene-picker. Reached as `app.scenes`.
 each expanding to a different ordering of the same eight private queue steps
 (`:265-341`).
 
-**Gotchas.** `destroy()` is an **empty override** (`:142`): the `hashchange` listener,
-the `onPause`/`onResume` connections, the debug-menu DOM, and the scene module cache
-all survive teardown. Calling `loadScene` mid-transition cancels the queue and
+**Gotchas.** `destroy()` (`:142`) removes the `hashchange` listener and the
+debug-menu DOM node, then calls `super.destroy()` to release tracked signal
+connections. Calling `loadScene` mid-transition cancels the queue and
 force-`destroy()`s the half-mounted scene (`:215-224`) — enter/exit hooks are skipped.
 `initialize` reads `Caper.get('sceneList')` and filters `active !== false` (`:149`),
 so a scene missing from discovery throws at load time with a Vite error overlay
@@ -229,13 +225,14 @@ resolves on the next ticker tick after emitting and calling `start()` (`:113-142
 **Gotchas.** Popups come from `Caper.get('popupList')` (`:214`); entries stay as
 dynamic-import thunks until first `show()`, which resolves and caches the constructor
 (`:230`). An unknown id **throws** with the known-id list in the message (`:233`) —
-it does not return `undefined`. `removeAllPopups(true)` calls `hide()` on each popup
-but never clears `_activePopups`, `_currentPopupId`, or the view (`:180-189`), so the
-animated path leaves stale entries; only the non-animated path cleans up.
-`popupCount` counts *registered* popups, not active ones — use `_activePopups`-backed
-`hasActivePopups` for that. The Escape listener (`:205`) is attached without
-`addSignalConnection`, so `destroy()` does not release it. `_handleEscape` only closes
-the current popup when its `config.closeOnEscape` is set.
+it does not return `undefined`. `removeAllPopups(true)` routes each popup through
+`hidePopup(id)` (`:180-189`), which removes it from `_activePopups` and the view and
+recomputes `_currentPopupId` as it resolves — so the animated path ends in the same
+clean state as the non-animated one. `popupCount` counts *registered* popups, not
+active ones — use `_activePopups`-backed `hasActivePopups` for that. The Escape
+listener (`:207`) is attached without `addSignalConnection`, so `destroy()` does not
+release it. `_handleEscape` only closes the current popup when its
+`config.closeOnEscape` is set.
 
 ---
 
@@ -317,11 +314,11 @@ published to the core registries.
 `Set<Tween | Timeline>` (`AnimationContext`), **not** a `gsap.Context`; nothing is
 auto-reverted and nothing is auto-added — you must call `addAnimation` yourself, and
 nothing removes a completed tween from its set. `initialize` ignores its `options`
-argument and reads `app.config.gsap` (`:394`). The field `_globalContext` (`:352`) is
-declared but never assigned — `clearGlobal()` dereferences it at `:807` and throws
-`TypeError`; `killGlobal()`/`revertGlobal()` avoid this by going through the map.
-`killAll(contextId)` also deletes the context and emits `onClear` as a side effect
-(`:658`). `PixiPlugin.registerPIXI` only registers `ColorMatrixFilter` and
+argument and reads `app.config.gsap` (`:394`). `clearGlobal()` and `killGlobal()`/
+`revertGlobal()` all go through the same `_animationContexts` map keyed by
+`GSAPPlugin.GLOBAL_CONTEXT_ID`, so there is no separate global-context field to fall
+out of sync. `killAll(contextId)` also deletes the context and emits `onClear` as a
+side effect (`:658`). `PixiPlugin.registerPIXI` only registers `ColorMatrixFilter` and
 `BlurFilter` (`:402`) — other filters must be animated by hand.
 
 ---
@@ -375,6 +372,6 @@ functions. `initialize` creates the panel, gives it `id="stats"`, appends it to
 
 **Gotchas.** The class hardcodes `id = 'StatsPlugin'` but is registered under `stats`;
 `loadPlugin` overwrites the field (`core/Application.ts:849`), so look it up as
-`'stats'`. No `destroy()` override — the DOM node and the ticker callback both leak on
-app teardown. Not exported from `plugins/index.ts`. If `Application.containerElement`
+`'stats'`. `destroy()` removes the ticker callback and the DOM node before calling
+`super.destroy()`. Not exported from `plugins/index.ts`. If `Application.containerElement`
 is unset the panel is silently never attached (`:14`).

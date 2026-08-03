@@ -91,7 +91,7 @@ registration step specific to storage.
 - `hasAdapter(adapterId)` (`Store.ts:89`) — same lookup, boolean, never throws.
 - `save(adapterId, key, data, awaitSave?)` (`Store.ts:110`) — `adapterId` can be
   a single id, an array of ids, a `{ adapterId, awaitSave }` config object, an
-  array of those, or the literal `'*'` (checked only at `keys[0]`,
+  array of those, or the literal `'*'` (recognized anywhere in the array,
   `Store.ts:129`) to fan out to *every* storage-capable plugin currently
   registered (`allAdapterIds()`, `Store.ts:97`, which reaches into
   `app._plugins` via a documented cast since that map is protected on
@@ -195,9 +195,9 @@ ids and action contexts.
 - **`connect()`'s ordering direction is inverted from intuition**: lower
   priority number (i.e. `'highest'`) fires *first*, not last. Easy to get
   backwards when reasoning about "highest priority."
-- **`Store.save('*', ...)` only checks `keys[0]`** (`Store.ts:129`) — a `'*'`
-  anywhere but the first array slot is treated as a literal (probably
-  nonexistent) adapter id, not a wildcard.
+- **`Store.save('*', ...)` recognizes `'*'` anywhere in the array** (`Store.ts:129`),
+  as a bare string entry or as `{ adapterId: '*' }`, and fans out to every
+  storage-capable plugin whenever it appears.
 - **`Store.save`'s fire-and-forget branch returns pending promises, not
   values**, mixed in the same result array as resolved values from awaited
   entries. Callers that mix awaited and fire-and-forget adapters in one call

@@ -112,13 +112,13 @@ From `import("caper-runtime")` (injected into `index.html` by `build/plugins/run
 - **Automation gating.** The facade is built only when `isDevEnv() || config.automation === true || VITE_CAPER_AUTOMATION === 'true'` (`core/globals.ts:271`). In a production build with none of those, `app.automation` and `Caper.automation[id]` are `undefined` — feature-detect, never assume.
 - **`Caper.ready()` resolves on *boot completion*, not registration.** `registerCaperApp` runs inside `create()`; `signalCaperReady` runs after `src/main.ts`. Only ids in `__readyApps` resolve immediately (`core/globals.ts:113`). `ready()` never rejects and has no timeout — a wrong id hangs.
 - **`Application` is not exported from `core/index.ts`.** It comes from `src/index.ts:7` via `./core/Application` directly. Importing it through the `core` barrel will fail; this is deliberate cycle management.
-- **Default plugins are invisible to `requires`.** `sortPluginsByRequires` only sees the config-listed plugins, so `requires: ['audio']` (a built-in) throws "not registered" at bootstrap. Only name *other config-listed* plugins in `requires`.
-- **`app.pause()` with no argument pauses nothing.** `defaultPauseConfig` (`core/Application.ts:134`) is all-false and `pause()` branches on the raw argument, not the merged config. Pass explicit flags: `app.pause({ pauseAudio: true, pauseTicker: true })`. The example in `IApplication.ts:333` is wrong.
-- **`views` is memoized.** `get views()` caches on first access (`core/Application.ts:644`), which happens during the first `_resize()` in `_setup()`. Views created later (e.g. a captions view) are never centred by subsequent resizes.
+- **`requires` can name a built-in plugin.** `sortPluginsByRequires` takes the set of already-registered ids (the default plugins) as a second argument, so `requires: ['audio']` is satisfied without `audio` needing to appear in `plugins[]` — only unregistered ids need to be config-listed.
+- **`app.pause()` with no argument pauses everything.** `pause(config?)` merges your partial `PauseConfig` onto `defaultPauseConfig` (audio/animations/ticker/timers all `true`) when called bare, or onto an all-`false` base when you pass a config — so `app.pause({ pauseAudio: true })` pauses *only* audio. `onPause` / `onResume` are typed `Signal<(config: PauseConfig) => void>` and receive the merged config.
+- **`views` is recomputed on every access**, not cached — the splash, transition, and captions views are created lazily, so a fresh read at each resize picks up anything built after the first `_resize()`.
+- **`isActionActive(action)` delegates to live input state** (`this.input.isActionActive(action)`), so it reflects keys/buttons currently held, not just declared actions.
 - **Multi-app is half-supported.** `Caper.apps` is a Map keyed by `config.id`, but `Application.instance`/`containerElement` are static and `initialize()` throws on a second app. Treat one page = one app.
 - **Plugin failures do not abort boot.** They surface as a Vite overlay plus `onPluginError`. A silently degraded app in production is possible — connect `onPluginError` if that matters.
 - **Config objects are mutated.** `create()` writes `resizeTo`, `layout`, and `container` onto the object you pass in.
-- **`_isBooting` is written but never read** (`core/Application.ts:209`, `:757`) — do not rely on it.
 
 ## Recipes
 

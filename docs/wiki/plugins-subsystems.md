@@ -50,9 +50,9 @@ Authoring helpers `defineContexts` / `defineActions` / `defineButtons` (`methods
 
 ### Gotchas
 
-- `onActionDispatched` is registered into the core signal registry (`ActionsPlugin.ts:110`) but is **not** declared in `ICoreSignals`, so `app.signal.onActionDispatched` exists at runtime and fails to typecheck.
-- The context test uses `String.prototype.includes` when `context` is a single string (`ActionsPlugin.ts:86`), so context `'popup'` matches current context `'pop'`. Prefer array form.
-- `app.isActionActive()` (`core/Application.ts:911`) checks only that the action is *declared*, not that it is held. For "is the key down right now", go through `app.input.isActionActive()`.
+- `onActionDispatched` is declared in `ICoreSignals`, so `app.signal.onActionDispatched` typechecks as well as working at runtime.
+- Context matching is exact: a single-string `context` is compared with `===` (plus the `'*'` wildcard), and an array `context` uses `includes` — so `'popup'` no longer matches a current context of `'pop'`.
+- `app.isActionActive()` (`core/Application.ts:919`) delegates to `app.input.isActionActive()`, so it reports whether the action is currently held, not merely declared.
 - Nothing validates that an action referenced by a control scheme exists in the map — see the Input gotchas.
 
 ---
@@ -95,7 +95,8 @@ Volume is composed, never stored twice: `AudioInstance._effectiveVolume = volume
 
 - Module load **monkey-patches** `sound.add` to dodge a `console.assert` in `@pixi/sound` (`AudioManagerPlugin.ts:20`). Importing this file has side effects.
 - Filters built on a different `AudioContext` are silently dropped with an error log rather than throwing (`_usableFilters`, `:471`). An app bundling its own `@pixi/sound` gets a different context — always build on `app.audio.audioContext`.
-- `AudioChannel.destroy()` is empty (`AudioChannel.ts:163`), so `AudioManagerPlugin.destroy()` tears down signals but leaves sounds playing.
+- `AudioChannel.destroy()` (`AudioChannel.ts:163`) destroys every tracked instance before clearing its buckets, and `AudioManagerPlugin` disconnects `onChannelMuted` on teardown — nothing keeps playing past `destroy()`.
+- `_verifySoundId` caches each resolved `originalId → resolvedId` mapping in `_idMap`, so repeat lookups for the same alias skip the extension-guessing walk.
 - `VoiceOverPlugin.stopVO()` calls `clearSignalConnections()`, which drops **every** connection the plugin registered, not just the active VO's.
 - `voiceover` and `captions` load together, both gated on `config.useVoiceover`.
 
@@ -171,7 +172,7 @@ Wiring happens in `postInitialize` (`:288`): five `app.voiceover` signals map to
 ### Gotchas
 
 - Caption ids are voice-over asset ids with the extension stripped (`_getId`), so `vo_intro.mp3` and `vo_intro` are the same caption.
-- `loadLocale` guards with `if (this._locale === 'localeId')` (`CaptionsPlugin.ts:330`) — a quoted literal, so the guard never fires and the file is re-fetched.
+- `loadLocale` returns early when `this._dicts[localeId]` is already populated (`CaptionsPlugin.ts:330`), so loading the same locale twice skips the re-fetch.
 - `postInitialize` connects i18n/voiceover signals directly, not via `addSignalConnection`, so they survive `destroy()`.
 - The default `fontFile` path assumes the `caper/font/` assets were copied into the app's public dir.
 - `CaptionsPlugin` is not re-exported from `plugins/index.ts`; only its interface leaks out, via `app.captions`.
@@ -213,7 +214,7 @@ Two modes, chosen by `options.usePixiAccessibility` (default `false`). When fals
 
 ### Gotchas
 
-- `destroy()` removes only the document `mousemove`/`pointerdown` listeners (`_removeGlobalListeners`). The `window` `keydown`/`keyup` handlers and the capture-phase `mousemove` added by `_activate()` stay attached — a destroyed app still reacts to Tab.
+- `destroy()` calls `_removeGlobalListeners()`, which removes every `document`/`window`/`globalThis` `mousemove`/`keydown`/`keyup` handler the plugin attached (including the capture-phase one from `_activate()`), then destroys the outliner and chains `super.destroy()`.
 - The plugin registers `removeAllFocusLayers` on `app.scenes.onSceneChangeStart`, so every scene starts with zero layers; scenes must build their own.
 - `FocusOutliner.setFocusTarget` adds a ticker callback per target and only removes it in `clearFocusTarget`.
 - `layerId` may be `0` — code paths that test truthiness of the layer id (e.g. `currentLayer`, `FocusManagerPlugin.ts:301`) treat layer `0` as "no layer".
@@ -299,11 +300,12 @@ Scheme authoring uses `defineControls(actions, buttons, controls)` for literal-t
 
 ### Gotchas
 
-- **`InputPlugin.destroy()` throws.** `WithSignals(...).destroy()` calls `super.destroy(options)`, but `AbstractControls` has no `destroy` — so `Controls.destroy()` → `keyboard.destroy()` → `TypeError`. Neither adapter removes its ticker callback either.
-- `_sortActions()` reads `actions[key].context` without checking that the action exists; a scheme entry naming an undeclared action throws on every context change.
-- Combination lookups (`_keyCombinationsMap.has(controlsAction)`, `_combinationsMap.has(buttonAction)`) compare array **identity**, so `isActionActive` never reports a combination as active.
-- `VirtualControls.removeButton` disconnects freshly created arrow functions, which match nothing — the button stays wired.
+- `AbstractControls.destroy()` is an intentional no-op that terminates the chain — `WithSignals(...).destroy()` calls `super.destroy(options)` safely, and `Controls.destroy()` → `keyboard.destroy()` / `touch.destroy()` no longer throws.
+- `_sortActions()` warns (once per key, via `_warnMissingAction`) rather than throwing when a scheme entry names an action not present in `getActions()`.
+- `isActionActive` splits a `'A+B'` combination string and checks every key/button is held (`_isInputActive`), so combinations are correctly reported active.
+- `VirtualControls.addButton` keeps each button's connections in a `_buttonConnections` map; `removeButton` disconnects exactly those connections, so the button is fully unwired.
 - Disconnecting a gamepad unconditionally dispatches the `pause` action (`InputPlugin.ts:201`).
+- `_handleContextChanged` / `_sortActions` are wired to `onActionContextChanged` through `addSignalConnection`, so the connection is released on `destroy()`.
 - Context filtering happens when the map is built, not at dispatch time — the `ActionsPlugin` gate is the real authority; the adapter filter is an optimisation that must stay in sync with it.
 
 ---
@@ -347,7 +349,7 @@ Asset loading is by extension: `.atlas` → `spineTextureAtlasLoader` (fetches t
 ### Gotchas
 
 - This is **vendored upstream code**. Treat `pixi-spine/` as a copy to be re-synced, not as Caper-authored source; the only Caper file is `SpinePlugin.ts`.
-- `SpinePipe` and `DarkTintBatcher` call `extensions.add(...)` at module scope (`SpinePipe.ts:197`, `DarkTintBatcher.ts:186`), and `SpinePlugin.initialize` adds `SpinePipe` **again** — importing the barrel already registers it.
+- `SpinePipe` and `DarkTintBatcher` call `extensions.add(...)` at module scope (`SpinePipe.ts:197`, `DarkTintBatcher.ts:186`); `SpinePlugin.initialize` relies on that and does not register `SpinePipe` a second time.
 - `Skeleton.yDown = true` is set at module load (`Spine.ts:96`), globally, for every skeleton.
 - `Spine` and the loaders are not re-exported from `plugins/index.ts`, so the package entry does not expose them — `window.Spine` is the intended access path.
 - Dark tint is auto-detected from whether any slot has a dark colour unless `darkTint` is passed explicitly; it selects a different batcher and therefore breaks batching with ordinary sprites.
