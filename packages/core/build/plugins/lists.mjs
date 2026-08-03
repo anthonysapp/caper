@@ -32,7 +32,15 @@ export function createClassListPlugin({ virtualModuleId, discoverFn, exportName,
 
   const generate = (items) => {
     const staticItems = items.filter((i) => i.module && !i.module.isFunction);
-    const imports = staticItems.map((i) => `import ${extractClassName(i)} from '${i.module}';`);
+    // Basenames alone collide when two files share a name in different
+    // directories (e.g. src/entities/a/Foo.ts and src/entities/b/Foo.ts),
+    // producing two `import Foo from '...'` lines — a duplicate-binding
+    // syntax error. Suffix with the item's index in the static-import list
+    // to keep identifiers unique while staying stable and readable, and
+    // look them up from the same map when emitting the object literal so
+    // the import and its `module:` reference always agree.
+    const importNames = new Map(staticItems.map((i, index) => [i, `${extractClassName(i)}_${index}`]));
+    const imports = staticItems.map((i) => `import ${importNames.get(i)} from '${i.module}';`);
 
     return `
     ${imports.join('\n')}
@@ -41,7 +49,7 @@ export function createClassListPlugin({ virtualModuleId, discoverFn, exportName,
         .map((item) => {
           const moduleExpr =
             item.module && !item.module.isFunction
-              ? extractClassName(item)
+              ? importNames.get(item)
               : (item.module?.toString?.() ?? `() => import('${item.importPath}')`);
           return `{
         id: '${item.id}',
@@ -157,7 +165,15 @@ export function pluginListPlugin(isProject = true) {
     // npm static imports would collide on class-name derivation from the pkg
     // path, so only local plugins support `dynamic = false`. npm packages are
     // always dynamic.
-    const imports = staticPlugins.map((p) => `import ${extractClassName(p)} from '${p.module}';`);
+    //
+    // Basenames alone collide when two files share a name in different
+    // directories, producing two `import Foo from '...'` lines — a
+    // duplicate-binding syntax error. Suffix with the item's index in the
+    // static-import list to keep identifiers unique while staying stable
+    // and readable, and look them up from the same map when emitting the
+    // object literal so the import and its `module:` reference always agree.
+    const importNames = new Map(staticPlugins.map((p, index) => [p, `${extractClassName(p)}_${index}`]));
+    const imports = staticPlugins.map((p) => `import ${importNames.get(p)} from '${p.module}';`);
 
     return `
     ${imports.join('\n')}
@@ -166,7 +182,7 @@ export function pluginListPlugin(isProject = true) {
         .map((plugin) => {
           const moduleExpr =
             plugin.module && !plugin.module.isFunction && plugin.isLocal
-              ? extractClassName(plugin)
+              ? importNames.get(plugin)
               : (plugin.module?.toString?.() ?? `() => import('${plugin.importPath}')`);
           return `{
         name: '${plugin.name}',
@@ -223,7 +239,14 @@ export function sceneListPlugin(isProject = true) {
     // extract non function scenes from the list
     const nonFunctionScenes = scenes.filter((scene) => !scene.module.isFunction);
 
-    const imports = nonFunctionScenes.map((scene) => `import ${extractClassName(scene)} from '${scene.module}';`);
+    // Basenames alone collide when two files share a name in different
+    // directories, producing two `import Foo from '...'` lines — a
+    // duplicate-binding syntax error. Suffix with the item's index in the
+    // static-import list to keep identifiers unique while staying stable
+    // and readable, and look them up from the same map when emitting the
+    // object literal so the import and its `module:` reference always agree.
+    const importNames = new Map(nonFunctionScenes.map((scene, index) => [scene, `${extractClassName(scene)}_${index}`]));
+    const imports = nonFunctionScenes.map((scene) => `import ${importNames.get(scene)} from '${scene.module}';`);
 
     const result = `
     ${imports.join('\n')}
@@ -233,7 +256,7 @@ export function sceneListPlugin(isProject = true) {
           (scene) => `{
         id: '${scene.id}',
         active: ${scene.active},
-        module: ${scene.module.isFunction ? scene.module.toString() : extractClassName(scene)},
+        module: ${scene.module.isFunction ? scene.module.toString() : importNames.get(scene)},
         debugLabel: ${JSON.stringify(scene.debugLabel)},
         debugGroup: ${JSON.stringify(scene.debugGroup)},
         debugOrder: ${scene.debugOrder},

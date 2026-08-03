@@ -37,7 +37,7 @@ export async function findTypeScriptFiles(dir) {
 
       if (entry.isDirectory()) {
         await scan(fullPath);
-      } else if (entry.isFile() && /\.ts?$/.test(entry.name)) {
+      } else if (entry.isFile() && /\.tsx?$/.test(entry.name)) {
         files.push(fullPath);
       }
     }
