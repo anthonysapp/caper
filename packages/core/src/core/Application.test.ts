@@ -12,7 +12,7 @@ import { Application } from './Application';
  * methods run unmodified against it.
  */
 function makeApp() {
-  const app = Object.create(Application.prototype) as Application & Record<string, any>;
+  const app = Object.create(Application.prototype) as any;
   app._paused = false;
   app._pauseConfig = {};
   app._audioManager = { pause: vi.fn(), resume: vi.fn(), paused: false };
