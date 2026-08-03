@@ -160,6 +160,7 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
     document.removeEventListener('mozfullscreenchange', this._onFullScreenChange);
     document.removeEventListener('msfullscreenchange', this._onFullScreenChange);
     document.removeEventListener('fullscreenchange', this._onFullScreenChange);
+    super.destroy();
   }
 
   /**
@@ -354,6 +355,9 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
    * @private
    */
   private _onFullScreenChange(): void {
-    this.onFullScreenChange.emit(document.fullscreenElement !== null);
+    // the user can leave fullscreen without us (Esc / browser chrome), so re-read
+    // the real state instead of trusting the cached flag
+    this._isFullScreen = this.isFullscreen;
+    this.onFullScreenChange.emit(this._isFullScreen);
   }
 }
