@@ -42,6 +42,8 @@ function makeButton() {
 
   (button as any).view = { texture: undefined };
   (button as any).make = { texture: vi.fn(() => 'texture') };
+  (button as any)._isDownCallbacks = new Map();
+  (button as any)._isDownListenerAdded = false;
 
   button.onDown = new Signal();
   button.onUp = new Signal();
@@ -128,7 +130,8 @@ describe('Button press-state machine', () => {
     button.enabled = false;
     button.enabled = true;
 
-    (button as any).handleClick();
+    // A real pointer-driven click event carries the same pointerId as the press.
+    (button as any).handleClick({ pointerId: 1 });
 
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -139,7 +142,7 @@ describe('Button press-state machine', () => {
     button.onClick.connect(onClick);
 
     (button as any).handlePointerDown({ pointerId: 1 });
-    (button as any).handleClick();
+    (button as any).handleClick({ pointerId: 1 });
 
     expect(onClick).toHaveBeenCalledTimes(1);
   });
@@ -154,5 +157,80 @@ describe('Button press-state machine', () => {
     (button as any).handleClick();
 
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onClick exactly once for a single accessibility activation delivered as click+tap', () => {
+    const button = makeButton();
+    const onClick = vi.fn();
+    button.onClick.connect(onClick);
+
+    // AccessibilitySystem dispatches ONE shared FederatedEvent instance as both
+    // 'click' and 'tap' — Button connects both to handleClick.
+    const a11yEvent = { type: 'click' };
+    (button as any).handleClick(a11yEvent);
+    (button as any).handleClick(a11yEvent);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('suppresses a cancelled pointer-driven click even without a prior press in this test', () => {
+    const button = makeButton();
+    const onClick = vi.fn();
+    button.onClick.connect(onClick);
+
+    // isDown is false (no press) — a click event carrying a pointerId must be treated
+    // as a cancelled press and suppressed.
+    (button as any).handleClick({ pointerId: 5 });
+
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('fires onClick for each of two distinct accessibility activations', () => {
+    const button = makeButton();
+    const onClick = vi.fn();
+    button.onClick.connect(onClick);
+
+    (button as any).handleClick({ type: 'click' });
+    (button as any).handleClick({ type: 'click' });
+
+    expect(onClick).toHaveBeenCalledTimes(2);
+  });
+
+  it('toggles the ticker listener on for the first isDown callback and off when the last is removed', () => {
+    const button = makeButton();
+    const add = vi.fn();
+    const remove = vi.fn();
+    Object.defineProperty(button, 'app', { value: { ticker: { add, remove } }, configurable: true });
+
+    button.addIsDownCallback('a', () => {});
+    button.addIsDownCallback('b', () => {});
+
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(remove).not.toHaveBeenCalled();
+
+    button.removeIsDownCallback('a');
+    expect(remove).not.toHaveBeenCalled();
+
+    button.removeIsDownCallback('b');
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes the ticker listener on destroy when one is active', () => {
+    const button = makeButton();
+    const add = vi.fn();
+    const remove = vi.fn();
+    Object.defineProperty(button, 'app', { value: { ticker: { add, remove } }, configurable: true });
+
+    button.addIsDownCallback('a', () => {});
+
+    const superDestroy = vi
+      .spyOn(Object.getPrototypeOf(Button.prototype), 'destroy')
+      .mockImplementation(() => {});
+
+    button.destroy();
+
+    expect(remove).toHaveBeenCalledTimes(1);
+
+    superDestroy.mockRestore();
   });
 });

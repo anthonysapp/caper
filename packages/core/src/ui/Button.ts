@@ -121,6 +121,7 @@ export class Button extends _Button implements IButton {
   private _isDownListenerAdded: boolean = false;
   private _pointerId?: number;
   private _textLabel?: Text | HTMLText | BitmapText;
+  private _lastClickEvent?: FederatedEvent;
 
   /**
    * The text label of the button.
@@ -280,6 +281,10 @@ export class Button extends _Button implements IButton {
   destroy(options?: DestroyOptions) {
     this.onDestroy.emit();
     this._resetPressState();
+    if (this._isDownListenerAdded) {
+      this.app.ticker.remove(this._handleIsDownCallbacks);
+      this._isDownListenerAdded = false;
+    }
     super.destroy(options);
   }
 
@@ -306,6 +311,7 @@ export class Button extends _Button implements IButton {
 
   removeIsDownCallback(callbackId: string) {
     this._isDownCallbacks.delete(callbackId);
+    this._checkIsDownCallbacks();
   }
 
   setTexture(textureId: ButtonTextureId, texture: TextureAsset) {
@@ -411,10 +417,20 @@ export class Button extends _Button implements IButton {
     this._pointerId = undefined;
   }
 
-  protected handleClick() {
-    if (!this._enabled || !this.isDown) {
+  protected handleClick(e?: FederatedEvent) {
+    if (!this._enabled) {
       return;
     }
+    const pointerId = (e as FederatedPointerEvent | undefined)?.pointerId;
+    if (pointerId !== undefined && !this.isDown) {
+      // a pointer press that was cancelled (e.g. disabled mid-press) must not click
+      return;
+    }
+    if (e !== undefined && e === this._lastClickEvent) {
+      // accessibility dispatches one event instance as both 'click' and 'tap'
+      return;
+    }
+    this._lastClickEvent = e;
     this.isDown = false;
     this.onClick.emit();
     if (this.config.sounds?.click) {
@@ -457,7 +473,7 @@ export class Button extends _Button implements IButton {
     if (!this._isDownListenerAdded && this._isDownCallbacks.size > 0) {
       this._isDownListenerAdded = true;
       this.app.ticker.add(this._handleIsDownCallbacks);
-    } else {
+    } else if (this._isDownListenerAdded && this._isDownCallbacks.size === 0) {
       this.app.ticker.remove(this._handleIsDownCallbacks);
       this._isDownListenerAdded = false;
     }
