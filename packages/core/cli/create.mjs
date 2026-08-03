@@ -89,6 +89,60 @@ function getFiles(dirPath) {
 }
 
 /**
+ * Injects wizard-selected plugin config entries into a caper.config.ts file's
+ * `plugins:` array, whether that array is currently empty or already has entries.
+ *
+ * @param {string} configContents
+ * @param {string[]} pluginConfigs
+ * @returns {string}
+ */
+export function injectPluginsIntoConfig(configContents, pluginConfigs) {
+  // Empty array: replace it wholesale with the new entries.
+  if (/plugins:\s*\[\s*\]/.test(configContents)) {
+    return configContents.replace(
+      /plugins:\s*\[\s*\]/,
+      `plugins: [\n    ${pluginConfigs.join(',\n    ')}\n  ]`,
+    );
+  }
+
+  // Non-empty array: find the `plugins:` array's matching brackets (which may
+  // contain nested arrays, e.g. `['name', {...}]` entries) and append the new
+  // entries alongside the existing ones.
+  const keyMatch = configContents.match(/plugins:\s*\[/);
+  if (!keyMatch) {
+    return configContents;
+  }
+
+  const openBracketIndex = keyMatch.index + keyMatch[0].length - 1;
+  let depth = 0;
+  let closeBracketIndex = -1;
+  for (let i = openBracketIndex; i < configContents.length; i++) {
+    if (configContents[i] === '[') depth++;
+    else if (configContents[i] === ']') {
+      depth--;
+      if (depth === 0) {
+        closeBracketIndex = i;
+        break;
+      }
+    }
+  }
+  if (closeBracketIndex === -1) {
+    return configContents;
+  }
+
+  const existingEntries = configContents.slice(openBracketIndex + 1, closeBracketIndex).trim();
+  const allEntries = existingEntries
+    ? `${existingEntries},\n    ${pluginConfigs.join(',\n    ')}`
+    : pluginConfigs.join(',\n    ');
+
+  return (
+    configContents.slice(0, openBracketIndex) +
+    `[\n    ${allEntries}\n  ]` +
+    configContents.slice(closeBracketIndex + 1)
+  );
+}
+
+/**
  * @param {string} template
  * @param {string} applicationNameForPkg
  * @param {string} name
@@ -180,11 +234,8 @@ function write_template_files(cwd, template, applicationNameForPkg, applicationN
       return `['${shortName}', { autoLoad: false }]`;
     });
 
-    // Replace empty plugins array with configured plugins
-    configContents = configContents.replace(
-      /plugins:\s*\[\s*\]/,
-      `plugins: [\n    ${pluginConfigs.join(',\n    ')}\n  ]`,
-    );
+    // Inject the configured plugins into the plugins array
+    configContents = injectPluginsIntoConfig(configContents, pluginConfigs);
   }
 
   fs.writeFileSync(configPath, configContents.replace(/__APPLICATION_NAME__/g, applicationName), 'utf-8');
