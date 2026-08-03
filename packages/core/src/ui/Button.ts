@@ -190,6 +190,8 @@ export class Button extends _Button implements IButton {
       this.onInteraction('tap').connect(this.handleClick, -1),
       this.onInteraction('pointerdown').connect(this.handlePointerDown, -1),
     );
+
+    this.on('removed', this._resetPressState);
   }
 
   // enabled state
@@ -213,12 +215,25 @@ export class Button extends _Button implements IButton {
       });
       this.onEnabled.emit();
     } else {
+      this._resetPressState();
       this.view.texture = this.make.texture({
         asset: this.config.textures.disabled || this.config.textures.default,
         sheet: this.config.sheet ?? undefined,
       });
       this.onDisabled.emit();
     }
+  }
+
+  /**
+   * Clears any in-progress press: removes the window-level release listener and
+   * resets press tracking. Called when the button is disabled, removed, or
+   * destroyed mid-press so a stale pointerId can't block future presses.
+   */
+  private _resetPressState() {
+    window.removeEventListener('pointerup', this.handlePointerUpOutside);
+    this.off('pointerupoutside', this.handlePointerUpOutside);
+    this.isDown = false;
+    this._pointerId = undefined;
   }
 
   public addLabel<T extends Text | HTMLText | BitmapText>(
@@ -264,6 +279,7 @@ export class Button extends _Button implements IButton {
 
   destroy(options?: DestroyOptions) {
     this.onDestroy.emit();
+    this._resetPressState();
     super.destroy(options);
   }
 
@@ -396,7 +412,7 @@ export class Button extends _Button implements IButton {
   }
 
   protected handleClick() {
-    if (!this._enabled) {
+    if (!this._enabled || !this.isDown) {
       return;
     }
     this.isDown = false;
@@ -413,17 +429,16 @@ export class Button extends _Button implements IButton {
    *  Handles the pointer up event.
    */
   protected handlePointerUpOutside(e: PointerEvent | FederatedPointerEvent) {
-    if (!this._enabled || e.pointerId !== this._pointerId) {
+    if (e.pointerId !== this._pointerId) {
       return;
     }
-    window.removeEventListener('pointerup', this.handlePointerUpOutside);
-    this.off('pointerupoutside', this.handlePointerUpOutside);
-    this.view.texture = this.make.texture({ asset: this.config.textures.default, sheet: this.config.sheet });
-    this.isDown = false;
+    const wasEnabled = this._enabled;
+    this._resetPressState();
     this.isOver = false;
-    this.onUpOutside.emit();
-
-    this._pointerId = undefined;
+    if (wasEnabled) {
+      this.view.texture = this.make.texture({ asset: this.config.textures.default, sheet: this.config.sheet });
+      this.onUpOutside.emit();
+    }
   }
 
   private _doAction(action: ButtonActionOrCallback) {
