@@ -74,7 +74,7 @@ export class VirtualControls extends WithSignals(AbstractControls) {
     this._buttonDownMap = scheme.down || {};
     this._buttonUpMap = scheme.up || {};
     this._joystickMap = scheme.joystick || {};
-    this.app.signal.onActionContextChanged.connect(this._sortActions);
+    this.addSignalConnection(this.app.signal.onActionContextChanged.connect(this._sortActions));
     this._sortActions();
   }
 
