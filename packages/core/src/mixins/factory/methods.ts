@@ -12,7 +12,6 @@ export function createFactoryMethods<T extends typeof defaultFactoryMethods = ty
       const obj = methods[key](...args);
       if (addToStage) {
         instance.addChild(obj);
-        // instance.addChild(obj);
       }
       return obj;
     };
