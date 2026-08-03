@@ -646,23 +646,24 @@ export class Application extends PIXIPApplication implements IApplication {
   }
 
   // views
-  protected _views: any[];
-
+  /**
+   * Computed fresh on every access — the splash, transition and captions views
+   * are created lazily, so a memoized list would permanently miss anything
+   * built after the first resize. Only read at resize cadence.
+   */
   public get views(): any[] {
-    if (!this._views) {
-      this._views = [this.scenes.view, this.popups.view];
-      if (this.scenes.splash.view) {
-        this._views.push(this.scenes.splash.view);
-      }
-      if (this.scenes.transition) {
-        this._views.push(this.scenes.transition);
-      }
-      if (this.captions?.view) {
-        this._views.push(this.captions.view);
-      }
+    const views: any[] = [this.scenes.view, this.popups.view];
+    if (this.scenes.splash.view) {
+      views.push(this.scenes.splash.view);
+    }
+    if (this.scenes.transition) {
+      views.push(this.scenes.transition);
+    }
+    if (this.captions?.view) {
+      views.push(this.captions.view);
     }
 
-    return this._views;
+    return views;
   }
 
   public static getInstance<T extends App = App>(): T {

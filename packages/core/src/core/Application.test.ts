@@ -89,6 +89,53 @@ describe('Application#pause / #resume', () => {
   });
 });
 
+/**
+ * Same bare-prototype trick as `makeApp`, but populated for the private
+ * `_resize` path: a fake resizer, a settable `_center`, and stubbed scene /
+ * popup managers so the `views` getter has something to walk.
+ */
+function makeResizeApp() {
+  const app = Object.create(Application.prototype) as Application & Record<string, any>;
+  app.config = {};
+  app._plugins = new Map();
+  app._center = {
+    x: 0,
+    y: 0,
+    set(x: number, y: number) {
+      this.x = x;
+      this.y = y;
+    },
+  };
+  app._sceneManager = { view: makeView(), splash: {}, transition: null };
+  app._popupManager = { view: makeView() };
+  app._resizer = {
+    resize: () => Promise.resolve({ width: 100, height: 50 }),
+    size: { width: 100, height: 50 },
+  };
+  app.onResize = { emit: vi.fn() };
+  return app;
+}
+
+function makeView() {
+  return { position: { set: vi.fn() } };
+}
+
+describe('Application#views', () => {
+  it('re-centers a view created after the first resize', async () => {
+    const app = makeResizeApp();
+    await app._resize();
+
+    // e.g. a transition view built lazily on the first scene change, i.e.
+    // after the app has already resized once.
+    const late = makeView();
+    app._sceneManager.transition = late;
+
+    await app._resize();
+
+    expect(late.position.set).toHaveBeenCalledWith(50, 25);
+  });
+});
+
 describe('Application#destroy', () => {
   it('does not throw when the app was configured without a store (useStore: false)', () => {
     const app = makeApp();
