@@ -490,9 +490,11 @@ export class UICanvas extends _UICanvas {
   /**
    * Sets the index of the child in the container
    */
-  public setChildIndex = <U extends PIXIContainer>(child: U, index: number): void => {
-    super.setChildIndex(child, index);
-    this._updateLayout();
+  public setChildIndex = <U extends PIXIContainer>(_child: U, _index: number): void => {
+    throw new Error(
+      `UICanvas: Do not call setChildIndex() directly. Use reorderElement(child, index), bringToFront(child), or sendToBack(child) instead.\n` +
+        `Example: uiCanvas.reorderElement(myChild, 0)`,
+    );
   };
 
   /**
@@ -666,6 +668,42 @@ export class UICanvas extends _UICanvas {
     this._canvasChildren = Array.from(this._childMap.keys());
     this._updateLayout();
     return child;
+  }
+
+  /**
+   * Reorders an element within its region container, changing its position in
+   * the flex layout and paint order.
+   */
+  public reorderElement<U extends PIXIContainer>(child: U, index: number): U {
+    const container = this._childMap.get(child);
+    if (!container) {
+      throw new Error(
+        `UICanvas: Cannot reorder element — it was not added via addElement().\n` +
+          `Child label: "${child.label ?? '(unlabeled)'}"`,
+      );
+    }
+
+    container.setChildIndex(child, index);
+    this._updateLayout();
+    return child;
+  }
+
+  /** Moves an element to the last index (painted/laid-out last) within its region. */
+  public bringToFront<U extends PIXIContainer>(child: U): U {
+    const container = this._childMap.get(child);
+    if (!container) {
+      throw new Error(
+        `UICanvas: Cannot reorder element — it was not added via addElement().\n` +
+          `Child label: "${child.label ?? '(unlabeled)'}"`,
+      );
+    }
+
+    return this.reorderElement(child, container.children.length - 1);
+  }
+
+  /** Moves an element to the first index (painted/laid-out first) within its region. */
+  public sendToBack<U extends PIXIContainer>(child: U): U {
+    return this.reorderElement(child, 0);
   }
 
   private _childAdded(child: PIXIContainer) {
