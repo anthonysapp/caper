@@ -187,7 +187,9 @@ export class AssetsPlugin extends Plugin<AssetLoadingOptions> implements IAssets
           bundles = [bundles];
         }
         bundles = bundles.filter((bundle) => !this._isBundleLoaded(bundle));
-        await Assets.loadBundle(this._required.bundles, this._handleLoadProgress);
+        if (bundles.length) {
+          await Assets.loadBundle(bundles, this._handleLoadProgress);
+        }
       }
     }
     this._handleLoadComplete();
