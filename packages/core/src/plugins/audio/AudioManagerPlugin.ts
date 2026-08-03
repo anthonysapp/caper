@@ -272,6 +272,7 @@ export class AudioManagerPlugin<C extends ChannelName = ChannelName> extends Plu
     this.onMuted.disconnectAll();
     this.onMasterVolumeChanged.disconnectAll();
     this.onChannelVolumeChanged.disconnectAll();
+    this.onChannelMuted.disconnectAll();
 
     super.destroy();
   }

@@ -97,7 +97,7 @@ export class LookupPlugin extends Plugin implements ILookupPlugin {
   /**
    * Core function names exposed by this plugin for framework integration.
    */
-  get coreFunctions(): string[] {
+  protected getCoreFunctions(): string[] {
     return ['getChildAtPath', 'getPathForChild', 'getChildrenAtPaths', 'getPathsForChildren', 'getAllPaths'];
   }
 

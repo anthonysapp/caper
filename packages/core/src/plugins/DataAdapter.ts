@@ -205,7 +205,10 @@ export class DataAdapter extends Plugin<Partial<IDataAdapterOptions>> implements
   clear<K extends keyof DataAdapterType>(key?: K): void {
     if (key === undefined) {
       this.data = {} as DataAdapterType;
-      localStorage.clear();
+      const prefix = `${this.namespace}-`;
+      for (const storageKey of Object.keys(localStorage).filter((k) => k.startsWith(prefix))) {
+        localStorage.removeItem(storageKey);
+      }
       this.onDataChange.emit({ key, clear: true });
     } else {
       delete this.data[key];

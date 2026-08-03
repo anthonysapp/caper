@@ -80,6 +80,25 @@ describe('AudioChannel', () => {
     expect(media.volume).toBeCloseTo(0.8 * 0.5 * 1);
   });
 
+  it('destroy() stops/destroys every tracked instance and clears them', () => {
+    const manager = createManager();
+    const channel = new AudioChannel('sfx', manager);
+
+    const instance1 = channel.add('boom', new AudioInstance('boom', channel, manager));
+    const media1 = createMedia();
+    instance1.media = media1 as never;
+
+    const instance2 = channel.add('splat', new AudioInstance('splat', channel, manager));
+    const media2 = createMedia();
+    instance2.media = media2 as never;
+
+    channel.destroy();
+
+    expect(media1.stop).toHaveBeenCalled();
+    expect(media2.stop).toHaveBeenCalled();
+    expect(channel.instances).toEqual([]);
+  });
+
   it('remove(id) stops all instances tracked under that alias', () => {
     const manager = createManager();
     const channel = new AudioChannel('sfx', manager);

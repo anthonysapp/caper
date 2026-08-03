@@ -160,5 +160,12 @@ export class AudioChannel<C extends ChannelName = ChannelName> {
     this.volume = this._volume;
   }
 
-  destroy() {}
+  destroy() {
+    this._sounds.forEach((bucket) => {
+      // destroy() -> stop() -> emits onEnd, whose handler may call
+      // removeInstance() and mutate `bucket` mid-iteration. Iterate a copy.
+      [...bucket].forEach((instance) => instance.destroy());
+    });
+    this._sounds.clear();
+  }
 }

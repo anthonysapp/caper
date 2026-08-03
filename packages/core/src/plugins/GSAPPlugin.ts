@@ -348,9 +348,6 @@ export class GSAPPlugin extends Plugin implements IGSAPPlugin {
     (detail: { animation: gsap.core.Tween | gsap.core.Timeline; contextId: string }) => void
   >();
 
-  /** Global animation context reference for quick access */
-  private _globalContext: AnimationContext;
-
   /** Map of all custom animation contexts by their string identifiers */
   private _animationContexts: Map<string, AnimationContext> = new Map();
 
@@ -804,7 +801,7 @@ export class GSAPPlugin extends Plugin implements IGSAPPlugin {
     if (kill) {
       this.killGlobal();
     }
-    this._globalContext.clear();
+    this._animationContexts.get(GSAPPlugin.GLOBAL_CONTEXT_ID)?.clear();
 
     this.onClearGlobal.emit(kill);
   }
