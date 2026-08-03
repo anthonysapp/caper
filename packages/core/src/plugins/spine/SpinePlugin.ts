@@ -1,6 +1,6 @@
 import { extensions } from 'pixi.js';
 import { Plugin } from '../Plugin';
-import { Spine, spineLoaderExtension, SpinePipe, spineTextureAtlasLoader } from './pixi-spine';
+import { Spine, spineLoaderExtension, spineTextureAtlasLoader } from './pixi-spine';
 
 export class SpinePlugin extends Plugin {
   public readonly id = 'SpinePlugin';
@@ -8,7 +8,7 @@ export class SpinePlugin extends Plugin {
   public async initialize() {
     extensions.add(spineTextureAtlasLoader);
     extensions.add(spineLoaderExtension);
-    extensions.add(SpinePipe);
+    // SpinePipe and DarkTintBatcher register themselves at module scope in ./pixi-spine
     (window as any).Spine = Spine;
   }
 }
