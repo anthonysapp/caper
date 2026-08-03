@@ -56,24 +56,38 @@ export function defineConfig(config: Partial<AppConfig>) {
  *     auto-register the missing dep — the config file is the single source
  *     of truth for what plugins run, and silently inserting transitive
  *     deps would make it stop being trustworthy.
+ *   - If `B.requires = ['A']` and A is a built-in plugin already registered
+ *     on the app (default plugins register before config plugins), the
+ *     requirement is already satisfied — it is skipped rather than sorted,
+ *     since A is not part of `items` and cannot be ordered against it. Pass
+ *     the registered ids via `registeredIds`.
  *   - If a cycle exists (A→B→A), throws with the cycle path printed.
  *
  * Stable order: items with no dependencies preserve their original
  * relative order from `caper.config.ts`. Only items participating in a
  * `requires` chain get reordered.
  */
-export function sortPluginsByRequires<T extends ImportList<IPlugin>[number]>(items: T[]): T[] {
+export function sortPluginsByRequires<T extends ImportList<IPlugin>[number]>(
+  items: T[],
+  registeredIds?: ReadonlySet<string>,
+): T[] {
   if (items.length < 2) return items.slice();
 
   const byId = new Map<string, T>();
   for (const it of items) byId.set(it.id, it);
+
+  // Requirements pointing at plugins that aren't in `items` but are already
+  // registered on the app (the built-ins) are satisfied — drop them so they
+  // neither throw below nor contribute to the topo-sort.
+  const requiresOf = (it: T): string[] =>
+    (it.requires ?? []).filter((req) => byId.has(req) || !registeredIds?.has(req));
 
   // Verify every required id is present in the active set. Collect ALL
   // missing deps before throwing so the user can fix them in one pass
   // rather than play whack-a-mole.
   const missing: Array<{ from: string; required: string }> = [];
   for (const it of items) {
-    for (const req of it.requires ?? []) {
+    for (const req of requiresOf(it)) {
       if (!byId.has(req)) missing.push({ from: it.id, required: req });
     }
   }
@@ -94,8 +108,9 @@ export function sortPluginsByRequires<T extends ImportList<IPlugin>[number]>(ite
   const inDegree = new Map<string, number>();
   const dependents = new Map<string, string[]>(); // id → [ids that require it]
   for (const it of items) {
-    inDegree.set(it.id, (it.requires ?? []).length);
-    for (const req of it.requires ?? []) {
+    const requires = requiresOf(it);
+    inDegree.set(it.id, requires.length);
+    for (const req of requires) {
       if (!dependents.has(req)) dependents.set(req, []);
       dependents.get(req)!.push(it.id);
     }

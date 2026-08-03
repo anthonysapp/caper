@@ -1039,7 +1039,9 @@ export class Application extends PIXIPApplication implements IApplication {
     // bootstrap loudly on missing required plugins or dependency cycles —
     // see Plugin docs for the rationale (we want the config file to be
     // the single source of truth for active plugins, not auto-resolve).
-    const sorted = sortPluginsByRequires(this.plugins);
+    // The already-registered built-ins are passed along so `requires: ['audio']`
+    // and friends resolve instead of failing bootstrap.
+    const sorted = sortPluginsByRequires(this.plugins, new Set(this._plugins.keys()));
 
     for (const p of sorted) {
       if (p.autoLoad) {
