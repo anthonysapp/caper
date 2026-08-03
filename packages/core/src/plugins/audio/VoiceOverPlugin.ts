@@ -1,3 +1,4 @@
+import { gsap } from 'gsap';
 import { Signal } from '../../signals';
 import { Logger } from '../../utils';
 import type { IPlugin } from '../Plugin';
