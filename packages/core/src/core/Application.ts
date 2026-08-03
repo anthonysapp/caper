@@ -132,6 +132,13 @@ const defaultApplicationOptions: Partial<IApplicationOptions> = {
 };
 
 const defaultPauseConfig: PauseConfig = {
+  pauseAudio: true,
+  pauseAnimations: true,
+  pauseTicker: true,
+  pauseTimers: true,
+};
+
+const emptyPauseConfig: PauseConfig = {
   pauseAudio: false,
   pauseAnimations: false,
   pauseTicker: false,
@@ -257,21 +264,21 @@ export class Application extends PIXIPApplication implements IApplication {
 
   public pause(config?: Partial<PauseConfig>) {
     this._paused = true;
-    this._pauseConfig = { ...defaultPauseConfig, ...config };
-    if (config?.pauseAudio) {
+    this._pauseConfig = { ...(config ? emptyPauseConfig : defaultPauseConfig), ...config };
+    if (this._pauseConfig.pauseAudio) {
       this.audio.pause();
     }
-    if (config?.pauseAnimations) {
+    if (this._pauseConfig.pauseAnimations) {
       gsap?.globalTimeline?.pause();
     }
-    if (config?.pauseTicker) {
+    if (this._pauseConfig.pauseTicker) {
       this.ticker.stop();
     }
-    if (config?.pauseTimers) {
+    if (this._pauseConfig.pauseTimers) {
       this.timers.pauseAllTimers();
     }
-    if (config?.pauseOther) {
-      config.pauseOther.forEach((thing) => {
+    if (this._pauseConfig.pauseOther) {
+      this._pauseConfig.pauseOther.forEach((thing) => {
         if (typeof thing?.pause === 'function') {
           thing.pause();
         }
@@ -676,7 +683,7 @@ export class Application extends PIXIPApplication implements IApplication {
     this._plugins.forEach((plugin) => {
       plugin.destroy();
     });
-    this.store.destroy();
+    this.store?.destroy();
     super.destroy(rendererDestroyOptions, options);
   }
 

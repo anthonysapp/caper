@@ -1,0 +1,32 @@
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { generatePluginList } from './config';
+
+// `generatePluginList` reads `globalThis.Caper.get('pluginsList')` — normally
+// populated by the caper-runtime virtual module the Vite plugin injects. In
+// hand-written entries or unit tests, `Caper` doesn't exist at all, so the
+// bare `Caper.get(...)` call must not throw.
+describe('generatePluginList', () => {
+  afterEach(() => {
+    delete (globalThis as unknown as { Caper?: unknown }).Caper;
+  });
+
+  it('resolves to [] when there is no runtime-managed Caper global and no plugins configured', async () => {
+    expect((globalThis as unknown as { Caper?: unknown }).Caper).toBeUndefined();
+    await expect(generatePluginList([])).resolves.toEqual([]);
+  });
+
+  it('still resolves plugins when the Caper runtime global IS present', async () => {
+    (globalThis as unknown as { Caper: { get: (key: string) => unknown } }).Caper = {
+      get: (key: string) =>
+        key === 'pluginsList'
+          ? [{ id: 'audio', path: 'audio', module: () => Promise.resolve({}), requires: [] }]
+          : undefined,
+    };
+
+    const result = await generatePluginList(['audio' as never]);
+    expect(result).toEqual([
+      { id: 'audio', path: 'audio', module: expect.any(Function), requires: [], options: undefined, autoLoad: true },
+    ]);
+  });
+});

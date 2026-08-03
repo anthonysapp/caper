@@ -13,7 +13,10 @@ export type PluginConfig = PluginId | [PluginId, { autoLoad?: boolean; options?:
  * "storage adapter" — unified into a single list.
  */
 export async function generatePluginList<T extends IPlugin = IPlugin>(plugins: PluginConfig[]): Promise<ImportList<T>> {
-  const pluginsList: PluginListItem[] = Caper.get('pluginsList') || [];
+  const pluginsList: PluginListItem[] =
+    ((globalThis as unknown as { Caper?: { get?: (key: string) => unknown } }).Caper?.get?.(
+      'pluginsList',
+    ) as PluginListItem[] | undefined) ?? [];
 
   return plugins
     .map((plugin) => {
