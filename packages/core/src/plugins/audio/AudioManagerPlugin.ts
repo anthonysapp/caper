@@ -702,7 +702,7 @@ export class AudioManagerPlugin<C extends ChannelName = ChannelName> extends Plu
     }
     for (let id of soundId) {
       if (this._idMap.has(id)) {
-        soundId = this._idMap.get(id) as string;
+        id = this._idMap.get(id) as string;
       }
       const channel = this._channels.get(channelName);
       if (channel) {
@@ -796,7 +796,7 @@ export class AudioManagerPlugin<C extends ChannelName = ChannelName> extends Plu
         }
       }
     }
-    this._idMap.set(soundId, soundId);
+    this._idMap.set(originalSoundId, soundId);
     return soundId;
   }
 
