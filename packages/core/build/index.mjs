@@ -76,7 +76,9 @@ function caperPluginList({ assets = {}, pwa } = {}) {
     entityListPlugin(),
     uiListPlugin(),
     ...assetPlugins,
-    caperConfigPlugin(),
+    // The manifest name reaches build-time validation this way — it is the only
+    // place that knows a project overrode it.
+    caperConfigPlugin(true, manifestUrl),
     caperDevHelperPlugin(),
     ...(pwa ? caperPwaPlugins(pwa) : []),
   ];

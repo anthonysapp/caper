@@ -93,7 +93,7 @@ async function validateCaperConfig(server, root) {
 
 // write a debounce function
 
-export function caperConfigPlugin(isProject = true) {
+export function caperConfigPlugin(isProject = true, manifestUrl = 'assets.json') {
   // vite's resolved project root. Everything below resolves against this rather
   // than process.cwd(), so `vite --root elsewhere` and monorepo invocations from
   // a parent directory find the right caper.config.ts and src/ tree.
@@ -228,6 +228,8 @@ export function caperConfigPlugin(isProject = true) {
     // defaultScene pointing at a non-existent scene, duplicate IDs).
     runBuildTimeValidation({
       server,
+      root,
+      manifestUrl,
       configPath,
       configObject,
       scenes,

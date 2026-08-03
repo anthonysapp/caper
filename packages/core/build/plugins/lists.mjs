@@ -9,14 +9,11 @@
 import path from 'node:path';
 import {
   discoverEntities,
-  discoverLocaleKeys,
   discoverPlugins,
   discoverPopups,
   discoverScenes,
   discoverUIs,
 } from '../internal/discovery.mjs';
-import { logger } from '../internal/util.mjs';
-import { loadManifestBundleNames } from '../internal/manifest.mjs';
 
 export function createClassListPlugin({ virtualModuleId, discoverFn, exportName, pluginName }) {
   // vite's resolved project root, captured for the discovery pass. See

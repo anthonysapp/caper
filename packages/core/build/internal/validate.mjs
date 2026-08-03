@@ -12,6 +12,8 @@ import { logger } from './util.mjs';
 
 export function runBuildTimeValidation({
   server,
+  root,
+  manifestUrl,
   configPath,
   configObject,
   scenes,
@@ -21,7 +23,7 @@ export function runBuildTimeValidation({
   breakpointsName,
 }) {
   const warnings = [];
-  const bundleNames = loadManifestBundleNames();
+  const bundleNames = loadManifestBundleNames(root, manifestUrl);
 
   // 1. Scene bundle references
   if (bundleNames && bundleNames.size > 0) {

@@ -8,10 +8,15 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { cwd, logger } from './util.mjs';
+import { logger } from './util.mjs';
 
-export function loadManifestBundleNames(manifestUrl = 'assets.json') {
-  const manifestPath = path.join(process.cwd(), 'public', 'assets', manifestUrl);
+/**
+ * `root` is vite's resolved project root — not `process.cwd()`, which is
+ * whatever directory the build was launched from. See `internal/discovery.mjs`
+ * for the same contract.
+ */
+export function loadManifestBundleNames(root, manifestUrl = 'assets.json') {
+  const manifestPath = path.join(root, 'public', 'assets', manifestUrl);
   if (!fs.existsSync(manifestPath)) return null;
   try {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));

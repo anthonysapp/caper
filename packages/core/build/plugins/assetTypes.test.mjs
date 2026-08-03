@@ -61,7 +61,10 @@ describe('closeBundle', () => {
 
 /** Resolves a real vite config for the fixture, as `plugins: [caper()]` would. */
 async function resolvePreset(options) {
-  return resolveConfig({ configFile: false, root: fixtureRoot, logLevel: 'silent', plugins: [caper(options)] }, 'build');
+  return resolveConfig(
+    { configFile: false, root: fixtureRoot, logLevel: 'silent', plugins: [caper(options)] },
+    'build',
+  );
 }
 
 describe('pwa detection', () => {
