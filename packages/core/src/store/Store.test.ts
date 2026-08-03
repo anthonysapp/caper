@@ -143,4 +143,19 @@ describe('Store', () => {
     expect(saveA).toHaveBeenCalledWith('k', 1);
     expect(saveB).toHaveBeenCalledWith('k', 1);
   });
+
+  it('save with "*" anywhere in an adapter array fans out to every storage-capable plugin', async () => {
+    const saveA = vi.fn(async () => 'a');
+    const saveB = vi.fn(async () => 'b');
+    const store = new Store().initialize(
+      makeApp([
+        { id: 'a', save: saveA, load: async () => undefined },
+        { id: 'b', save: saveB, load: async () => undefined },
+        { id: 'c' }, // not storage-capable → must be skipped
+      ]),
+    );
+    await store.save(['a', '*'] as never, 'k', 1);
+    expect(saveA).toHaveBeenCalledWith('k', 1);
+    expect(saveB).toHaveBeenCalledWith('k', 1);
+  });
 });

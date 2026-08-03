@@ -126,7 +126,10 @@ export class Store implements IStore {
       keys = adapterId as string[] | Partial<AdapterSaveConfig>[];
     }
 
-    if ((keys[0] as string) === '*' || (keys[0] as Partial<AdapterSaveConfig>)?.adapterId === '*') {
+    const hasStarKey = keys.some(
+      (k) => (k as string) === '*' || (k as Partial<AdapterSaveConfig>)?.adapterId === '*',
+    );
+    if (hasStarKey) {
       keys = this.allAdapterIds();
     }
 
