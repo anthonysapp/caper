@@ -279,8 +279,8 @@ importers:
         version: 0.15.28
     devDependencies:
       '@caperjs/core':
-        specifier: 0.1.2
-        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
+        specifier: 0.3.0
+        version: 0.3.0(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/react@19.1.8)(gsap@3.15.0)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))(workbox-build@7.3.0)(workbox-window@7.4.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -298,8 +298,8 @@ importers:
         version: 8.19.0
     devDependencies:
       '@caperjs/core':
-        specifier: 0.1.2
-        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
+        specifier: 0.3.0
+        version: 0.3.0(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/react@19.1.8)(gsap@3.15.0)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))(workbox-build@7.3.0)(workbox-window@7.4.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -314,8 +314,8 @@ importers:
         version: 10.14.1
     devDependencies:
       '@caperjs/core':
-        specifier: 0.1.2
-        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
+        specifier: 0.3.0
+        version: 0.3.0(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/react@19.1.8)(gsap@3.15.0)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))(workbox-build@7.3.0)(workbox-window@7.4.0)(yoga-layout@3.2.1)
       '@types/node':
         specifier: ^20.14.1
         version: 20.19.1
@@ -333,8 +333,8 @@ importers:
         version: 0.0.20
     devDependencies:
       '@caperjs/core':
-        specifier: 0.1.2
-        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
+        specifier: 0.3.0
+        version: 0.3.0(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/react@19.1.8)(gsap@3.15.0)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))(workbox-build@7.3.0)(workbox-window@7.4.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -352,8 +352,8 @@ importers:
         version: 8.19.0
     devDependencies:
       '@caperjs/core':
-        specifier: 0.1.2
-        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
+        specifier: 0.3.0
+        version: 0.3.0(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/react@19.1.8)(gsap@3.15.0)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))(workbox-build@7.3.0)(workbox-window@7.4.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -368,8 +368,8 @@ importers:
         version: 2.26.4
     devDependencies:
       '@caperjs/core':
-        specifier: 0.1.2
-        version: 0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)
+        specifier: 0.3.0
+        version: 0.3.0(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/react@19.1.8)(gsap@3.15.0)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))(workbox-build@7.3.0)(workbox-window@7.4.0)(yoga-layout@3.2.1)
       vite:
         specifier: ^8.0.7
         version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0)
@@ -884,13 +884,15 @@ packages:
   '@canvas/image-data@1.0.0':
     resolution: {integrity: sha512-BxOqI5LgsIQP1odU5KMwV9yoijleOPzHL18/YvNqF9KFSGF2K/DLlYAbDQsWqd/1nbaFuSkYD/191dpMtNh4vw==}
 
-  '@caperjs/core@0.1.2':
-    resolution: {integrity: sha512-DZfJB5e3Xx3g/JFq3BkBcc3rUerhANRisGo3TP9VxFfP2XCD5FWfOCzZU0r4Q+OsDggkRClwxkwjsHmAspWqpw==}
+  '@caperjs/core@0.3.0':
+    resolution: {integrity: sha512-nmvpmSCSacACTpW9KdFiCtkG2HntD20/QMtQFs8yPfRub3/DITU0sdqKufUxO5cwH7kwE7hphx2bG3eOySI2jw==}
     hasBin: true
     peerDependencies:
       '@pixi/sound': ^6.0.1
       gsap: ^3.15.0
       pixi.js: 8.19.0
+      vite: ^8.0.7
+      workbox-window: ^7.4.0
 
   '@clack/core@0.3.5':
     resolution: {integrity: sha512-5cfhQNH+1VQ2xLQlmzXMqUoiaH0lRBq9/CLW9lTyMbuKLC3+xEK01tHVvyut++mLOn5urSHmkm6I0Lg9MaJSTQ==}
@@ -6704,7 +6706,7 @@ snapshots:
 
   '@canvas/image-data@1.0.0': {}
 
-  '@caperjs/core@0.1.2(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/node@20.19.1)(@types/react@19.1.8)(gsap@3.15.0)(jiti@2.6.1)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(terser@5.43.1)(workbox-build@7.3.0)(yaml@2.8.0)(yoga-layout@3.2.1)':
+  '@caperjs/core@0.3.0(@pixi/sound@6.0.1(pixi.js@8.19.0))(@types/react@19.1.8)(gsap@3.15.0)(pixi.js@8.19.0)(react@19.1.0)(rollup@4.44.1)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.43.1)(yaml@2.8.0))(workbox-build@7.3.0)(workbox-window@7.4.0)(yoga-layout@3.2.1)':
     dependencies:
       '@assetpack/core': 1.7.0
       '@clack/prompts': 0.8.2
@@ -6743,24 +6745,12 @@ snapshots:
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
-      - '@types/node'
       - '@types/react'
-      - '@vitejs/devtools'
-      - esbuild
-      - jiti
-      - less
       - react
       - rolldown
       - rollup
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
       - supports-color
-      - terser
-      - tsx
       - workbox-build
-      - yaml
       - yoga-layout
 
   '@clack/core@0.3.5':
