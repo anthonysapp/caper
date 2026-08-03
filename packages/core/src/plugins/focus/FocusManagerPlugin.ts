@@ -734,6 +734,13 @@ export class FocusManagerPlugin extends Plugin<FocusManagerPluginOptions> implem
   private _removeGlobalListeners() {
     globalThis.document.removeEventListener('mousemove', this._handleGlobalMouseMove);
     globalThis.document.removeEventListener('pointerdown', this._handleGlobalPointerDown);
+    // keydown is added by _setupKeyboardListeners (window) and again, when pixi
+    // accessibility is off, by _updatePixiAccessibility (globalThis)
+    window.removeEventListener('keydown', this._onKeyDown, false);
+    globalThis.removeEventListener('keydown', this._onKeyDown, false);
+    globalThis.removeEventListener('keyup', this._onKeyUp, false);
+    // capture-phase listener added by _activate()
+    globalThis.document.removeEventListener('mousemove', this._onMouseMove, true);
   }
 
   private _handleGlobalMouseMove() {
