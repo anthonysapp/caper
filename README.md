@@ -1,5 +1,7 @@
 # Caper
 
+[![CI](https://github.com/anthonysapp/caper/actions/workflows/ci.yml/badge.svg)](https://github.com/anthonysapp/caper/actions/workflows/ci.yml)
+
 > An opinionated HTML game framework built on [PixiJS v8](https://pixijs.com).
 
 Caper sits on top of PixiJS — which is a renderer, not a game engine — and adds the parts you'd otherwise rebuild for every project: scenes, plugins, asset pipeline, build config, type-safe IDs, signals, and a project layout that scales from a 48-hour jam to something you ship.

@@ -72,7 +72,7 @@ Run from the repo root (package manager is **pnpm@9.3.0**):
 - `pnpm plugin:create` / `pnpm storage-adapter:create` — scaffold a new plugin or adapter via the interactive generators in `scripts/`.
 - `pnpm cli:create` — smoke-test the `create-caper` CLI by scaffolding `../cli-test-app`.
 
-There is **no repo-level test command** (root `test` script is a stub). Lint lives inside `packages/core`: `pnpm --filter caper lint` / `lint:fix`.
+There is **no repo-level test command** (root `test` script is a stub). Core checks run per-package: `pnpm --filter @caperjs/core test` / `lint` / `lint:fix`. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, typecheck, tests, and the kitchen-sink + plugin builds on every push and PR to `main`.
 
 ## Architecture notes
 
