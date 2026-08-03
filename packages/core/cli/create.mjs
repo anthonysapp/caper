@@ -304,7 +304,7 @@ export async function create(cwd = '.', packageManagerOverride) {
   });
 
   if (!appName) {
-    appName = name;
+    appName = defaultName;
   }
 
   // derive an application name from the project name by camel casing it
