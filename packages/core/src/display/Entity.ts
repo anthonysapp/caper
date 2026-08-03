@@ -9,8 +9,8 @@ import { Container } from './Container';
  *
  * **Lifecycle** (inherited from Container):
  *
- *   1. `constructor(props)` — props are stashed on `this.props` before
- *      Container's constructor runs. Don't reference `this.app` yet.
+ *   1. `constructor(props)` — Container's constructor runs first, then props
+ *      are stashed on `this.props`. Don't reference `this.app` yet.
  *   2. **addChild** — the factory auto-adds the instance to the calling
  *      Container; Pixi emits an `added` event.
  *   3. `added()` — override this to build the display tree using
