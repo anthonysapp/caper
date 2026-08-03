@@ -135,7 +135,7 @@ export class Camera extends Container implements ICamera {
   }
 
   set lerp(value: number) {
-    // if the value is less than 0 or greater than 1, clamp it to the range [0, 1], and log an error
+    // if the value is less than 0 or greater than 1, throw an error
     if (value < 0 || value > 1) {
       throw new Error('Camera lerp value must be in the range [0, 1]');
     }
