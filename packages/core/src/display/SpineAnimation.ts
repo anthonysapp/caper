@@ -20,8 +20,8 @@ export interface ISpineAnimation<ANames extends string = string> extends Instanc
   readonly onAnimationEvent: Signal<(entry: TrackEntry, event: Event) => void>;
   readonly onPaused: Signal<(entry: TrackEntry | null) => void>;
   readonly onResumed: Signal<(entry: TrackEntry | null) => void>;
-  setAnimation(name: ANames, loop?: boolean, tracklndex?: number): void;
-  getCurrentAnimation(tracklndex?: number): ANames;
+  setAnimation(name: ANames, loop?: boolean, trackIndex?: number): void;
+  getCurrentAnimation(trackIndex?: number): ANames;
   pause(): void;
   resume(): void;
   togglePause(): void;
@@ -113,8 +113,8 @@ export class SpineAnimation<ANames extends string = string> extends _SpineAnimat
     return (this.spine.state.getCurrent(trackIndex)?.animation?.name as ANames) || ('' as ANames);
   }
 
-  setAnimation(name: ANames, loop = false, tracklndex: number = 0) {
-    this.spine.state.setAnimation(tracklndex, name, loop);
+  setAnimation(name: ANames, loop = false, trackIndex: number = 0) {
+    this.spine.state.setAnimation(trackIndex, name, loop);
   }
 
   pause() {
