@@ -10,6 +10,7 @@ vi.mock('../core/Application', () => ({
 }));
 
 import { coreFunctionRegistry } from '../core';
+import { Container } from '../display/Container';
 import { LookupPlugin } from './LookupPlugin';
 
 describe('LookupPlugin', () => {
@@ -18,5 +19,24 @@ describe('LookupPlugin', () => {
     plugin.registerCoreFunctions();
 
     expect((coreFunctionRegistry as Record<string, unknown>).getChildAtPath).toBe(plugin.getChildAtPath);
+  });
+
+  it('disconnects its global container subscriptions on destroy', async () => {
+    const plugin = new LookupPlugin();
+    const added = vi.spyOn(plugin as any, 'onChildAdded');
+    const removed = vi.spyOn(plugin as any, 'onChildRemoved');
+    await plugin.initialize();
+
+    const child = { label: 'Thing', children: [] } as any;
+    Container.onGlobalChildAdded.emit(child);
+    Container.onGlobalChildRemoved.emit(child);
+    expect(added).toHaveBeenCalledTimes(1);
+    expect(removed).toHaveBeenCalledTimes(1);
+
+    plugin.destroy();
+    Container.onGlobalChildAdded.emit(child);
+    Container.onGlobalChildRemoved.emit(child);
+    expect(added).toHaveBeenCalledTimes(1);
+    expect(removed).toHaveBeenCalledTimes(1);
   });
 });

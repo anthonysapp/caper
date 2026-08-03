@@ -103,6 +103,7 @@ export class DataAdapter extends Plugin<Partial<IDataAdapterOptions>> implements
 
   destroy() {
     this.data = {} as DataAdapterType;
+    super.destroy();
   }
 
   public initialize(options?: Partial<IDataAdapterOptions>): void {

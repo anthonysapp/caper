@@ -21,4 +21,12 @@ export class StatsPlugin extends Plugin {
 
     Ticker.shared.add(this.stats.update, this.stats, UPDATE_PRIORITY.UTILITY);
   }
+
+  public destroy(): void {
+    if (this.stats) {
+      Ticker.shared.remove(this.stats.update, this.stats);
+      this.stats.dom.remove();
+    }
+    super.destroy();
+  }
 }

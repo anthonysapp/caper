@@ -106,8 +106,20 @@ export class LookupPlugin extends Plugin implements ILookupPlugin {
    * Sets up automatic tracking of container hierarchy changes.
    */
   public async initialize() {
-    Container.onGlobalChildAdded.connect(this.onChildAdded);
-    Container.onGlobalChildRemoved.connect(this.onChildRemoved);
+    this.addSignalConnection(
+      Container.onGlobalChildAdded.connect(this.onChildAdded),
+      Container.onGlobalChildRemoved.connect(this.onChildRemoved),
+    );
+  }
+
+  /**
+   * Disconnects the global container subscriptions and drops the lookup maps,
+   * so a destroyed plugin stops tracking (and holding on to) containers.
+   */
+  public destroy(): void {
+    this.pathToContainer.clear();
+    this.containerToPath.clear();
+    super.destroy();
   }
 
   /**
