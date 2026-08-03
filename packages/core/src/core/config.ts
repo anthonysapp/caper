@@ -20,7 +20,11 @@ export async function generatePluginList<T extends IPlugin = IPlugin>(plugins: P
 
   return plugins
     .map((plugin) => {
-      const p = pluginsList.find((p) => p.id === plugin || p.id === plugin[0]);
+      // A bare string entry matches on the whole id — indexing `[0]` into it
+      // would compare against its first character. Only tuple entries carry
+      // the id in slot 0.
+      const id = Array.isArray(plugin) ? plugin[0] : plugin;
+      const p = pluginsList.find((p) => p.id === id);
       if (!p) {
         Logger.warn(`Plugin ${plugin} not found`);
         return null;

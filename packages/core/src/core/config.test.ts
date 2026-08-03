@@ -29,6 +29,24 @@ describe('generatePluginList', () => {
       { id: 'audio', path: 'audio', module: expect.any(Function), requires: [], options: undefined, autoLoad: true },
     ]);
   });
+
+  // A bare string entry must match on the whole id. Indexing `plugin[0]` on a
+  // string yields its first character, so a discovered plugin whose id is that
+  // single character used to shadow the real match.
+  it('does not match a plugin whose id equals the first character of a string entry', async () => {
+    (globalThis as unknown as { Caper: { get: (key: string) => unknown } }).Caper = {
+      get: (key: string) =>
+        key === 'pluginsList'
+          ? [
+              { id: 'a', path: 'a', module: () => Promise.resolve({}), requires: [] },
+              { id: 'audio', path: 'audio', module: () => Promise.resolve({}), requires: [] },
+            ]
+          : undefined,
+    };
+
+    const result = await generatePluginList(['audio' as never]);
+    expect(result.map((p) => p.id)).toEqual(['audio']);
+  });
 });
 
 // Default plugins (`audio`, `input`, ...) are registered on the app before the
