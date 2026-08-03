@@ -1,6 +1,6 @@
 import { Application } from '../../../core/Application';
 import { WithSignals } from '../../../mixins/signals';
-import { bindAllMethods } from '../../../utils';
+import { bindAllMethods, Logger } from '../../../utils';
 import type { Action } from '../../actions';
 import { normalizeKey, type KeyboardEventDetail } from '../../KeyboardPlugin';
 import { AbstractControls } from '../AbstractControls';
@@ -15,6 +15,7 @@ export class KeyboardControls extends WithSignals(AbstractControls) {
   private _keyCombinationsMap: Map<string[], Action> = new Map();
   private _activeDownKeys: Map<string, Action> = new Map();
   private _activeUpKeys: Map<string, Action> = new Map();
+  private _warnedMissingActions: Set<string> = new Set();
 
   constructor() {
     super();
@@ -31,11 +32,9 @@ export class KeyboardControls extends WithSignals(AbstractControls) {
       return false;
     }
     if (Array.isArray(controlsAction)) {
-      return (
-        this._keyCombinationsMap.has(controlsAction) || controlsAction.some((key) => this._singleDownKeys.has(key))
-      );
+      return controlsAction.some((key) => this._isInputActive(key));
     } else {
-      return this._singleDownKeys.has(controlsAction);
+      return this._isInputActive(controlsAction);
     }
   }
 
@@ -57,6 +56,27 @@ export class KeyboardControls extends WithSignals(AbstractControls) {
     this.app.ticker.add(this._update);
   }
 
+  public destroy(): void {
+    this.app.ticker.remove(this._update);
+    super.destroy();
+  }
+
+  /** A single key, or a `+` separated combination requiring every key to be down. */
+  private _isInputActive(input: string): boolean {
+    if (input.includes('+')) {
+      return input.split('+').every((key) => this._singleDownKeys.has(key));
+    }
+    return this._singleDownKeys.has(input);
+  }
+
+  private _warnMissingAction(key: string) {
+    if (this._warnedMissingActions.has(key)) {
+      return;
+    }
+    this._warnedMissingActions.add(key);
+    Logger.warn(`KeyboardControls: scheme references unknown action "${key}"`);
+  }
+
   private _sortActions() {
     const actions = this.app.actionsPlugin.getActions();
     this._keyCombinations = [];
@@ -68,6 +88,10 @@ export class KeyboardControls extends WithSignals(AbstractControls) {
     keys.forEach((key) => {
       const item = this._keyDownMap[key];
       const action = actions[key];
+      if (!action) {
+        this._warnMissingAction(key);
+        return;
+      }
       if (
         action.context !== '*' &&
         action.context !== this.app.actionContext &&

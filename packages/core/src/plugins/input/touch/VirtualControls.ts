@@ -1,9 +1,10 @@
-import { bindAllMethods } from '../../../utils';
+import { bindAllMethods, Logger } from '../../../utils';
 import type { ControlsActionMap, JoystickControlsScheme, TouchControlsMap, TouchControlsScheme } from '../types';
 
 import { JoystickDirection } from '..';
 import { Application } from '../../../core/Application';
 import { WithSignals } from '../../../mixins/signals';
+import type { SignalConnection } from '../../../signals';
 import type { IButton, IJoystick } from '../../../ui';
 import type { Action } from '../../actions';
 import { AbstractControls } from '../AbstractControls';
@@ -20,6 +21,8 @@ export class VirtualControls extends WithSignals(AbstractControls) {
   private _activeButtonDownIds: Map<string, Action> = new Map();
   private _activeButtonUpIds: Map<string, Action> = new Map();
   private _combinationsMap: Map<string[], Action> = new Map();
+  private _buttonConnections: Map<IButton, SignalConnection[]> = new Map();
+  private _warnedMissingActions: Set<string> = new Set();
 
   constructor() {
     super();
@@ -44,12 +47,14 @@ export class VirtualControls extends WithSignals(AbstractControls) {
     if (!button || this._buttons.has(button)) {
       return;
     }
-    this.addSignalConnection(
+    const connections = [
       button.onDown.connect(() => this._handleButtonDown(button)),
       button.onUp.connect(() => this._handleButtonUp(button)),
       button.onUpOutside.connect(() => this._handleButtonUp(button)),
       button.onDestroy.connect(() => this.removeButton(button)),
-    );
+    ];
+    this.addSignalConnection(...connections);
+    this._buttonConnections.set(button, connections);
     this._buttons.add(button);
   }
 
@@ -57,10 +62,10 @@ export class VirtualControls extends WithSignals(AbstractControls) {
     if (!button || !this._buttons.has(button)) {
       return;
     }
-    button.onDown.disconnect(() => this._handleButtonDown(button));
-    button.onUp.disconnect(() => this._handleButtonUp(button));
-    button.onUpOutside.disconnect(() => this._handleButtonUp(button));
-    button.onDestroy.disconnect(() => this.removeButton(button));
+    // signals disconnect by identity — disconnect the connections made in addButton
+    this._buttonConnections.get(button)?.forEach((connection) => connection.disconnect());
+    this._buttonConnections.delete(button);
+    this._singleDownButtons.delete(button.id!);
     this._buttons.delete(button);
   }
 
@@ -77,13 +82,18 @@ export class VirtualControls extends WithSignals(AbstractControls) {
     this.app.ticker.add(this._update);
   }
 
+  public destroy(): void {
+    this.app.ticker.remove(this._update);
+    super.destroy();
+  }
+
   isActionActive(action: Action): boolean {
     const buttonAction = this.scheme['down']?.[action] ?? null;
     if (buttonAction) {
       if (Array.isArray(buttonAction)) {
-        return this._combinationsMap.has(buttonAction);
+        return buttonAction.some((input) => this._isInputActive(input));
       } else {
-        return this._singleDownButtons.has(buttonAction);
+        return this._isInputActive(buttonAction);
       }
     } else {
       const joystickAction = this.scheme['joystick']?.[action] ?? null;
@@ -98,6 +108,22 @@ export class VirtualControls extends WithSignals(AbstractControls) {
     return false;
   }
 
+  /** A single button id, or a `+` separated combination requiring every input to be down. */
+  private _isInputActive(input: string): boolean {
+    if (input.includes('+')) {
+      return input.split('+').every((id) => this._singleDownButtons.has(id) || this._joystick?.direction === id);
+    }
+    return this._singleDownButtons.has(input);
+  }
+
+  private _warnMissingAction(key: string) {
+    if (this._warnedMissingActions.has(key)) {
+      return;
+    }
+    this._warnedMissingActions.add(key);
+    Logger.warn(`VirtualControls: scheme references unknown action "${key}"`);
+  }
+
   private _sortActions() {
     const actions = this.app.actionsPlugin.getActions();
     this._combinations = [];
@@ -110,6 +136,10 @@ export class VirtualControls extends WithSignals(AbstractControls) {
     buttons.forEach((key) => {
       const item = this._buttonDownMap[key];
       const action = actions[key];
+      if (!action) {
+        this._warnMissingAction(key);
+        return;
+      }
       if (
         action.context !== '*' &&
         action.context !== this.app.actionContext &&
@@ -141,6 +171,10 @@ export class VirtualControls extends WithSignals(AbstractControls) {
     buttons.forEach((key) => {
       const item = this._buttonUpMap[key];
       const action = actions[key];
+      if (!action) {
+        this._warnMissingAction(key);
+        return;
+      }
       if (
         action.context !== '*' &&
         action.context !== this.app.actionContext &&

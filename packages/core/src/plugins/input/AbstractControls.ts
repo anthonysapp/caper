@@ -12,4 +12,10 @@ export class AbstractControls {
   initialize(scheme: Partial<ControlsActionMap>) {
     this.scheme = scheme;
   }
+
+  /**
+   * Terminates the destroy chain — subclasses are built on WithSignals, whose destroy()
+   * calls super.destroy().
+   */
+  destroy(): void {}
 }
