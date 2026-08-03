@@ -95,7 +95,7 @@ describe('Application#pause / #resume', () => {
  * popup managers so the `views` getter has something to walk.
  */
 function makeResizeApp() {
-  const app = Object.create(Application.prototype) as Application & Record<string, any>;
+  const app = Object.create(Application.prototype) as any;
   app.config = {};
   app._plugins = new Map();
   app._center = {
@@ -133,6 +133,25 @@ describe('Application#views', () => {
     await app._resize();
 
     expect(late.position.set).toHaveBeenCalledWith(50, 25);
+  });
+});
+
+describe('Application#isActionActive', () => {
+  function makeActionApp(held: string[]) {
+    const app = Object.create(Application.prototype) as any;
+    app._plugins = new Map();
+    app._input = { isActionActive: (action: string) => held.includes(action) };
+    // Both actions are *declared*; only what the input plugin reports counts.
+    app._actionsPlugin = { getActions: () => ({ jump: {}, run: {} }) };
+    return app;
+  }
+
+  it('returns false for a declared action that is not currently held', () => {
+    expect(makeActionApp([]).isActionActive('jump')).toBe(false);
+  });
+
+  it('returns true while the input plugin reports the action held', () => {
+    expect(makeActionApp(['jump']).isActionActive('jump')).toBe(true);
   });
 });
 

@@ -907,7 +907,9 @@ export class Application extends PIXIPApplication implements IApplication {
   }
 
   /**
-   * Checks if an action is currently active
+   * Checks if an action is currently active, i.e. held right now on keyboard
+   * or touch controls. Whether an action is merely *declared* is a separate
+   * question — use `app.actionsPlugin.getActions()` for that.
    * @param {A} action - The action to check
    * @returns {boolean} True if the action is active, false otherwise
    * @example
@@ -917,7 +919,7 @@ export class Application extends PIXIPApplication implements IApplication {
    * }
    */
   public isActionActive(action: AppActions): boolean {
-    return this.actionsPlugin.getActions()[action as string] !== undefined;
+    return this.input.isActionActive(action as string);
   }
 
   /**
