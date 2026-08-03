@@ -179,9 +179,11 @@ export class PopupManagerPlugin extends Plugin implements IPopupManagerPlugin {
    */
   removeAllPopups(animate: boolean = false): void {
     if (animate) {
-      this._activePopups.forEach((popup) => {
-        popup.hide();
-      });
+      // reuse the single-popup hide path so the view, the active map and the
+      // current id get cleaned up once each hide animation resolves
+      for (const id of [...this._activePopups.keys()]) {
+        void this.hidePopup(id);
+      }
     } else {
       this._activePopups.clear();
       this.view.removeChildren();
