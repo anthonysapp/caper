@@ -305,25 +305,25 @@ export interface IApplication extends PIXIPApplication {
    * A signal that emits when the application is paused.
    * @example
    * ```typescript
-   * app.onPause.connect(() => {
-   *   console.log('Application paused');
+   * app.onPause.connect((config) => {
+   *   console.log('Application paused', config);
    *   // Stop game-specific timers or animations not handled by app.pause()
    * });
    * ```
    */
-  onPause: Signal<() => void>;
+  onPause: Signal<(config: PauseConfig) => void>;
 
   /**
    * A signal that emits when the application is resumed from a paused state.
    * @example
    * ```typescript
-   * app.onResume.connect(() => {
-   *   console.log('Application resumed');
+   * app.onResume.connect((config) => {
+   *   console.log('Application resumed', config);
    *   // Restart game-specific timers or animations
    * });
    * ```
    */
-  onResume: Signal<() => void>;
+  onResume: Signal<(config: PauseConfig) => void>;
 
   /**
    * Pauses the application.
