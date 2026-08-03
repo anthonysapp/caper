@@ -213,7 +213,6 @@ export class Application extends PIXIPApplication implements IApplication {
   protected _voiceoverPlugin: IVoiceOverPlugin;
   protected _captionsPlugin: ICaptionsPlugin;
   protected _actions: ActionSignal;
-  protected _isBooting: boolean = true;
 
   protected _env: Record<string, string> = (import.meta as any).env || {};
   protected _makeFactory: typeof defaultFactoryMethods;
@@ -762,7 +761,6 @@ export class Application extends PIXIPApplication implements IApplication {
       this.config.container.classList.add('loaded');
     }
 
-    this._isBooting = false;
     // return the Application instance to the create method, if needed
     return Application.instance as unknown as App;
   }
