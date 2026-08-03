@@ -9,6 +9,7 @@ vi.mock('../core/Application', () => ({
   Application: { getInstance: () => ({ renderer: { canvas: null } }) },
 }));
 
+import { Signal } from '../signals';
 import { WebEventsPlugin } from './WebEventsPlugin';
 
 type FakeVisualViewport = EventTarget & { scale: number };
@@ -71,5 +72,36 @@ describe('WebEventsPlugin visualViewport resize', () => {
 
   it('initializes without error when visualViewport is unavailable', () => {
     expect(() => plugin.initialize()).not.toThrow();
+  });
+});
+
+describe('WebEventsPlugin destroy', () => {
+  let plugin: WebEventsPlugin;
+
+  beforeEach(() => {
+    plugin = new WebEventsPlugin();
+  });
+
+  it('stops handling orientationchange after destroy', () => {
+    const spy = vi.spyOn(plugin as any, '_onOrientationChanged');
+    plugin.initialize();
+
+    window.dispatchEvent(new Event('orientationchange'));
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    plugin.destroy();
+    window.dispatchEvent(new Event('orientationchange'));
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('disconnects tracked signal connections on destroy', () => {
+    const signal = new Signal<() => void>();
+    const handler = vi.fn();
+    plugin.addSignalConnection(signal.connect(handler));
+
+    plugin.destroy();
+    signal.emit();
+
+    expect(handler).not.toHaveBeenCalled();
   });
 });

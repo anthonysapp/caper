@@ -61,7 +61,9 @@ export class WebEventsPlugin extends Plugin implements IWebEventsPlugin {
     document.removeEventListener('fullscreenchange', this._onResize);
     window.removeEventListener('pagehide', this._onPageHide, false);
     window.removeEventListener('pageshow', this._onPageShow, false);
+    window.removeEventListener('orientationchange', this._onOrientationChanged);
     window.visualViewport?.removeEventListener('resize', this._onVisualViewportResize);
+    super.destroy();
   }
 
   protected getCoreSignals(): string[] {
