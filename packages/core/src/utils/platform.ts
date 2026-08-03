@@ -20,7 +20,7 @@ export const isRetina =
  */
 export const isTouch: boolean =
   typeof window !== 'undefined'
-    ? 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator?.maxTouchPoints > 0
+    ? 'ontouchstart' in window || navigator.maxTouchPoints > 0
     : false;
 
 /**
