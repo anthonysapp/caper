@@ -10,5 +10,6 @@ Remaining minor items, found during the fix sweep (none block a release):
 | `packages/core/build/plugins/caperConfig.mjs:24` | Unused `loadManifestBundleNames` import. |
 | `packages/core/build/plugins/assetTypes.mjs` (EOF), `build/plugins/lists.mjs:~137` | Orphan JSDoc blocks describing functions that no longer follow them. |
 | `src/plugins/Plugin.ts`, `TimerPlugin.ts`, `audio/AudioInstance.ts`, `captions/CaptionsRenderer.ts`, `focus/FocusManagerPlugin.ts` | Pre-existing lint warnings (unused eslint-disable directives / unused vars). |
+| `scripts/` version-bump flow | Bumping package versions (release flow) rewrites package.json files without running `pnpm install`, leaving `pnpm-lock.yaml` stale — broke the first CI run after the 0.3.0 release (`ERR_PNPM_OUTDATED_LOCKFILE`). Bump scripts should sync the lockfile. |
 
 Process: when a defect is found, add it here with severity + file:line; when fixed, remove it and update any matching wiki gotcha.
