@@ -139,7 +139,11 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
     this._defaultLoadMethod = method;
   }
 
-  public destroy(): void {}
+  public destroy(): void {
+    window.removeEventListener('hashchange', this._onHashChange);
+    this._debugMenu?.parentElement?.removeChild(this._debugMenu);
+    super.destroy();
+  }
 
   public async initialize(_options: any, app: IApplication): Promise<void> {
     this._debugVisible =
@@ -179,8 +183,10 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
       this._listenForHashChange();
     }
 
-    this.app.onPause.connect(this._onPause, 'highest');
-    this.app.onResume.connect(this._onResume, 'highest');
+    this.addSignalConnection(
+      this.app.onPause.connect(this._onPause, 'highest'),
+      this.app.onResume.connect(this._onResume, 'highest'),
+    );
 
     return Promise.resolve(undefined);
   }
@@ -368,12 +374,14 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
   }
 
   private _listenForHashChange() {
-    window.addEventListener('hashchange', () => {
-      const sceneId = this.getSceneFromHash();
-      if (sceneId) {
-        void this.loadScene(sceneId);
-      }
-    });
+    window.addEventListener('hashchange', this._onHashChange);
+  }
+
+  private _onHashChange() {
+    const sceneId = this.getSceneFromHash();
+    if (sceneId) {
+      void this.loadScene(sceneId);
+    }
   }
 
   private async _createCurrentScene() {
@@ -655,8 +663,10 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
       }
     });
 
-    this.onSceneChangeStart.connect(this._disableDebugMenu);
-    this.onSceneChangeComplete.connect(this._enableDebugMenu);
+    this.addSignalConnection(
+      this.onSceneChangeStart.connect(this._disableDebugMenu),
+      this.onSceneChangeComplete.connect(this._enableDebugMenu),
+    );
   }
 
   private _enableDebugMenu() {
