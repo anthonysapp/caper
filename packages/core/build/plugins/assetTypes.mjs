@@ -399,12 +399,12 @@ export function assetTypesPlugin(manifestUrl = 'assets.json') {
 
   return {
     name: 'vite-plugin-asset-types',
-    config(config) {
-      ispPwaEnabled = config.plugins.some((p) => p.name === 'vite-plugin-pwa');
-    },
     configResolved(config) {
       publicDir = config.publicDir;
       root = config.root;
+      // Resolved, so the list is flat: in the `config` hook `caper()` is still
+      // one nested array and vite-plugin-pwa is never found at the top level.
+      ispPwaEnabled = config.plugins.some((p) => p.name === 'vite-plugin-pwa');
     },
     async buildStart() {
       // a short delay to allow assetpack to generate the manifest

@@ -11,9 +11,15 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveConfig } from 'vite';
 import { assetTypesPlugin } from './assetTypes.mjs';
+import { caper } from '../index.mjs';
 import { env, logger } from '../internal/util.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const fixtureRoot = path.resolve(here, '../../test/fixtures/app');
 
 let root;
 
@@ -50,5 +56,32 @@ describe('closeBundle', () => {
     withPlugins(plugin, [{ name: 'some-other-plugin' }]);
     await plugin.closeBundle();
     expect(info).not.toHaveBeenCalled();
+  });
+});
+
+/** Resolves a real vite config for the fixture, as `plugins: [caper()]` would. */
+async function resolvePreset(options) {
+  return resolveConfig({ configFile: false, root: fixtureRoot, logLevel: 'silent', plugins: [caper(options)] }, 'build');
+}
+
+describe('pwa detection', () => {
+  it("finds vite-plugin-pwa through caper()'s nested plugin array", async () => {
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    // Regression: detection ran against the *unresolved* plugins, where
+    // `caper()` is still one nested array, so the check never matched and the
+    // post-bundle pass silently never ran.
+    const resolved = await resolvePreset({ pwa: {} });
+    const plugin = resolved.plugins.find((p) => p.name === 'vite-plugin-asset-types');
+    await plugin.closeBundle();
+    expect(info.mock.calls.flat().join('\n')).toContain('PWA enabled');
+  });
+
+  it('stays off when the project asks for no pwa', async () => {
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    const resolved = await resolvePreset({});
+    const plugin = resolved.plugins.find((p) => p.name === 'vite-plugin-asset-types');
+    await plugin.closeBundle();
+    expect(info.mock.calls.flat().join('\n')).not.toContain('PWA enabled');
   });
 });
