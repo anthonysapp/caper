@@ -147,6 +147,18 @@ describe('Button press-state machine', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('dispatches a click action with no data without throwing, attaching the button to the payload', () => {
+    const button = makeButton();
+    (button as any).config.actions = { click: { id: 'foo' } };
+    const action = vi.fn();
+    Object.defineProperty(button, 'app', { value: { action }, configurable: true });
+
+    (button as any).handlePointerDown({ pointerId: 1 });
+    expect(() => (button as any).handleClick({ pointerId: 1 })).not.toThrow();
+
+    expect(action).toHaveBeenCalledWith('foo', { button });
+  });
+
   it('still clicks for a synthetic keyboard activation (no pointerId)', () => {
     const button = makeButton();
     const onClick = vi.fn();

@@ -461,6 +461,7 @@ export class Button extends _Button implements IButton {
     if (typeof action === 'function') {
       void action();
     } else {
+      action.data ??= {};
       if (!action.data.button) {
         action.data.button = this;
       }
