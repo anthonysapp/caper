@@ -10,10 +10,8 @@ Remaining minor items, found during the fix sweep (none block a release; the 202
 | `packages/core/build/plugins/caperConfig.mjs:24` | Unused `loadManifestBundleNames` import. |
 | `packages/core/build/plugins/assetTypes.mjs` (EOF), `build/plugins/lists.mjs:~137` | Orphan JSDoc blocks describing functions that no longer follow them. |
 | `src/plugins/Plugin.ts`, `TimerPlugin.ts`, `audio/AudioInstance.ts`, `captions/CaptionsRenderer.ts`, `focus/FocusManagerPlugin.ts` | Pre-existing lint warnings (unused eslint-disable directives / unused vars). |
-
 | `src/plugins/captions/CaptionsPlugin.ts` | Connects five voiceover signals with raw `.connect()` instead of `addSignalConnection` and has no `destroy()` — those connections leak. (Ticker leak fixed 2026-08-04 via `addTickerCallback`.) |
 | `src/plugins/FullScreenPlugin.ts` | Registers `fullscreenchange` twice with the same handler — harmless no-op duplicate. |
 | `src/plugins/WebEventsPlugin.ts` | `_onOrientationChanged`'s 10 ms `setTimeout` can fire after environment teardown (intermittent `window is not defined` in tests) — should be a tracked/cancelable timer. |
-
 
 Process: when a defect is found, add it here with severity + file:line; when fixed, remove it and update any matching wiki gotcha.
