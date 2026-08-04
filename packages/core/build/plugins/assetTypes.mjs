@@ -452,9 +452,3 @@ export function assetTypesPlugin(manifestUrl = 'assets.json') {
     },
   };
 }
-
-/**
- * Read the assetpack manifest from disk and return the set of bundle names.
- * Returns `null` if the manifest doesn't exist yet — in that case the caller
- * should skip bundle-name validation rather than spam false warnings.
- */

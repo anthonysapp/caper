@@ -134,21 +134,6 @@ export function uiListPlugin(isProject = true) {
   });
 }
 
-/**
- * Walks `src/locales/`, picks a reference locale file (prefers `en.ts`,
- * falls back alphabetically), AST-parses its default-exported object, and
- * flattens every leaf path into a dot-notation key.
- *
- * Given:
- *   export default { foo: 'bar', obj: { nested: 'baz' }, replace: { x: '...' } };
- * Returns:
- *   ['foo', 'obj.nested', 'replace.x']
- *
- * Only string literal leaves are emitted. Arrays, function calls, and other
- * non-object/non-literal expressions are ignored (they can't be typed
- * meaningfully at this layer).
- */
-
 export function pluginListPlugin(isProject = true) {
   function extractClassName(plugin) {
     // For static (non-function) imports, the module value is the raw import path.
