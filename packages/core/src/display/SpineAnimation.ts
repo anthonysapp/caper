@@ -1,12 +1,12 @@
 import { type AnimationStateListener, type Event, type TrackEntry } from '@esotericsoftware/spine-core';
-import { Application } from '../core/Application';
 import type { SpineProps } from '../mixins/factory/props';
 import { Factory } from '../mixins/factory/Factory';
+import { WithLifecycle } from '../mixins/lifecycle';
 import { WithSignals } from '../mixins/signals';
 import { Signal } from '../signals';
 import { type AppTypeOverrides, bindAllMethods, Spine } from '../utils';
 
-const _SpineAnimation = WithSignals(Factory());
+const _SpineAnimation = WithLifecycle(WithSignals(Factory()));
 
 export interface ISpineAnimation<ANames extends string = string> extends InstanceType<typeof _SpineAnimation> {
   readonly spine: Spine;
@@ -43,10 +43,6 @@ export class SpineAnimation<ANames extends string = string> extends _SpineAnimat
 
   protected _stateListener: AnimationStateListener;
 
-  get app(): AppTypeOverrides['App'] {
-    return Application.getInstance();
-  }
-
   get animationNames(): ANames[] {
     return this.spine.state.data.skeletonData.animations.map((a) => a.name) as ANames[];
   }
@@ -65,6 +61,8 @@ export class SpineAnimation<ANames extends string = string> extends _SpineAnimat
   public constructor(props?: Partial<SpineProps>) {
     super();
     bindAllMethods(this);
+    // Wire up the shared lifecycle (adds the 'added' / 'removed' listeners).
+    this._initLifecycle();
     let data = props?.data;
     let spineData: { skeleton: string; atlas: string } | string = '';
     if (typeof data === 'string') {
