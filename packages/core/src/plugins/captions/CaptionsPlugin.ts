@@ -287,11 +287,11 @@ export class CaptionsPlugin extends Plugin<CaptionsOptions> implements ICaptions
 
   public postInitialize(): void {
     this.app.i18n.onLocaleChanged.connect(this._handleLocaleChange);
-    this.app.voiceover.onVoiceOverStart.connect(this._handleVoiceOverStart);
-    this.app.voiceover.onVoiceOverPaused.connect(this._handleVoiceOverPaused);
-    this.app.voiceover.onVoiceOverResumed.connect(this._handleVoiceOverResumed);
-    this.app.voiceover.onVoiceOverComplete.connect(this._handleVoiceoverComplete);
-    this.app.voiceover.onVoiceOverStopped.connect(this._handleVoiceoverStopped);
+    this.addSignalConnection(this.app.voiceover.onVoiceOverStart.connect(this._handleVoiceOverStart));
+    this.addSignalConnection(this.app.voiceover.onVoiceOverPaused.connect(this._handleVoiceOverPaused));
+    this.addSignalConnection(this.app.voiceover.onVoiceOverResumed.connect(this._handleVoiceOverResumed));
+    this.addSignalConnection(this.app.voiceover.onVoiceOverComplete.connect(this._handleVoiceoverComplete));
+    this.addSignalConnection(this.app.voiceover.onVoiceOverStopped.connect(this._handleVoiceoverStopped));
 
     this.app.stage.addChild(this.view);
     this._options.maxWidth = resolveMaxWidth(this._originalOptions.maxWidth, this.app.size.width);
