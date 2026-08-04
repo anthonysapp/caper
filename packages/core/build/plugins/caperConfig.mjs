@@ -21,7 +21,6 @@ import {
 import { caperConfigSchema } from '../internal/schema.mjs';
 import { cwd, DTS_FILE_NAME, logger } from '../internal/util.mjs';
 import { runBuildTimeValidation } from '../internal/validate.mjs';
-import { loadManifestBundleNames } from '../internal/manifest.mjs';
 
 async function validateCaperConfig(server, root) {
   if (!server || typeof server.ssrLoadModule !== 'function') return true;
