@@ -1,5 +1,6 @@
 import { type RegisterSWOptions } from 'vite-plugin-pwa/types';
 import { sayHello } from '../hello';
+import { setDefaultFactoryMethods } from '../mixins/factory/defaults';
 import type { PluginListItem } from '../plugins';
 import type { AppTypeOverrides, SceneImportListItem } from '../utils';
 import { triggerViteError } from '../utils/vite';
@@ -147,6 +148,16 @@ export async function create(
   domElement: string | Window | HTMLElement = DEFAULT_GAME_CONTAINER_ID,
   speak: boolean = true,
 ): Promise<App> {
+  // The package declares `sideEffects: false`, which lets an app's bundler drop
+  // const.ts's top-level registration from production builds. Re-registering here
+  // anchors the table to create(), which every app calls, so it can't be shaken.
+  // The import MUST stay dynamic: a static `core → const.ts` edge closes the
+  // factory/ui module cycle (see mixins/factory/defaults.ts and the
+  // importOrder.*.test.ts guards). By the time create() runs, nothing is
+  // mid-evaluation, so loading const.ts here is safe. Idempotent in dev/test,
+  // where the module side effect already registered the table.
+  const { defaultFactoryMethods } = await import('../mixins/factory/const');
+  setDefaultFactoryMethods(defaultFactoryMethods);
   await documentReady();
   checkWebGL();
   if (speak) {
