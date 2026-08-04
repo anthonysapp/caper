@@ -16,4 +16,6 @@ Remaining minor items, found during the fix sweep (none block a release; the 202
 | `src/plugins/FullScreenPlugin.ts` | Registers `fullscreenchange` twice with the same handler — harmless no-op duplicate. |
 | `src/plugins/WebEventsPlugin.ts` | `_onOrientationChanged`'s 10 ms `setTimeout` can fire after environment teardown (intermittent `window is not defined` in tests) — should be a tracked/cancelable timer. |
 
+| `apps/kitchen-sink/src/scenes/physics/CrunchPhysicsScene.ts:85` | `pnpm --filter caper-kitchen-sink exec tsc` fails: `AnimatedSprite` resolves to two type identities (npm-installed `@caperjs/core@0.3.0` via plugin-crunch's dependency vs the workspace `packages/core/lib`). Workspace resolution issue, not app code; kitchen-sink's tsc isn't in CI so it only bites local `types` runs. |
+
 Process: when a defect is found, add it here with severity + file:line; when fixed, remove it and update any matching wiki gotcha.

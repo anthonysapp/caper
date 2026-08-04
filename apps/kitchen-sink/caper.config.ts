@@ -1,4 +1,11 @@
 import { KitchenSinkApplication } from '@/KitchenSinkApplication';
+
+const hasRollbarToken = !!import.meta.env.VITE_ROLLBAR_ACCESS_TOKEN;
+if (!hasRollbarToken) {
+  console.warn(
+    '[kitchen-sink] Rollbar disabled — set VITE_ROLLBAR_ACCESS_TOKEN to enable error reporting in production builds.',
+  );
+}
 import EN from '@/locales/en';
 import { Transition } from '@/scenes/Transition';
 import { ExampleOutliner } from '@/ui/ExampleOutliner';
@@ -168,15 +175,21 @@ export default defineConfig({
         autoLoad: false,
       },
     ],
-    [
-      'rollbar',
-      {
-        options: {
-          isDev: import.meta.env.MODE === 'development',
-          environment: import.meta.env.MODE,
-        },
-      },
-    ],
+    // Rollbar requires VITE_ROLLBAR_ACCESS_TOKEN (see plugin-rollbar). The demo
+    // must run without secrets (contributors, CI), so skip it when unset.
+    ...(hasRollbarToken
+      ? [
+          [
+            'rollbar',
+            {
+              options: {
+                isDev: import.meta.env.MODE === 'development',
+                environment: import.meta.env.MODE,
+              },
+            },
+          ] as ['rollbar', { options?: any }],
+        ]
+      : []),
     'firebase',
   ],
   i18n: {
