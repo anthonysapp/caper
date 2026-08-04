@@ -45,4 +45,13 @@ describe('FullScreenPlugin fullscreenchange handling', () => {
     expect(plugin.isFullScreen).toBe(true);
     expect(spy).toHaveBeenCalledWith(true);
   });
+
+  it('handles a single fullscreenchange event exactly once', () => {
+    const spy = vi.fn();
+    plugin.onFullScreenChange.connect(spy);
+
+    document.dispatchEvent(new Event('fullscreenchange'));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
 });

@@ -147,7 +147,6 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
     this.listen(document, 'webkitfullscreenchange', this._onFullScreenChange);
     this.listen(document, 'mozfullscreenchange', this._onFullScreenChange);
     this.listen(document, 'msfullscreenchange', this._onFullScreenChange);
-    this.listen(document, 'fullscreenchange', this._onFullScreenChange);
   }
 
   /**
