@@ -33,6 +33,92 @@ function fontWeights() {
   };
 }
 
+/**
+ * Pipes an exempted asset must not enter. AssetPack's `mergePipeOptions` reads
+ * `asset.settings[pipe.name]` and treats `false` as "skip this pipe for this
+ * asset" — the same per-asset switch the `assetSettings` config exposes, only
+ * set programmatically here because the page names are inside the font file,
+ * not in anything an app author could glob.
+ *
+ * `cache-buster` is the one that actually breaks production, and it is also the
+ * one no tag can turn off (`cacheBuster().test` is `!asset.isFolder`, full
+ * stop), which is why this uses settings rather than the `nomip`/`nc` tags.
+ */
+const BITMAP_FONT_SKIPPED_PIPES = ['mipmap', 'compress', 'cache-buster'];
+
+/** Both text `.fnt` and XML bitmap fonts name their pages as `file="…png"`. */
+const fontPagePattern = /file="([^"]+\.png)"/g;
+
+const toPosix = (value) => value.replace(/\\/g, '/');
+const dirOf = (value) => toPosix(value).replace(/\/[^/]*$/, '');
+const baseOf = (value) => toPosix(value).replace(/^.*\//, '');
+
+/**
+ * AssetPack pipe that keeps pre-rasterized bitmap fonts out of the image
+ * pipeline entirely — no resolution variants, no webp conversion, no
+ * cache-bust rename — for the descriptor and every texture page it names.
+ *
+ * A `.fnt` hardcodes `page id=0 file="Syncopate.png"` and PixiJS fetches that
+ * exact name relative to the descriptor's own URL; the manifest is never
+ * consulted for it. So the moment assetpack hashes the page to
+ * `Syncopate-MPx5Vw.webp`, the loader asks for a file that no longer exists,
+ * gets vite's SPA fallback HTML back, and the app fails to boot. Resizing is
+ * just as fatal in the other direction: the glyph rects in the descriptor are
+ * exact pixel coordinates into that one image.
+ *
+ * Detection is automatic — no folder tagging asked of app authors. `start` runs
+ * against the whole asset tree before any transform, which is the only point
+ * where a font's descriptor can be read in time to exempt its siblings.
+ */
+export function bitmapFontPassthrough() {
+  return {
+    folder: false,
+    name: 'bitmap-font-passthrough',
+    defaultOptions: null,
+    async start(rootAsset) {
+      const files = new Map();
+      const descriptors = [];
+
+      const walk = (asset) => {
+        if (!asset.isFolder) {
+          files.set(toPosix(asset.path), asset);
+          if (/\.(fnt|xml)$/i.test(asset.path)) descriptors.push(asset);
+        }
+        for (const child of asset.children ?? []) walk(child);
+      };
+      walk(rootAsset);
+
+      const exempt = (asset) => {
+        asset.settings = { ...asset.settings };
+        for (const pipe of BITMAP_FONT_SKIPPED_PIPES) asset.settings[pipe] = false;
+      };
+
+      for (const descriptor of descriptors) {
+        let text;
+        try {
+          // A deleted asset is still on the tree, and a binary .fnt decodes to
+          // noise — either way the page match below simply finds nothing.
+          text = descriptor.buffer.toString('utf8');
+        } catch {
+          continue;
+        }
+
+        const pages = [...text.matchAll(fontPagePattern)].map((match) => match[1]);
+        // No page reference means it is not a bitmap font — an ordinary .xml
+        // data file must keep its cache-bust hash.
+        if (!pages.length) continue;
+
+        exempt(descriptor);
+        const directory = dirOf(descriptor.path);
+        for (const page of pages) {
+          const sibling = files.get(`${directory}/${baseOf(page)}`);
+          if (sibling) exempt(sibling);
+        }
+      }
+    },
+  };
+}
+
 const defaultManifestUrl = 'assets.json';
 
 const defaultPixiPipesConfig = {
@@ -184,6 +270,10 @@ export const assetpackConfig = (manifestUrl = defaultManifestUrl, pixiPipesConfi
   // is converted to a weights[] array before webfont processes the asset.
   const wfIdx = pipes.findIndex((p) => p.name === 'webfont');
   pipes.splice(wfIdx >= 0 ? wfIdx : 0, 0, fontWeights());
+
+  // Position is irrelevant — this one only has a `start` hook, and AssetPack
+  // runs every pipe's `start` before the first asset is transformed.
+  pipes.unshift(bitmapFontPassthrough());
 
   return {
     manifestUrl,

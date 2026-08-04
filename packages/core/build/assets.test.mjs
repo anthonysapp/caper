@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePixiPipesConfig } from './assetpack.mjs';
+import { assetpackConfig, bitmapFontPassthrough, resolvePixiPipesConfig } from './assetpack.mjs';
 import { caper } from './index.mjs';
 
 const names = (options) =>
@@ -116,5 +116,77 @@ describe('caper() plugin list', () => {
       'vite-plugin-caper-config',
       'vite-plugin-caper-dev-helper',
     ]);
+  });
+});
+
+describe('bitmap font passthrough', () => {
+  /** Minimal stand-in for AssetPack's Asset: enough shape for the start hook. */
+  const asset = (filePath, contents) => ({
+    path: filePath,
+    isFolder: contents === undefined,
+    children: [],
+    settings: undefined,
+    get buffer() {
+      if (contents === undefined) throw new Error('folders have no buffer');
+      return Buffer.from(contents);
+    },
+  });
+
+  const tree = (...files) => {
+    const root = asset('/assets');
+    root.children = files;
+    return root;
+  };
+
+  const skipped = { mipmap: false, compress: false, 'cache-buster': false };
+
+  it('exempts a .fnt and the page it names from resize, compression and cache-busting', async () => {
+    const fnt = asset('/assets/fonts/Syncopate.fnt', 'info face="Syncopate"\npage id=0 file="Syncopate.png"\n');
+    const page = asset('/assets/fonts/Syncopate.png', 'png-bytes');
+    const other = asset('/assets/art/logo.png', 'png-bytes');
+
+    await bitmapFontPassthrough().start(tree(fnt, page, other));
+
+    expect(fnt.settings).toMatchObject(skipped);
+    expect(page.settings).toMatchObject(skipped);
+    // Ordinary art still gets the full pipeline.
+    expect(other.settings).toBeUndefined();
+  });
+
+  it('follows every page a multi-page font names', async () => {
+    const fnt = asset('/assets/fonts/Big.fnt', 'page id=0 file="Big_0.png"\npage id=1 file="Big_1.png"\n');
+    const p0 = asset('/assets/fonts/Big_0.png', 'a');
+    const p1 = asset('/assets/fonts/Big_1.png', 'b');
+
+    await bitmapFontPassthrough().start(tree(fnt, p0, p1));
+
+    expect(p0.settings).toMatchObject(skipped);
+    expect(p1.settings).toMatchObject(skipped);
+  });
+
+  it('handles XML bitmap fonts, and leaves other xml alone', async () => {
+    const xmlFont = asset('/assets/fonts/Xml.xml', '<font><pages><page id="0" file="Xml.png" /></pages></font>');
+    const page = asset('/assets/fonts/Xml.png', 'a');
+    const data = asset('/assets/data/levels.xml', '<levels><level id="1" /></levels>');
+
+    await bitmapFontPassthrough().start(tree(xmlFont, page, data));
+
+    expect(xmlFont.settings).toMatchObject(skipped);
+    expect(page.settings).toMatchObject(skipped);
+    expect(data.settings).toBeUndefined();
+  });
+
+  it('only claims pages that sit beside the descriptor', async () => {
+    const fnt = asset('/assets/fonts/A.fnt', 'page id=0 file="A.png"');
+    const elsewhere = asset('/assets/art/A.png', 'a');
+
+    await bitmapFontPassthrough().start(tree(fnt, elsewhere));
+
+    expect(elsewhere.settings).toBeUndefined();
+  });
+
+  it('is wired into the pipes assetpack runs', () => {
+    const pipes = assetpackConfig().pipes;
+    expect(pipes.map((pipe) => pipe.name)).toContain('bitmap-font-passthrough');
   });
 });
