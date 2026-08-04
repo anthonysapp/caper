@@ -34,9 +34,6 @@ jobs:
       - name: Typecheck
         run: pnpm --filter @caperjs/core exec tsc --noEmit -p tsconfig.json
 
-      - name: Typecheck kitchen-sink
-        run: pnpm --filter caper-kitchen-sink exec tsc --noEmit
-
       - name: Test
         run: pnpm --filter @caperjs/core test
 
@@ -45,6 +42,10 @@ jobs:
 
       - name: Build plugin packages
         run: pnpm packages:build
+
+      # Needs the built framework + plugin type output (lib/), hence after the builds.
+      - name: Typecheck kitchen-sink
+        run: pnpm --filter caper-kitchen-sink exec tsc --noEmit
 
       - name: Install Playwright Chromium
         run: pnpm --filter caper-kitchen-sink exec playwright install --with-deps chromium
