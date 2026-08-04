@@ -144,6 +144,9 @@ importers:
       playwright:
         specifier: ^1.62.1
         version: 1.62.1
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
 
   packages/core:
     dependencies:
