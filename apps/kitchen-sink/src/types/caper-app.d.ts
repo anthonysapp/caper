@@ -41,10 +41,10 @@ type AppScenes =
 // Plugins
 type AppPlugins = 
   | 'crunch'
+  | 'firebase'
   | 'google-analytics'
   | 'rive'
   | 'rollbar'
-  | 'firebase'
   | 'test';
 
 // Popups
