@@ -29,6 +29,7 @@
       "default": "./lib/caper.mjs"
     },
     "./vite": {
+      "types": "./build/index.d.mts",
       "default": "./build/index.mjs"
     },
     "./client": {
