@@ -2,13 +2,7 @@
 
 Originated from the full codebase audit on 2026-08-02 (commit `1f869eba`). **All High, Medium, and Low defects from that audit are now fixed** — each test-first (red→green) in its own conventional commit; see the `fix(...)`/`feat(ui)`/`docs`/`chore` history following `0af16695`. The wiki (`docs/wiki/`) was refreshed to match.
 
-## High
-
-| Location | Bug |
-|---|---|
-| assetpack pipeline (`packages/core/build/assetpack.mjs` config + upstream pixi pipes) | **Bitmap fonts are broken in every production build.** The pipeline hashes and webp-converts a font's texture page (`Syncopate.png` → `Syncopate-MPx5Vw.webp`) but never rewrites the `.fnt` file's internal `page file="Syncopate.png"` reference. Pixi's loader fetches the page relative to the .fnt URL, misses (SPA fallback returns HTML), and the app fails to boot. Dev is unaffected (serves raw source assets), which is why this went unnoticed. Caught 2026-08-04 by the new boot smoke test; the smoke CI step is `continue-on-error` until this is fixed. Fix needs a design decision: rewrite `.fnt` page refs to the emitted texture (mind resolution-variant scale) vs. exempting bitmap-font folders from hashing/conversion. Related partial fix already landed: prune no longer deletes fnt-referenced pngs (`pruneFallbacks.mjs`), which matters once page refs resolve again. |
-
-Remaining minor items, found during the fix sweep (none block a release):
+Remaining minor items, found during the fix sweep (none block a release; the 2026-08-04 High item — bitmap fonts broken in production builds — was fixed the same day by `bitmapFontPassthrough()` in `build/assetpack.mjs`, and the CI boot smoke test is now blocking):
 
 | Location | Note |
 |---|---|

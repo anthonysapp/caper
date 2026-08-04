@@ -90,7 +90,7 @@ rather than edit.
 | --- | --- |
 | `index.mjs` | Composition root. Assembles the plugin array in a fixed order; reads build flags at module load. |
 | `defaults.mjs` | The Vite config Caper contributes, expressed as gap-filling defaults (`fillMissing`). Also `readAppIdentity()`. |
-| `assetpack.mjs` | AssetPack pixi-pipes defaults, the deep merge for overrides, the `fontWeights` pipe, and the `vite-plugin-assetpack` adapter. |
+| `assetpack.mjs` | AssetPack pixi-pipes defaults, the deep merge for overrides, the `fontWeights` pipe, the `bitmapFontPassthrough` pipe (auto-detects `.fnt`/`.xml` bitmap fonts and ships them + their referenced texture pages byte-identical — no mipmap, no compression, no cache-bust rename — because pre-rasterized fonts carry exact pixel metrics), and the `vite-plugin-assetpack` adapter. |
 | `internal/paths.mjs` | `SOURCE_DIRS`, `CAPER_CONFIG_FILE`, `APP_ENTRY_FILE`. One contract, two consumers (discovery + `optimizeDeps.entries`). |
 | `internal/util.mjs` | Logger, `debounce`, `delay`, the two dts filenames, module-load `cwd`. |
 | `internal/ast.mjs` | oxc-parser wrapper plus the extractors: exported constants (with `define*()` unwrapping), default-exported class, `defineConfig` object. |
