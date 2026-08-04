@@ -84,6 +84,7 @@ passthrough to instance properties (`alpha`, `visible`, `label`,
 | File | Responsibility | Key exports |
 |---|---|---|
 | `mixins/index.ts` | Barrel re-exporting all mixins **for external/app consumption only** — see the cycle section for why internal Caper code must not import through it. | re-exports of all modules below |
+| `mixins/lifecycle.ts` | The Caper display lifecycle as a mixin: `added`/`removed` event wiring, `app.onResize` connection (`autoResize`), ticker `update` with priority (`autoUpdate`), `onDestroy` + tracked teardown. Extracted from `Container` so non-`Container` Pixi bases (`ParticleContainer`, `SpineAnimation`) share it. Concrete constructors call `_initLifecycle(config)` after `bindAllMethods`. | `WithLifecycle`, `ILifecycle`, `LifecycleConfig` |
 | `mixins/animated.ts` | GSAP-backed tween/timeline helpers (`animate`, `animateSequence`, `shake`, `pulse`, `bob`) plus three Signals for tween lifecycle. | `Animated`, `IAnimated`, `GSAPAnimationConfigExtended` |
 | `mixins/focus.ts` | DOM-focus / accessibility bridge: wires Pixi's `accessible*` fields and pointer events into `onFocus`/`onFocusIn`/`onFocusOut`/`onBlur` Signals, delegates active-focus tracking to `Application.getInstance().focus`. | `Focusable`, `IFocusable` (type re-exported from `../plugins`) |
 | `mixins/interaction.ts` | Lazily maps arbitrary Pixi `FederatedEvent` names to per-event-name `Signal`s via `onInteraction(eventName)`. | `Interactive`, `IInteractive`, `InteractionSignal` |

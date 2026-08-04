@@ -9,9 +9,10 @@
 (`Scene`, `Entity`), a viewport/world scroll-and-zoom helper (`Camera`), the hook point for
 scene-swap overlays (`SceneTransition`), and a handful of thin Pixi-class wrappers
 (`AnimatedSprite`, `ParticleContainer`, `SpineAnimation`, `Svg`) that add Caper-flavored
-conveniences to specific Pixi renderables. Two of those wrappers (`ParticleContainer`,
-`SpineAnimation`) live in this folder but deliberately do **not** extend `Container` — see
-Invariants & gotchas.
+conveniences to specific Pixi renderables. `ParticleContainer` and `SpineAnimation` can't
+extend `Container` (different Pixi base classes), so they compose the same mixin stack —
+`WithLifecycle` + `WithSignals` (see [mixins-and-factory.md](mixins-and-factory.md)) —
+rather than hand-rolling the lifecycle.
 
 ## Interface (what callers must know)
 
@@ -60,17 +61,16 @@ comments); nothing enforces that a subclass overrides them.
   load-progress signals to `handleLoadStart/Progress/Complete` in its constructor, and
   exposes its own `initialize` / `enter` / `exit` lifecycle — driven by `SceneManagerPlugin`
   during a scene swap, independently of the two scenes' own `enter`/`exit`.
-- **`ParticleContainer`** (ParticleContainer.ts:36) extends **`PIXI.ParticleContainer`
-  directly**, not Caper `Container`. It hand-duplicates a smaller version of the same
-  pattern (its own `onDestroy` signal, `app` getter, `added`/`removed` wiring, ticker
-  auto-update) but has none of `Factory`/`Animated`/`WithSignals` — no `this.add`,
-  `this.make`, `this.animate`, or `addSignalConnection`.
-- **`SpineAnimation<ANames>`** (SpineAnimation.ts:30) extends `WithSignals(Factory())`
-  directly — skips `Animated` and skips `Container` entirely, so it has no
-  `resize`/`update`/`animationContext`/`onDestroy`/auto-resize/auto-update config. It gets
-  only `this.add`/`this.make` and signal connections, plus its own Spine-specific
-  animation-state signals (`onAnimationStart`, `onAnimationComplete`, etc.) driven by a
-  Spine `AnimationStateListener`.
+- **`ParticleContainer`** (ParticleContainer.ts) can't extend Caper `Container` (its Pixi
+  base is `PIXI.ParticleContainer`), so it's composed from the shared mixin stack instead:
+  `WithLifecycle(WithSignals(PIXI.ParticleContainer))`. It gets the standard lifecycle
+  (`added`/`removed`/`resize`/`update`, tracked teardown, `onDestroy`) but deliberately NO
+  `Factory` — Pixi particle containers hold particles, not display children.
+- **`SpineAnimation<ANames>`** (SpineAnimation.ts) is composed as
+  `WithLifecycle(WithSignals(Factory()))` — shared lifecycle plus `this.add`/`this.make`
+  and signal connections, with its own Spine-specific animation-state signals
+  (`onAnimationStart`, `onAnimationComplete`, etc.) driven by a Spine
+  `AnimationStateListener`. It skips `Animated` (GSAP helpers).
 - **`AnimatedSprite`** (AnimatedSprite.ts:15) extends `PIXI.AnimatedSprite` directly. Adds a
   named-animation registry (`Map<string, Texture[]>` built from a Caper-style `animations`
   config prop plus a texture-prefix/zero-pad naming convention), reverse-animation

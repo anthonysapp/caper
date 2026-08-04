@@ -48,6 +48,7 @@ The ubiquitous language of `packages/core`. Grouped by area; use these terms exa
 | **Camera** | World-space scroll/zoom controller; must be `update()`d manually per frame. |
 | **animationContext (display)** | String tag scoping GSAP animations so they can be killed together on destroy. |
 | **Mixin** | A function `(Base) => class extends Base { … }` adding one behavior to any base. |
+| **WithLifecycle mixin** | Gives any Pixi base the Caper display lifecycle (`added`/`removed`/`resize`/`update` wiring, `onDestroy`, tracked teardown); `Container`, `ParticleContainer`, and `SpineAnimation` all compose it. |
 | **Factory mixin** | `Factory()`: gives a class the `this.add`/`this.make` method tables. |
 | **add vs make** | `add` constructs *and parents* a child; `make` constructs only. |
 | **Factory method table** | `defaultFactoryMethods` in `mixins/factory/const.ts` — one entry per constructible type. |
