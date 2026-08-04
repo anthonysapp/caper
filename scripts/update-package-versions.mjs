@@ -1,3 +1,4 @@
+import { execSync } from 'child_process';
 import { readFileSync, writeFileSync } from 'fs';
 import { glob } from 'glob';
 import { dirname, resolve } from 'path';
@@ -52,8 +53,13 @@ function updatePackageJson(packageJsonPath) {
     if (packageJson.peerDependencies['@pixi/sound']) {
       packageJson.peerDependencies['@pixi/sound'] = pixiSoundVersion;
     }
-    if (packageJson.peerDependencies['@caperjs/core']) {
-      packageJson.peerDependencies['@caperjs/core'] = caperVersion;
+    // Caret range: an exact peer pin would force consumers to match every
+    // patch release. Never touch workspace: links (dev-time monorepo wiring).
+    if (
+      packageJson.peerDependencies['@caperjs/core'] &&
+      !packageJson.peerDependencies['@caperjs/core'].includes('workspace')
+    ) {
+      packageJson.peerDependencies['@caperjs/core'] = `^${caperVersion}`;
     }
     if (packageJson.peerDependencies['vite']) {
       packageJson.peerDependencies['vite'] = viteVersion;
@@ -64,8 +70,14 @@ function updatePackageJson(packageJsonPath) {
     if (packageJson.devDependencies['vite-plugin-dts']) {
       packageJson.devDependencies['vite-plugin-dts'] = vitePluginDtsVersion;
     }
-    if (packageJson.devDependencies['@caperjs/core']) {
-      packageJson.devDependencies['@caperjs/core'] = caperVersion;
+    // workspace:^ keeps plugins compiling against the monorepo copy of core —
+    // a registry copy here creates a second type identity (two AnimatedSprite
+    // classes) and breaks consumers' typechecks.
+    if (
+      packageJson.devDependencies['@caperjs/core'] &&
+      !packageJson.devDependencies['@caperjs/core'].includes('workspace')
+    ) {
+      packageJson.devDependencies['@caperjs/core'] = 'workspace:^';
     }
     if (packageJson.devDependencies['vite']) {
       packageJson.devDependencies['vite'] = viteVersion;
@@ -83,6 +95,9 @@ const globPattern =
 function run() {
   const files = glob.sync(globPattern);
   files.forEach(updatePackageJson);
+  // Rewriting specifiers without syncing the lockfile breaks the next
+  // `pnpm install --frozen-lockfile` (this bit CI after the 0.3.0 release).
+  execSync('pnpm install --lockfile-only', { cwd: __dirname, stdio: 'inherit' });
 }
 
 run();
