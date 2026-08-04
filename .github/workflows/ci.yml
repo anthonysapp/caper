@@ -34,6 +34,9 @@ jobs:
       - name: Typecheck
         run: pnpm --filter @caperjs/core exec tsc --noEmit -p tsconfig.json
 
+      - name: Typecheck kitchen-sink
+        run: pnpm --filter caper-kitchen-sink exec tsc --noEmit
+
       - name: Test
         run: pnpm --filter @caperjs/core test
 
