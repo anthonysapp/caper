@@ -104,4 +104,17 @@ describe('WebEventsPlugin destroy', () => {
 
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it('cancels a pending orientation timeout on destroy', async () => {
+    plugin.initialize();
+    const spy = vi.fn();
+    plugin.onOrientationChanged.connect(spy);
+
+    window.dispatchEvent(new Event('orientationchange'));
+    plugin.destroy();
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(spy).not.toHaveBeenCalled();
+  });
 });

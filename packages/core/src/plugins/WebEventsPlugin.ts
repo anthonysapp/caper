@@ -30,6 +30,7 @@ export class WebEventsPlugin extends Plugin implements IWebEventsPlugin {
   private _debouncedEmitVisibility = debounce((value: boolean) => {
     this.onVisibilityChanged.emit(value);
   }, 1);
+  private _orientationTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Creates callback arrays and registers to web events.
@@ -55,6 +56,12 @@ export class WebEventsPlugin extends Plugin implements IWebEventsPlugin {
     if (window.visualViewport) {
       this.listen(window.visualViewport, 'resize', this._onVisualViewportResize);
     }
+    this.addDisposer(() => {
+      if (this._orientationTimeoutId !== null) {
+        clearTimeout(this._orientationTimeoutId);
+        this._orientationTimeoutId = null;
+      }
+    });
   }
 
   protected getCoreSignals(): string[] {
@@ -132,7 +139,11 @@ export class WebEventsPlugin extends Plugin implements IWebEventsPlugin {
       return;
     }
 
-    setTimeout(() => {
+    if (this._orientationTimeoutId !== null) {
+      clearTimeout(this._orientationTimeoutId);
+    }
+    this._orientationTimeoutId = setTimeout(() => {
+      this._orientationTimeoutId = null;
       orientation = getOrientation();
       this.onOrientationChanged.emit({ orientation, screenOrientation });
     }, 10);
