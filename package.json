@@ -6,6 +6,7 @@
   "scripts": {
     "kitchen-sink:build": "turbo build --filter={./apps/kitchen-sink}",
     "kitchen-sink:dev": "turbo dev --filter={./apps/kitchen-sink}",
+    "kitchen-sink:smoke": "pnpm --filter caper-kitchen-sink smoke",
     "framework:build": "turbo build --filter={./packages/core}",
     "framework:publish": "node ./scripts/publish-packages.mjs packages/core",
     "framework:all": "pnpm framework:build && pnpm framework:publish",
