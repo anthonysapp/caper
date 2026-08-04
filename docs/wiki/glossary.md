@@ -21,6 +21,7 @@ The ubiquitous language of `packages/core`. Grouped by area; use these terms exa
 | Term | Meaning |
 |---|---|
 | **Plugin** | App-scoped capability object extending `Plugin<Options>`, keyed by `id`, with `initialize` → `postInitialize` → `destroy` lifecycle. |
+| **Disposer** | A cleanup callback registered on a plugin via `addDisposer` (or implicitly by `listen`/`addTickerCallback`); the base `destroy()` runs them LIFO, error-isolated. |
 | **`definePlugin`** | Build-time marker carrying `id`/`requires`/`active`/`dynamic` into discovery. |
 | **Action** | A named command (`'jump'`, `'pause'`) dispatched via `app.action(id, data)` and consumed by signal listeners. |
 | **Action context** | The single current string on ActionsPlugin (`'default'`, `'menu'`, …) gating which actions may dispatch. |

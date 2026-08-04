@@ -12,4 +12,8 @@ Remaining minor items, found during the fix sweep (none block a release):
 | `src/plugins/Plugin.ts`, `TimerPlugin.ts`, `audio/AudioInstance.ts`, `captions/CaptionsRenderer.ts`, `focus/FocusManagerPlugin.ts` | Pre-existing lint warnings (unused eslint-disable directives / unused vars). |
 | `scripts/` version-bump flow | Bumping package versions (release flow) rewrites package.json files without running `pnpm install`, leaving `pnpm-lock.yaml` stale — broke the first CI run after the 0.3.0 release (`ERR_PNPM_OUTDATED_LOCKFILE`). Bump scripts should sync the lockfile. |
 
+| `src/plugins/captions/CaptionsPlugin.ts` | Connects five voiceover signals with raw `.connect()` instead of `addSignalConnection` and has no `destroy()` — those connections leak. (Ticker leak fixed 2026-08-04 via `addTickerCallback`.) |
+| `src/plugins/FullScreenPlugin.ts` | Registers `fullscreenchange` twice with the same handler — harmless no-op duplicate. |
+| `src/plugins/WebEventsPlugin.ts` | `_onOrientationChanged`'s 10 ms `setTimeout` can fire after environment teardown (intermittent `window is not defined` in tests) — should be a tracked/cancelable timer. |
+
 Process: when a defect is found, add it here with severity + file:line; when fixed, remove it and update any matching wiki gotcha.

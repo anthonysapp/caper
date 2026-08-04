@@ -38,8 +38,15 @@ base class `Plugin<O>` at `packages/core/src/plugins/Plugin.ts:116`.
 | `app` | `Application.getInstance()` (`Plugin.ts:131`). A singleton lookup, not an injected reference — safe to call from any method, including before the `app` argument arrives. |
 | `initialize(options, app)` | Bootstrap hook. May be sync or async; the framework awaits it. |
 | `postInitialize(app)` | Cross-plugin wiring hook, after **every** plugin finished `initialize`. |
-| `destroy()` | Teardown. Base impl disconnects tracked signal connections (`Plugin.ts:135`). |
+| `destroy()` | Teardown. Base impl runs every registered disposer (LIFO, error-isolated), then disconnects tracked signal connections; idempotent. Overridable — always call `super.destroy()`. |
 | `addSignalConnection(...c)` / `clearSignalConnections()` | Connection tracking so `destroy` can unwind (`Plugin.ts:157`). |
+| `listen(target, type, handler, options?)` | Tracked `addEventListener` — auto-removed on `destroy` with matching capture/options; returns an early-removal fn. |
+| `addTickerCallback(fn, ctx?, priority?)` | Tracked `app.ticker.add` — auto-removed on `destroy`; returns an early-removal fn. |
+| `addDisposer(...fns)` | Arbitrary cleanup callbacks run on `destroy` (DOM nodes, timers, third-party handles). |
+
+**Cleanup rule:** register plugin-lifetime resources through these primitives and skip the
+`destroy` override entirely. Only listeners cycled at runtime (an activate/deactivate
+pattern, e.g. `FocusManagerPlugin`) stay manual — and then `destroy` must cover them.
 | `registerCoreFunctions()` / `registerCoreSignals()` | Called *by the framework* during registration; they read the protected `getCoreFunctions()` / `getCoreSignals()` name lists and copy the matching instance members into the registries (`Plugin.ts:171-199`). |
 
 The base constructor takes the id as its only argument and calls `bindAllMethods(this)`
