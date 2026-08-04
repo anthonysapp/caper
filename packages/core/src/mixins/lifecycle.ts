@@ -135,9 +135,7 @@ export function WithLifecycle<TBase extends Constructor<any>>(Base: TBase): TBas
      */
     private _added() {
       if (this.__lifecycleConfig.autoResize) {
-        this.addSignalConnection(
-          this.app.onResize.connect(this.resize, this.__lifecycleConfig.resizePriority ?? 'highest'),
-        );
+        this.addSignalConnection(this.app.onResize.connect(this.resize, this.__lifecycleConfig.resizePriority));
       }
 
       if (this.__lifecycleConfig.autoUpdate) {
