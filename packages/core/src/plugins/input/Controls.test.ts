@@ -10,6 +10,7 @@ vi.mock('../../core/Application', () => ({
 }));
 
 import type { IButton } from '../../ui';
+import { Logger } from '../../utils';
 import { Controls } from './Controls';
 
 type FakeApp = {
@@ -33,6 +34,11 @@ let actions: Record<string, { context: string; input: string[] }>;
 function pressKey(key: string) {
   app.keyboard.keysDown.add(key);
   keyDown.emit({ event: { key }, key });
+}
+
+function releaseKey(key: string) {
+  app.keyboard.keysDown.delete(key);
+  keyUp.emit({ event: { key }, key });
 }
 
 function makeButton(id: string): IButton {
@@ -129,6 +135,56 @@ describe('Controls with an unmapped action in the scheme', () => {
     controls.connect();
 
     expect(() => app.signal.onActionContextChanged.emit()).not.toThrow();
+  });
+});
+
+describe('Controls up maps', () => {
+  it('dispatches a keyboard up action that is in context', () => {
+    const controls = new Controls();
+    controls.initialize({ keyboard: { up: { jump: 'A' } } } as any);
+    controls.connect();
+
+    pressKey('A');
+    releaseKey('A');
+
+    expect(app.action).toHaveBeenCalledWith('jump', { combination: false, inputState: 'up', key: 'A' });
+  });
+
+  it('does not dispatch a keyboard up action that is out of context', () => {
+    actions.pause = { context: 'menu', input: [] };
+
+    const controls = new Controls();
+    controls.initialize({ keyboard: { up: { pause: 'A' } } } as any);
+    controls.connect();
+
+    pressKey('A');
+    releaseKey('A');
+
+    expect(app.action).not.toHaveBeenCalled();
+  });
+
+  it('warns once for an unknown action in the keyboard up map', () => {
+    const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+
+    const controls = new Controls();
+    controls.initialize({ keyboard: { up: { not_an_action: 'A' } } } as any);
+    controls.connect();
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('dispatches a virtual up action declared as an array', () => {
+    const controls = new Controls();
+    controls.initialize({ touch: { up: { jump: ['btn-a'] } } } as any);
+    controls.connect();
+
+    const button = makeButton('btn-a');
+    controls.virtual.addButton(button);
+    button.onDown.emit();
+    button.onUp.emit();
+
+    expect(app.action).toHaveBeenCalledWith('jump', { combination: false, inputState: 'up', button: 'btn-a' });
   });
 });
 
