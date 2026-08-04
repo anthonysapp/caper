@@ -46,9 +46,5 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter caper-kitchen-sink exec playwright install --with-deps chromium
 
-      # Non-blocking until the bitmap-font production bug is fixed (KNOWN_BUGS.md:
-      # assetpack hashes/converts font pages without rewriting .fnt references).
-      # Flip to blocking by deleting continue-on-error once that lands.
       - name: Boot smoke test
-        continue-on-error: true
         run: pnpm kitchen-sink:smoke
