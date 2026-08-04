@@ -288,8 +288,9 @@ Scheme authoring uses `defineControls(actions, buttons, controls)` for literal-t
 | --- | --- |
 | `InputPlugin.ts` | controller detection + gamepad registry; owns a `Controls` |
 | `Controls.ts` | composition root for the two adapters; `isActionActive` fan-out |
-| `AbstractControls.ts` | tiny base: `scheme` + `app` accessor |
-| `keyboard/KeyboardContols.ts` | keyboard adapter (note the filename typo) |
+| `AbstractControls.ts` | shared adapter base: scheme storage, context-gated map building (rebuilt on action-context change), `isActionActive`, ticker hookup; adapters supply is-down predicates + the dispatch loop |
+| `controlsCore.ts` | pure, import-free scheme logic (`contextAllows`, `buildDownMaps`, `buildUpMap`, `isInputActive`, `evaluateCombinations`) — unit-tested like `gestureMath`/`evaluate` |
+| `keyboard/KeyboardControls.ts` | keyboard adapter (thin event plumbing over the shared base) |
 | `keyboard/interfaces.ts` | keyboard scheme shapes |
 | `touch/VirtualControls.ts` | virtual button + joystick adapter; `TouchControls` deprecated alias |
 | `touch/constants.ts` | `JoystickDirection` enum |
