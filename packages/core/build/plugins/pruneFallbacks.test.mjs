@@ -78,6 +78,46 @@ describe('planPngPrune', () => {
   it('tolerates a manifest with no bundles', () => {
     expect(planPngPrune({}, () => null)).toEqual([]);
   });
+
+  it('keeps a png a bitmap font references internally, even with a webp twin', () => {
+    // PixiJS bitmap fonts hardcode their texture page filename inside the .fnt
+    // itself and fetch it relative to the .fnt URL — the manifest rewrite never
+    // reaches that request, so pruning the png would 404 it at runtime.
+    const manifest = {
+      bundles: [
+        {
+          assets: [
+            { alias: ['MyFont.fnt'], src: ['MyFont-abc.fnt'] },
+            { alias: ['Foo.png'], src: ['Foo.webp', 'Foo.png'] },
+          ],
+        },
+      ],
+    };
+    const fnt = ['info face="MyFont" size=64', 'common lineHeight=64 pages=1', 'page id=0 file="Foo.png"', 'chars count=0'].join('\n');
+
+    const doomed = planPngPrune(manifest, (rel) => (rel === 'MyFont-abc.fnt' ? fnt : null));
+    expect(doomed).not.toContain('Foo.png');
+    expect(manifest.bundles[0].assets[1].src).toEqual(['Foo.webp', 'Foo.png']);
+  });
+
+  it('still prunes a png with a webp twin that no bitmap font references', () => {
+    const manifest = {
+      bundles: [
+        {
+          assets: [
+            { alias: ['MyFont.fnt'], src: ['MyFont-abc.fnt'] },
+            { alias: ['Foo.png'], src: ['Foo.webp', 'Foo.png'] },
+            { alias: ['Bar.png'], src: ['Bar.webp', 'Bar.png'] },
+          ],
+        },
+      ],
+    };
+    const fnt = 'page id=0 file="Foo.png"';
+
+    const doomed = planPngPrune(manifest, (rel) => (rel === 'MyFont-abc.fnt' ? fnt : null));
+    expect(doomed).toContain('Bar.png');
+    expect(manifest.bundles[0].assets[2].src).toEqual(['Bar.webp']);
+  });
 });
 
 describe('pngFallback option', () => {

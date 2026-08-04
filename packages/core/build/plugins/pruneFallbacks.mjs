@@ -28,6 +28,17 @@ import path from 'node:path';
 /** A png image, a texture-packer descriptor, or a spine atlas for one. */
 const isPngSrc = (src) => /\.png(\.json|\.atlas)?$/.test(src);
 
+/** A bitmap font descriptor — text `.fnt` or XML `.fnt`/`.xml`, both quote `file="…"`. */
+const isFontSrc = (src) => /\.(fnt|xml)$/.test(src);
+
+/**
+ * PixiJS bitmap fonts hardcode their texture page filename inside the
+ * descriptor and fetch it relative to the descriptor's own URL — the asset
+ * manifest is never consulted for that request, so rewriting `src` there
+ * doesn't stop the loader asking for the exact name printed here.
+ */
+const fontPageNames = (text) => new Set([...text.matchAll(/file="([^"]+\.png)"/g)].map((match) => path.basename(match[1])));
+
 /**
  * Works out what to delete without touching the filesystem, so the decision is
  * testable on its own.
@@ -77,10 +88,22 @@ export function planPngPrune(manifest, readText) {
     doomed.push(rel);
   };
 
+  const protectedPngs = new Set();
   for (const bundle of manifest.bundles ?? []) {
     for (const asset of bundle.assets ?? []) {
-      const png = (asset.src ?? []).filter(isPngSrc);
-      const kept = (asset.src ?? []).filter((src) => !isPngSrc(src));
+      for (const src of asset.src ?? []) {
+        if (!isFontSrc(src)) continue;
+        const text = readText(src);
+        if (text) for (const name of fontPageNames(text)) protectedPngs.add(name);
+      }
+    }
+  }
+
+  for (const bundle of manifest.bundles ?? []) {
+    for (const asset of bundle.assets ?? []) {
+      const isProtected = (src) => isPngSrc(src) && protectedPngs.has(path.basename(src));
+      const png = (asset.src ?? []).filter((src) => isPngSrc(src) && !isProtected(src));
+      const kept = (asset.src ?? []).filter((src) => !isPngSrc(src) || isProtected(src));
       if (!png.length || !kept.length) continue;
 
       for (const rel of png) {
