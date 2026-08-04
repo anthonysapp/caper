@@ -98,10 +98,11 @@ export function caperConfigPlugin(isProject = true, manifestUrl = 'assets.json')
   // than process.cwd(), so `vite --root elsewhere` and monorepo invocations from
   // a parent directory find the right caper.config.ts and src/ tree.
   let root = cwd;
+  let publicDir;
   const virtualModuleId = 'virtual:caper-config';
   const resolvedVirtualModuleId = '\0' + virtualModuleId;
 
-  async function generateTypes(server, root) {
+  async function generateTypes(server, root, publicDir) {
     if (!isProject) return { types: 'export {}' };
 
     const configPath = path.resolve(root, 'caper.config.ts');
@@ -230,6 +231,7 @@ export function caperConfigPlugin(isProject = true, manifestUrl = 'assets.json')
       server,
       root,
       manifestUrl,
+      publicDir,
       configPath,
       configObject,
       scenes,
@@ -385,7 +387,7 @@ declare module '@caperjs/core' {
 
   async function build(msg = `Building ${DTS_FILE_NAME}`, server) {
     logger.info(msg);
-    const { types, error } = await generateTypes(server, root);
+    const { types, error } = await generateTypes(server, root, publicDir);
 
     if (error) {
       if (server) {
@@ -418,6 +420,7 @@ declare module '@caperjs/core' {
   return {
     name: 'vite-plugin-caper-config',
     configResolved(config) {
+      publicDir = config.publicDir;
       root = config.root;
     },
     enforce: 'pre',

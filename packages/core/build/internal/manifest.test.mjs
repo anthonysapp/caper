@@ -48,6 +48,16 @@ describe('loadManifestBundleNames', () => {
   it('returns null when the project has no manifest yet', () => {
     expect(loadManifestBundleNames(root)).toBeNull();
   });
+
+  it('honours a custom publicDir', () => {
+    const dir = path.join(root, 'static', 'assets');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'assets.json'), JSON.stringify({ bundles: [{ name: 'menu' }] }), 'utf8');
+    expect(loadManifestBundleNames(root, 'assets.json', path.join(root, 'static'))).toEqual(new Set(['menu']));
+    // Proves it isn't accidentally always finding it — no publicDir means the
+    // default `public/` base dir, which has no manifest here.
+    expect(loadManifestBundleNames(root)).toBeNull();
+  });
 });
 
 describe('runBuildTimeValidation bundle references', () => {
@@ -76,5 +86,16 @@ describe('runBuildTimeValidation bundle references', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     run({ root, manifestUrl: 'manifest.json' });
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('finds the manifest under a custom publicDir', () => {
+    const dir = path.join(root, 'static', 'assets');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'assets.json'), JSON.stringify({ bundles: [{ name: 'menu' }] }), 'utf8');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Regression: without publicDir threaded through, the manifest under
+    // static/ is never found, so bundleNames is null and this warning never fires.
+    run({ root, publicDir: path.join(root, 'static') });
+    expect(warn.mock.calls.flat().join('\n')).toContain("bundle 'typo'");
   });
 });

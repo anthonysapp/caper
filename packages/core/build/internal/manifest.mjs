@@ -15,8 +15,8 @@ import { logger } from './util.mjs';
  * whatever directory the build was launched from. See `internal/discovery.mjs`
  * for the same contract.
  */
-export function loadManifestBundleNames(root, manifestUrl = 'assets.json') {
-  const manifestPath = path.join(root, 'public', 'assets', manifestUrl);
+export function loadManifestBundleNames(root, manifestUrl = 'assets.json', publicDir) {
+  const manifestPath = path.join(publicDir ?? path.join(root, 'public'), 'assets', manifestUrl);
   if (!fs.existsSync(manifestPath)) return null;
   try {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));

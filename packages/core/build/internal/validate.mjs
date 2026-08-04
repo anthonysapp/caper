@@ -14,6 +14,7 @@ export function runBuildTimeValidation({
   server,
   root,
   manifestUrl,
+  publicDir,
   configPath,
   configObject,
   scenes,
@@ -23,7 +24,7 @@ export function runBuildTimeValidation({
   breakpointsName,
 }) {
   const warnings = [];
-  const bundleNames = loadManifestBundleNames(root, manifestUrl);
+  const bundleNames = loadManifestBundleNames(root, manifestUrl, publicDir);
 
   // 1. Scene bundle references
   if (bundleNames && bundleNames.size > 0) {
