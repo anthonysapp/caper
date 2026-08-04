@@ -41,7 +41,7 @@ export interface IAudioInstance<C extends ChannelName = ChannelName> {
   resume(): void;
 }
 
-export class AudioInstance<C extends ChannelName = ChannelName> implements IAudioInstance {
+export class AudioInstance<C extends ChannelName = ChannelName> implements IAudioInstance<C> {
   public storedVolume: number;
   public onStart: Signal<(instance: IAudioInstance) => void> = new Signal<(instance: IAudioInstance) => void>();
   public onStop: Signal<(instance: IAudioInstance) => void> = new Signal<(instance: IAudioInstance) => void>();
@@ -53,7 +53,7 @@ export class AudioInstance<C extends ChannelName = ChannelName> implements IAudi
   constructor(
     public id: string,
     public channel: IAudioChannel,
-    public manager: IAudioManagerPlugin,
+    public manager: IAudioManagerPlugin<C>,
   ) {
     bindAllMethods(this);
     this.muted = this.channel.muted;

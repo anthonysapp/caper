@@ -132,7 +132,7 @@ function createTimerWorker() {
 
     const blob = new Blob([workerCode], { type: 'application/javascript' });
     return new Worker(URL.createObjectURL(blob));
-  } catch (e) {
+  } catch {
     return null;
   }
 }

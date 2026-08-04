@@ -338,7 +338,7 @@ export class Application extends PIXIPApplication implements IApplication {
   public get appVersion() {
     try {
       this._appVersion = __CAPER_APP_VERSION;
-    } catch (e) {
+    } catch {
       this._appVersion = -1;
     }
 
@@ -351,7 +351,7 @@ export class Application extends PIXIPApplication implements IApplication {
     if (!this._appName) {
       try {
         this._appName = __CAPER_APP_NAME;
-      } catch (e) {
+      } catch {
         this._appName = 'n/a';
       }
     }

@@ -230,14 +230,12 @@ export class Plugin<O = any> implements IPlugin<O> {
 
   public initialize(options?: Partial<O>, _app?: IApplication): Promise<void> | void;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async initialize(_options: Partial<O>, _app?: IApplication): Promise<void> {
     return Promise.resolve(undefined);
   }
 
   public postInitialize(_app: IApplication): Promise<void> | void;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async postInitialize(_app: IApplication): Promise<void> {
     return Promise.resolve(undefined);
   }

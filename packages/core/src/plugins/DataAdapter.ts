@@ -245,7 +245,7 @@ export class DataAdapter extends Plugin<Partial<IDataAdapterOptions>> implements
           try {
             const parsedData = JSON.parse(loadedData);
             this.data[key] = parsedData;
-          } catch (parseError) {
+          } catch {
             console.warn(
               `Failed to parse data for key "${String(key)}" in namespace "${this.namespace}". Using default value.`,
             );

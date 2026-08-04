@@ -93,7 +93,6 @@ export function Focusable<TBase extends Constructor<Container>>(Base: TBase): TB
       return [this.getFocusArea().width, this.getFocusArea().height];
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     protected _onMouseOver(_e: MouseEvent) {
       this.app.focus.setFocus(this);
     }
@@ -107,7 +106,6 @@ export function Focusable<TBase extends Constructor<Container>>(Base: TBase): TB
       this.click();
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     protected _handleKeyUp(_e: KeyboardEvent) {}
 
     private _maybeEmit(type: string, e: FederatedEvent) {

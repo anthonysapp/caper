@@ -389,7 +389,7 @@ export class Input extends Focusable(Interactive(WithSignals(Container))) {
 
     if (!this.options.placeholder) {
       this.options.placeholder = {
-        color: Number(this.options.style?.fill) ?? 0x666666,
+        color: Number(this.options.style?.fill),
       };
     }
 
@@ -592,7 +592,7 @@ export class Input extends Focusable(Interactive(WithSignals(Container))) {
         } else {
           this.domElement.setSelectionRange(selection, selection, 'none');
         }
-      } catch (e) {
+      } catch {
         // nothing
       }
       this._updateCaretAndSelection();

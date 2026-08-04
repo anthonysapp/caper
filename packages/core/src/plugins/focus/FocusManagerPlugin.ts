@@ -495,7 +495,6 @@ export class FocusManagerPlugin extends Plugin<FocusManagerPluginOptions> implem
     this.onFocusLayerChange.emit(this._currentLayerId);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public postInitialize(_app: IApplication): Promise<void> | void {}
 
   public clearFocus() {

@@ -58,7 +58,7 @@
     "build": "pnpm generate-version && vite build",
     "prepack": "pnpm build",
     "visualize:examples": "cd ./examples && npx vite-bundle-visualizer",
-    "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -311,7 +311,6 @@ export interface AppTypeOverrides {}
 
 type _EntityClassMap = AppTypeOverrides extends { EntityClasses: infer E } ? E : {};
 type _PopupClassMap = AppTypeOverrides extends { PopupClasses: infer P } ? P : {};
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type _SceneClassMap = AppTypeOverrides extends { SceneClasses: infer S } ? S : {};
 
 /** Any-constructor shape. */

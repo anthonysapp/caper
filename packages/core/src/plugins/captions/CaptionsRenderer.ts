@@ -105,7 +105,6 @@ export class CaptionsRenderer extends Container implements ICaptionRenderer {
     this.resize();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public lineEnd(_line: CaptionLine): void {}
 
   public resize(): void {

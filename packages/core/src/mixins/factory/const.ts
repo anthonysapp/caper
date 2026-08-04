@@ -142,7 +142,8 @@ export const defaultFactoryMethods = {
 
   svg(props: WithRequiredProps<SvgProps, 'ctx'>) {
     const entity = new Svg(props.ctx);
-    const { position, x, y, pivot, scale, scaleX, scaleY, ctx: _ctx, ...rest } = props;
+    const { position, x, y, pivot, scale, scaleX, scaleY, ...rest } = props;
+    delete (rest as { ctx?: unknown }).ctx;
     resolvePosition({ position, x, y }, entity);
     resolveScale({ scale, scaleX, scaleY }, entity);
     resolvePivot(pivot, entity);
