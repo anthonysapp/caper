@@ -1,4 +1,4 @@
-import { Container as PIXIContainer } from 'pixi.js';
+import { Container as PIXIContainer, ParticleContainer as PIXIParticleContainer } from 'pixi.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Signal } from '../signals';
@@ -87,6 +87,30 @@ describe('ParticleContainer lifecycle', () => {
 
     app.onResize.emit({ width: 100, height: 50 });
     expect(particles.resizeCalls).toEqual([]);
+  });
+
+  it('calls through to Pixi update() so the particle buffers are flagged', () => {
+    const particles = new ParticleContainer();
+    const pixiUpdate = vi.spyOn(PIXIParticleContainer.prototype, 'update');
+
+    (particles as any)._childrenDirty = false;
+    particles.update();
+
+    expect(pixiUpdate).toHaveBeenCalledTimes(1);
+    expect((particles as any)._childrenDirty).toBe(true);
+
+    pixiUpdate.mockRestore();
+  });
+
+  it('flags the particle buffers when update() is driven by the ticker', () => {
+    const particles = new ParticleContainer();
+    new PIXIContainer().addChild(particles);
+
+    const [tick, context] = app.ticker.add.mock.calls[0];
+    (particles as any)._childrenDirty = false;
+    tick.call(context);
+
+    expect((particles as any)._childrenDirty).toBe(true);
   });
 
   it('disconnects resize and the ticker when removed from the stage', () => {
