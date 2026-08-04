@@ -72,7 +72,7 @@ describe('CaptionsPlugin destroy', () => {
     (plugin as any)._dicts = { en: {} };
 
     const spy = vi.spyOn(plugin as any, '_handleVoiceOverStart');
-    plugin.postInitialize(appMock as any);
+    plugin.postInitialize();
 
     appMock.voiceover.onVoiceOverStart.emit({ id: 'x' });
     expect(spy).toHaveBeenCalledTimes(1);
