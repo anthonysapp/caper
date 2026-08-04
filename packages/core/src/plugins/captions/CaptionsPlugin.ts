@@ -298,7 +298,7 @@ export class CaptionsPlugin extends Plugin<CaptionsOptions> implements ICaptions
     const RendererClass: CaptionRendererConstructor = this.options.renderer;
     this.renderer = this.view.addChild(new RendererClass(this)) as CaptionsRenderer;
 
-    this.app.ticker.add(this.update);
+    this.addTickerCallback(this.update);
     this.app.scenes.onSceneChangeStart.connect(this.stopAllCaptions);
   }
 

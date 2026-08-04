@@ -61,15 +61,8 @@ export class KeyboardPlugin extends Plugin implements IKeyboardPlugin {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public initialize(_options: any, _app: IApplication): void {
     // track which keys are down
-    document.addEventListener('keydown', this._handleKeyDown);
-    document.addEventListener('keyup', this._handleKeyUp);
-  }
-
-  public destroy() {
-    document.removeEventListener('keydown', this._handleKeyDown);
-    document.removeEventListener('keyup', this._handleKeyUp);
-    document.removeEventListener('keydown', this._handleEvent);
-    document.removeEventListener('keyup', this._handleEvent);
+    this.listen(document, 'keydown', this._handleKeyDown as EventListener);
+    this.listen(document, 'keyup', this._handleKeyUp as EventListener);
   }
 
   public onKeyDown(key?: KeyboardKey): KeySignal {
@@ -145,7 +138,7 @@ export class KeyboardPlugin extends Plugin implements IKeyboardPlugin {
   }
 
   private _listen(eventType: KeyboardEventType): void {
-    document.addEventListener(eventType, this._handleEvent);
+    this.listen(document, eventType, this._handleEvent as EventListener);
   }
 
   private _handleEvent(event: KeyboardEvent): void {

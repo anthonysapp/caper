@@ -74,23 +74,19 @@ export class GesturePlugin extends Plugin<GesturePluginOptions> implements IGest
       canvas.style.touchAction = 'none';
     }
 
-    canvas.addEventListener('pointerdown', this._onPointerDown);
-    window.addEventListener('pointermove', this._onPointerMove);
-    window.addEventListener('pointerup', this._onPointerUp);
-    window.addEventListener('pointercancel', this._onPointerCancel);
+    this.listen(canvas, 'pointerdown', this._onPointerDown as EventListener);
+    this.listen(window, 'pointermove', this._onPointerMove as EventListener);
+    this.listen(window, 'pointerup', this._onPointerUp as EventListener);
+    this.listen(window, 'pointercancel', this._onPointerCancel as EventListener);
   }
 
   public destroy(): void {
     if (this._canvas) {
-      this._canvas.removeEventListener('pointerdown', this._onPointerDown);
       if (this._options.preventDefault) {
         this._canvas.style.touchAction = this._previousTouchAction;
       }
       this._canvas = null;
     }
-    window.removeEventListener('pointermove', this._onPointerMove);
-    window.removeEventListener('pointerup', this._onPointerUp);
-    window.removeEventListener('pointercancel', this._onPointerCancel);
 
     this._pointers.clear();
     this._state = 'idle';

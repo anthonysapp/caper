@@ -150,7 +150,6 @@ export class BreakpointPlugin extends Plugin<BreakpointPluginOptions> implements
   }
 
   public destroy(): void {
-    this._pointerQuery?.removeEventListener('change', this._onPointerChange);
     this._pointerQuery = null;
     for (const signal of this._enter.values()) signal.disconnectAll();
     for (const signal of this._leave.values()) signal.disconnectAll();
@@ -259,7 +258,7 @@ export class BreakpointPlugin extends Plugin<BreakpointPluginOptions> implements
     }
     this._pointerQuery = window.matchMedia('(pointer: coarse)');
     this._pointer = this._pointerQuery.matches ? 'coarse' : 'fine';
-    this._pointerQuery.addEventListener('change', this._onPointerChange);
+    this.listen(this._pointerQuery, 'change', this._onPointerChange as EventListener);
   }
 
   private _signal(store: Map<string, Signal<() => void>>, name: string): Signal<() => void> {

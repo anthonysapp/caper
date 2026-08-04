@@ -143,24 +143,11 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
    * ```
    */
   public initialize(): void {
-    document.addEventListener('fullscreenchange', this._onFullScreenChange);
-    document.addEventListener('webkitfullscreenchange', this._onFullScreenChange);
-    document.addEventListener('mozfullscreenchange', this._onFullScreenChange);
-    document.addEventListener('msfullscreenchange', this._onFullScreenChange);
-    document.addEventListener('fullscreenchange', this._onFullScreenChange);
-  }
-
-  /**
-   * Cleans up the plugin by removing all event listeners.
-   * Called automatically when the plugin is destroyed.
-   */
-  public destroy() {
-    document.removeEventListener('fullscreenchange', this._onFullScreenChange);
-    document.removeEventListener('webkitfullscreenchange', this._onFullScreenChange);
-    document.removeEventListener('mozfullscreenchange', this._onFullScreenChange);
-    document.removeEventListener('msfullscreenchange', this._onFullScreenChange);
-    document.removeEventListener('fullscreenchange', this._onFullScreenChange);
-    super.destroy();
+    this.listen(document, 'fullscreenchange', this._onFullScreenChange);
+    this.listen(document, 'webkitfullscreenchange', this._onFullScreenChange);
+    this.listen(document, 'mozfullscreenchange', this._onFullScreenChange);
+    this.listen(document, 'msfullscreenchange', this._onFullScreenChange);
+    this.listen(document, 'fullscreenchange', this._onFullScreenChange);
   }
 
   /**

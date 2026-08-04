@@ -139,12 +139,6 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
     this._defaultLoadMethod = method;
   }
 
-  public destroy(): void {
-    window.removeEventListener('hashchange', this._onHashChange);
-    this._debugMenu?.parentElement?.removeChild(this._debugMenu);
-    super.destroy();
-  }
-
   public async initialize(_options: any, app: IApplication): Promise<void> {
     this._debugVisible =
       this.app.config?.showSceneDebugMenu === true || (isDev && this.app.config?.showSceneDebugMenu !== false);
@@ -374,7 +368,7 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
   }
 
   private _listenForHashChange() {
-    window.addEventListener('hashchange', this._onHashChange);
+    this.listen(window, 'hashchange', this._onHashChange);
   }
 
   private _onHashChange() {
@@ -577,6 +571,7 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
     this._debugMenu.appendChild(icon);
 
     (Application.containerElement || document.body).appendChild(this._debugMenu);
+    this.addDisposer(() => this._debugMenu?.parentElement?.removeChild(this._debugMenu));
 
     this._sceneSelect = document.createElement('select');
     this._sceneSelect.style.cssText =
@@ -651,7 +646,7 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
 
     this._debugMenu.appendChild(this._sceneSelect);
 
-    this._debugMenu.addEventListener('change', (e: Event) => {
+    this.listen(this._debugMenu, 'change', (e: Event) => {
       if (this._queue) {
         e.preventDefault();
         return;

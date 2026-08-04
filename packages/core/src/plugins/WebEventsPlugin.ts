@@ -44,26 +44,17 @@ export class WebEventsPlugin extends Plugin implements IWebEventsPlugin {
   }
 
   public initialize(): void {
-    document.addEventListener('visibilitychange', this._onVisibilityChanged, false);
-    window.addEventListener('pagehide', this._onPageHide, false);
-    window.addEventListener('pageshow', this._onPageShow, false);
-    window.addEventListener('resize', this._onResize);
-    document.addEventListener('fullscreenchange', this._onResize);
-    window.addEventListener('orientationchange', this._onOrientationChanged);
+    this.listen(document, 'visibilitychange', this._onVisibilityChanged, false);
+    this.listen(window, 'pagehide', this._onPageHide, false);
+    this.listen(window, 'pageshow', this._onPageShow, false);
+    this.listen(window, 'resize', this._onResize);
+    this.listen(document, 'fullscreenchange', this._onResize);
+    this.listen(window, 'orientationchange', this._onOrientationChanged);
     // installed PWAs (standalone/fullscreen display modes) can miss or mistime window.resize
     // during launch transitions; visualViewport reports the settled size
-    window.visualViewport?.addEventListener('resize', this._onVisualViewportResize);
-  }
-
-  public destroy() {
-    document.removeEventListener('visibilitychange', this._onVisibilityChanged, false);
-    window.removeEventListener('resize', this._onResize);
-    document.removeEventListener('fullscreenchange', this._onResize);
-    window.removeEventListener('pagehide', this._onPageHide, false);
-    window.removeEventListener('pageshow', this._onPageShow, false);
-    window.removeEventListener('orientationchange', this._onOrientationChanged);
-    window.visualViewport?.removeEventListener('resize', this._onVisualViewportResize);
-    super.destroy();
+    if (window.visualViewport) {
+      this.listen(window.visualViewport, 'resize', this._onVisualViewportResize);
+    }
   }
 
   protected getCoreSignals(): string[] {

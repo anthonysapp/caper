@@ -70,11 +70,11 @@ export class InputPlugin extends Plugin<InputManagerOptions> implements IInputPl
 
     app.stage.eventMode = 'static';
     this._canvas = app.canvas as HTMLCanvasElement;
-    this._canvas.addEventListener('pointerdown', this._onPointerDown);
-    this._canvas.addEventListener('pointermove', this._onPointerMove);
-    window.addEventListener('keydown', this._onKeyDown);
-    window.addEventListener('gamepadconnected', this._onGamepadConnected);
-    window.addEventListener('gamepaddisconnected', this._onGamepadDisconnected);
+    this.listen(this._canvas, 'pointerdown', this._onPointerDown as EventListener);
+    this.listen(this._canvas, 'pointermove', this._onPointerMove as EventListener);
+    this.listen(window, 'keydown', this._onKeyDown);
+    this.listen(window, 'gamepadconnected', this._onGamepadConnected as EventListener);
+    this.listen(window, 'gamepaddisconnected', this._onGamepadDisconnected as EventListener);
 
     if (this._options.controls) {
       this.controls.initialize(this._options.controls);
@@ -88,15 +88,7 @@ export class InputPlugin extends Plugin<InputManagerOptions> implements IInputPl
   }
 
   destroy(): void {
-    // unregister all event listeners
-    if (this._canvas) {
-      this._canvas.removeEventListener('pointerdown', this._onPointerDown);
-      this._canvas.removeEventListener('pointermove', this._onPointerMove);
-      this._canvas = null;
-    }
-    window.removeEventListener('keydown', this._onKeyDown);
-    window.removeEventListener('gamepadconnected', this._onGamepadConnected);
-    window.removeEventListener('gamepaddisconnected', this._onGamepadDisconnected);
+    this._canvas = null;
 
     this.controls.destroy();
 

@@ -1,8 +1,9 @@
+import type { Ticker } from 'pixi.js';
 import type { IApplication, ICoreFunctions, ICoreSignals } from '../core';
 import { coreFunctionRegistry, coreSignalRegistry } from '../core';
 import { Application } from '../core/Application';
 import { SignalConnection, SignalConnections } from '../signals';
-import { type AppTypeOverrides, bindAllMethods, ImportListItemModule } from '../utils';
+import { type AppTypeOverrides, bindAllMethods, ImportListItemModule, Logger } from '../utils';
 
 /**
  * Public contract for a Caper plugin. A plugin is a long-lived object
@@ -25,7 +26,40 @@ import { type AppTypeOverrides, bindAllMethods, ImportListItemModule } from '../
  *      methods are called from scenes / other plugins / the app.
  *   5. `destroy()` — called when the app shuts down. Tear down
  *      connections, disconnect signals, free resources. The base class
- *      already disconnects everything added via `addSignalConnection`.
+ *      already disconnects everything added via `addSignalConnection`
+ *      and runs everything registered via the cleanup primitives below.
+ *
+ * **Cleanup primitives.** Don't hand-roll matching add/remove pairs —
+ * register the resource through the base class and `destroy()` releases
+ * it for you. Overriding `destroy()` is still fine; just call
+ * `super.destroy()`.
+ *
+ *   - `addSignalConnection(...)` — signal connections.
+ *   - `listen(target, type, handler, options?)` — DOM listeners. Adds
+ *     now, removes on destroy with the same capture/options semantics.
+ *   - `addTickerCallback(fn, context?, priority?)` — ticker callbacks on
+ *     `app.ticker`. Added now, removed on destroy.
+ *   - `addDisposer(...fns)` — anything else (DOM nodes, timers, third
+ *     party handles). Disposers run last-in-first-out on destroy, each
+ *     isolated so one failure can't skip the others.
+ *
+ * `listen` and `addTickerCallback` also return a removal function, for
+ * the rarer case where you need to detach before the plugin dies. It's
+ * safe to call more than once.
+ *
+ * @example
+ * ```ts
+ * public initialize(): void {
+ *   this.listen(window, 'resize', this._onResize);
+ *   this.addTickerCallback(this._update);
+ *   this.addDisposer(() => this._el.remove());
+ * }
+ * // no destroy() override needed — the base class cleans all three up
+ * ```
+ *
+ * Listeners that get attached and detached repeatedly at runtime (an
+ * activate/deactivate cycle, say) should stay manual — the primitives
+ * are for resources whose lifetime matches the plugin's.
  *
  * Discovery: plugin classes under `src/plugins/` are auto-discovered
  * by the Vite plugin if they default-export a class. Annotate with
@@ -79,7 +113,11 @@ export interface IPlugin<O = any> {
    */
   postInitialize(_app: IApplication): Promise<void> | void;
 
-  /** Tear down. Called on app shutdown. */
+  /**
+   * Tear down. Called on app shutdown. Runs every registered disposer
+   * (last-in-first-out) and disconnects every tracked signal connection.
+   * Safe to call more than once — the second call is a no-op.
+   */
   destroy(): void;
 
   /**
@@ -90,6 +128,40 @@ export interface IPlugin<O = any> {
 
   /** Disconnect every connection added via `addSignalConnection`. */
   clearSignalConnections(): void;
+
+  /**
+   * Register cleanup callbacks to run on `destroy`. Use for resources
+   * the other primitives don't cover — DOM nodes, timers, third-party
+   * handles.
+   *
+   * Disposers run last-in-first-out (so teardown mirrors setup), and each
+   * one is isolated: a throwing disposer is reported and the rest still
+   * run.
+   */
+  addDisposer(...fns: Array<() => void>): void;
+
+  /**
+   * Add a DOM event listener now and remove it on `destroy`, with the
+   * same capture/options semantics it was added with.
+   *
+   * @returns A removal function, for the rarer case where the listener
+   *   must come off before the plugin dies. Safe to call more than once.
+   */
+  listen(
+    target: EventTarget,
+    type: string,
+    handler: EventListenerOrEventListenerObject,
+    options?: AddEventListenerOptions | boolean,
+  ): () => void;
+
+  /**
+   * Add a callback to `app.ticker` now and remove it on `destroy`. The
+   * ticker is resolved when this is called, not at construction.
+   *
+   * @returns A removal function, for the rarer case where the callback
+   *   must come off before the plugin dies. Safe to call more than once.
+   */
+  addTickerCallback(fn: (ticker: Ticker) => void, context?: unknown, priority?: number): () => void;
 
   /** Register methods this plugin exposes via the core function registry. */
   registerCoreFunctions(): void;
@@ -117,6 +189,8 @@ export class Plugin<O = any> implements IPlugin<O> {
   private static readonly __caper_method_binding_root = true;
   // A collection of signal connections.
   protected _signalConnections: SignalConnections = new SignalConnections();
+  // Cleanup callbacks registered via addDisposer / listen / addTickerCallback.
+  protected _disposers: Array<() => void> = [];
 
   protected _options: O;
 
@@ -132,7 +206,25 @@ export class Plugin<O = any> implements IPlugin<O> {
     return Application.getInstance();
   }
 
+  /**
+   * Tear down the plugin. Runs every registered disposer (last-in-first-out,
+   * each isolated so one failure can't skip the others), then disconnects
+   * every tracked signal connection. Idempotent.
+   *
+   * Subclasses may override this, but must call `super.destroy()`.
+   */
   public destroy(): void {
+    // swap the list out first, so a disposer that (indirectly) re-enters
+    // destroy can't run anything twice
+    const disposers = this._disposers;
+    this._disposers = [];
+    for (let i = disposers.length - 1; i >= 0; i--) {
+      try {
+        disposers[i]();
+      } catch (e) {
+        Logger.error(`Plugin "${this.id}" threw while running a disposer:`, e);
+      }
+    }
     this._signalConnections.disconnectAll();
   }
 
@@ -162,6 +254,70 @@ export class Plugin<O = any> implements IPlugin<O> {
 
   public clearSignalConnections() {
     this._signalConnections.disconnectAll();
+  }
+
+  /**
+   * Register cleanup callbacks to run on `destroy`, last-in-first-out.
+   * Use for resources the other primitives don't cover — DOM nodes,
+   * timers, third-party handles.
+   * @param fns - The cleanup callbacks to register.
+   */
+  public addDisposer(...fns: Array<() => void>): void {
+    for (const fn of fns) {
+      this._disposers.push(fn);
+    }
+  }
+
+  /**
+   * Add a DOM event listener now and remove it on `destroy`, with the same
+   * capture/options semantics it was added with.
+   * @param target - The event target to listen on.
+   * @param type - The event type.
+   * @param handler - The listener.
+   * @param options - Passed through to both add and remove, so capture-phase
+   *   listeners detach correctly.
+   * @returns A removal function for early detachment. Safe to call more than once.
+   */
+  public listen(
+    target: EventTarget,
+    type: string,
+    handler: EventListenerOrEventListenerObject,
+    options?: AddEventListenerOptions | boolean,
+  ): () => void {
+    target.addEventListener(type, handler, options);
+    let removed = false;
+    const remove = () => {
+      if (removed) {
+        return;
+      }
+      removed = true;
+      target.removeEventListener(type, handler, options);
+    };
+    this.addDisposer(remove);
+    return remove;
+  }
+
+  /**
+   * Add a callback to `app.ticker` now and remove it on `destroy`. The ticker
+   * is resolved when this is called, not at construction.
+   * @param fn - The ticker callback.
+   * @param context - The context to invoke the callback with.
+   * @param priority - Pixi `UPDATE_PRIORITY` for the callback.
+   * @returns A removal function for early detachment. Safe to call more than once.
+   */
+  public addTickerCallback(fn: (ticker: Ticker) => void, context?: unknown, priority?: number): () => void {
+    const ticker = this.app.ticker;
+    ticker.add(fn, context, priority);
+    let removed = false;
+    const remove = () => {
+      if (removed) {
+        return;
+      }
+      removed = true;
+      ticker.remove(fn, context);
+    };
+    this.addDisposer(remove);
+    return remove;
   }
 
   /**

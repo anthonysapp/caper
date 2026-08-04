@@ -1,4 +1,4 @@
-import { Ticker, UPDATE_PRIORITY } from 'pixi.js';
+import { UPDATE_PRIORITY } from 'pixi.js';
 import Stats from 'stats.js';
 import { Application } from '../core/Application';
 import { Plugin } from './Plugin';
@@ -12,6 +12,7 @@ export class StatsPlugin extends Plugin {
     this.stats.dom.id = 'stats';
 
     Application.containerElement?.appendChild(this.stats.dom);
+    this.addDisposer(() => this.stats.dom.remove());
 
     this.stats.dom.style.position = 'absolute';
     this.stats.dom.style.top = 'auto';
@@ -19,14 +20,6 @@ export class StatsPlugin extends Plugin {
     this.stats.dom.style.right = '0';
     this.stats.dom.style.left = 'auto';
 
-    Ticker.shared.add(this.stats.update, this.stats, UPDATE_PRIORITY.UTILITY);
-  }
-
-  public destroy(): void {
-    if (this.stats) {
-      Ticker.shared.remove(this.stats.update, this.stats);
-      this.stats.dom.remove();
-    }
-    super.destroy();
+    this.addTickerCallback(this.stats.update, this.stats, UPDATE_PRIORITY.UTILITY);
   }
 }

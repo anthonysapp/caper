@@ -676,7 +676,7 @@ export class TimerPlugin extends Plugin implements ITimerPlugin {
 
   public postInitialize() {
     // Set up update loop for main thread timers only
-    this.app.ticker.add(this.update);
+    this.addTickerCallback(this.update);
 
     // Initialize worker if needed
     this.initWorker();
@@ -763,7 +763,6 @@ export class TimerPlugin extends Plugin implements ITimerPlugin {
   }
 
   public destroy(): void {
-    this.app.ticker.remove(this.update);
     this.worker?.terminate();
     this.worker = null;
     this.timerCallbacks.clear();
