@@ -69,29 +69,39 @@ async function generateAssetTypes(manifest, assetsDir) {
           addToBundle('spritesheets', bundle.name, alias);
         });
 
-        // Extract frame names from TPS JSON files
+        // Extract frame names from TPS JSON files, following the multipack
+        // chain. A sheet too big for one page is split, and only page 0 reaches
+        // the manifest — the rest hang off its `meta.related_multi_packs`, which
+        // is how PixiJS finds them too. Reading page 0 alone would type only the
+        // frames the packer happened to fit there, so a frame's alias would
+        // appear and vanish as unrelated art shifted the packing.
         if (asset.data?.tags?.tps) {
-          try {
-            // Find the first .json file in the src array
-            const jsonSrc = srcs.find((src) => src.endsWith('.json'));
-            if (jsonSrc) {
-              // Construct the full path to the JSON file
+          const queue = srcs.filter((src) => src.endsWith('.json')).slice(0, 1);
+          const seen = new Set(queue);
+          while (queue.length) {
+            const jsonSrc = queue.shift();
+            try {
               const jsonPath = path.join(assetsDir, jsonSrc);
+              const tpsData = JSON.parse(await fs.promises.readFile(jsonPath, 'utf8'));
 
-              // Read and parse the JSON file
-              const jsonContent = await fs.promises.readFile(jsonPath, 'utf8');
-              const tpsData = JSON.parse(jsonContent);
-
-              // Extract frame names from the "frames" object
-              if (tpsData.frames) {
-                Object.keys(tpsData.frames).forEach((frameName) => {
-                  assetsByType.tpsFrames.add(frameName);
-                  addToBundle('tpsFrames', bundle.name, frameName);
-                });
+              for (const frameName of Object.keys(tpsData.frames || {})) {
+                assetsByType.tpsFrames.add(frameName);
+                addToBundle('tpsFrames', bundle.name, frameName);
               }
+
+              // Related pages are named relative to the page that lists them.
+              // `seen` keeps a self- or cross-referencing chain from looping.
+              const dir = path.dirname(jsonSrc);
+              for (const related of tpsData.meta?.related_multi_packs || []) {
+                const next = path.join(dir, related);
+                if (!seen.has(next)) {
+                  seen.add(next);
+                  queue.push(next);
+                }
+              }
+            } catch (error) {
+              logger.warn(`Failed to load TPS frames from ${jsonSrc}:`, error.message);
             }
-          } catch (error) {
-            logger.warn(`Failed to load TPS frames from ${firstSrc}:`, error.message);
           }
         }
       } else if (ext === '.json' && !firstSrc.includes('atlas')) {

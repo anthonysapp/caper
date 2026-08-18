@@ -88,3 +88,83 @@ describe('pwa detection', () => {
     expect(info.mock.calls.flat().join('\n')).not.toContain('PWA enabled');
   });
 });
+
+/** Writes a manifest plus its sheet pages into the temp root, then generates. */
+async function generateFrom(manifest, pages) {
+  const assetsDir = path.join(root, 'public', 'assets');
+  fs.mkdirSync(assetsDir, { recursive: true });
+  fs.writeFileSync(path.join(assetsDir, 'assets.json'), JSON.stringify(manifest));
+  for (const [name, body] of Object.entries(pages)) {
+    fs.writeFileSync(path.join(assetsDir, name), JSON.stringify(body));
+  }
+  vi.spyOn(logger, 'info').mockImplementation(() => {});
+  const plugin = assetTypesPlugin();
+  withPlugins(plugin, []);
+  await plugin.buildStart();
+  return fs.readFileSync(path.join(root, 'src', 'types', 'caper-assets.d.ts'), 'utf8');
+}
+
+/** One tps bundle whose manifest entry names only page 0, as AssetPack emits. */
+const multipackManifest = {
+  bundles: [
+    {
+      name: 'screens',
+      assets: [{ alias: ['screens'], src: ['screens-0.png.json'], data: { tags: { tps: true } } }],
+    },
+  ],
+};
+
+describe('tps frames', () => {
+  it('follows the multipack chain instead of typing page 0 alone', async () => {
+    // Regression: a sheet too big for one page is split, but only page 0 reaches
+    // the manifest — so every frame the packer pushed onto a later page was
+    // missing from the union, and which frames those were changed whenever
+    // unrelated art shifted the packing. PixiJS loads them via the same field.
+    const types = await generateFrom(multipackManifest, {
+      'screens-0.png.json': {
+        frames: { 'thumbs/on-page-0': {} },
+        meta: { related_multi_packs: ['screens-1.png.json', 'screens-2.png.json'] },
+      },
+      'screens-1.png.json': { frames: { 'thumbs/on-page-1': {} } },
+      'screens-2.png.json': { frames: { 'thumbs/on-page-2': {} } },
+    });
+
+    for (const frame of ['thumbs/on-page-0', 'thumbs/on-page-1', 'thumbs/on-page-2']) {
+      expect(types).toContain(`'${frame}'`);
+    }
+    // …and narrowed by bundle, not just in the flat union.
+    expect(types).toMatch(/screens: '[^\n]*thumbs\/on-page-2/);
+  });
+
+  it('walks pages a later page links, and survives a cycle', async () => {
+    const types = await generateFrom(multipackManifest, {
+      'screens-0.png.json': {
+        frames: { 'thumbs/first': {} },
+        meta: { related_multi_packs: ['screens-1.png.json'] },
+      },
+      // page 1 links onward AND back to page 0 — a naive walk would not return.
+      'screens-1.png.json': {
+        frames: { 'thumbs/second': {} },
+        meta: { related_multi_packs: ['screens-2.png.json', 'screens-0.png.json'] },
+      },
+      'screens-2.png.json': { frames: { 'thumbs/third': {} } },
+    });
+
+    for (const frame of ['thumbs/first', 'thumbs/second', 'thumbs/third']) {
+      expect(types).toContain(`'${frame}'`);
+    }
+  });
+
+  it('keeps the frames it did read when a linked page is missing', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const types = await generateFrom(multipackManifest, {
+      'screens-0.png.json': {
+        frames: { 'thumbs/present': {} },
+        meta: { related_multi_packs: ['screens-9.png.json'] },
+      },
+    });
+
+    expect(types).toContain("'thumbs/present'");
+    expect(warn.mock.calls.flat().join('\n')).toContain('screens-9.png.json');
+  });
+});
