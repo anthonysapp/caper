@@ -7,7 +7,7 @@ on every `Container`, build-time auto-discovery of scenes/plugins/popups/entitie
 and generated TypeScript types for app IDs and assets. Caper is a personal fork
 of `dill-pixel` by Relish Studios.
 
-**Package version:** `@caperjs/core@6.2.2` · **Peer deps:** `pixi.js@8.x`, `@pixi/sound@^6`, `gsap@^3.13`.
+**Package version:** see `../package.json` (this file ships inside the package) · **Peer deps:** `pixi.js@8.x`, `@pixi/sound@^6`, `gsap@^3.13`.
 
 **File citations in this guide** point at the `@caperjs/core` package source
 (paths relative to this file, e.g. `../src/core/Application.ts`) — those ship
@@ -39,7 +39,8 @@ produce working code.
 14. [Generated types & virtual modules](#14-generated-types--virtual-modules)
 15. [Common recipes](#15-common-recipes)
 16. [Gotchas & verification loop](#16-gotchas--verification-loop)
-17. [API reference index](#17-api-reference-index)
+17. [Automation bridge — drive the running app](#17-automation-bridge--drive-the-running-app)
+18. [API reference index](#18-api-reference-index)
 
 ---
 
@@ -1543,7 +1544,87 @@ cache produces confusing texture/name mismatches.
 
 ---
 
-## 17. API reference index
+## 17. Automation bridge — drive the running app
+
+Every app registers itself on `window.Caper` at boot (source:
+[`../src/core/globals.ts`](../src/core/globals.ts)). This is how an agent,
+Playwright script, or smoke test drives a Caper app without clicking around.
+
+### 17.1 What is always there
+
+```ts
+Caper.apps            // Map<appId, app>  (appId = caper.config.ts `id`, else 'CaperApplication')
+Caper.app             // last created app
+await Caper.ready()   // resolves when the first app has fully booted (safe to call early)
+await Caper.ready('my-app-id')
+```
+
+### 17.2 The automation facade (gated)
+
+Enabled when **any** of: dev server (`import.meta.env.DEV`), `automation: true`
+in `caper.config.ts`, or env `VITE_CAPER_AUTOMATION=true` at build time. When on,
+`Caper.automation[appId]` (also `app.automation`) exposes:
+
+| Member | What it does |
+| --- | --- |
+| `action(name, data?)` | `app.sendAction(name, data)`. Subject to the ActionsPlugin context rules — out-of-context actions are dropped, same as a real input. |
+| `getContext()` | Current action context as a string (e.g. `'game'`, `'popup'`). |
+| `getState()` | Whatever the app's registered state getter returns (`undefined` until registered). |
+| `registerStateGetter(fn)` | App code calls this once to expose a snapshot of game state. |
+| `notifyStateChanged(state)` | App code calls this on each meaningful change; re-runs pending `waitFor` predicates and logs a `state` entry. |
+| `waitFor(predicate, { timeoutMs? })` | Resolves with the state the first time `predicate(state)` is true (checked immediately, then on every `notifyStateChanged`). Rejects on timeout. |
+| `log` | Ring buffer of the last 200 entries: `{ t, kind: 'action' \| 'state' \| 'context', name?, data? }`. Only **dispatched** actions are logged (dropped ones are not). |
+
+### 17.3 App-side wiring (once per game)
+
+```ts
+// in the main scene's initialize(), or wherever the game state lives
+this.app.automation?.registerStateGetter(() => this.store.snapshot());
+this.store.onChanged.connect((s) => this.app.automation?.notifyStateChanged(s));
+```
+
+Keep the snapshot plain data (no display objects) so predicates stay cheap and
+serializable for drivers outside the page.
+
+### 17.4 Driving it
+
+Use a browser you own. Launch a separate Chromium with Playwright (isolated,
+throwaway profile) and point it at the dev server; do **not** attach to or drive the
+human's own browser session unless they ask you to look at one of their tabs.
+
+```ts
+import { chromium } from 'playwright';
+const browser = await chromium.launch();   // headless; { headless: false } only when a human watches
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+page.on('pageerror', (e) => console.error('pageerror', e));
+await page.goto('http://localhost:3000/');
+await page.waitForFunction(() => window.Caper?.__readyApps?.size > 0);
+const result = await page.evaluate(async () => {
+  const app = await Caper.ready();
+  const a = Caper.automation[app.config.id];
+  a.action('fire');
+  const s = await a.waitFor((st) => st?.phase === 'resolved', { timeoutMs: 10_000 });
+  return { context: a.getContext(), state: s, actions: a.log.filter((e) => e.kind === 'action').map((e) => e.name) };
+});
+await page.screenshot({ path: 'scratch/after-fire.png' });
+await browser.close();
+```
+
+Rules of thumb:
+
+- Prefer `action()` over synthesising pointer events — it goes through the same
+  ActionsPlugin path as a real button, so context gating and action signals behave
+  identically.
+- If an action seems ignored, check `getContext()` first: it was probably dropped
+  as out-of-context. That is by design (see §1 / gotchas), not a bug.
+- `waitFor` only re-evaluates on `notifyStateChanged`; if it never resolves, the
+  app is not calling `notifyStateChanged` for that transition.
+- For a boot-only smoke test you need none of the facade: assert
+  `Caper.apps.size > 0` after `Caper.ready()` and that the page logged no errors.
+
+---
+
+## 18. API reference index
 
 Flat jump table. Name → section → one-line.
 
@@ -1604,5 +1685,5 @@ Flat jump table. Name → section → one-line.
 
 ---
 
-**Last updated:** `@caperjs/core@6.2.2` (PixiJS 8.x). When in doubt, read the
+**Last updated:** with `@caperjs/core@0.5.x` (PixiJS 8.x); version in `../package.json`. When in doubt, read the
 cited framework source file — signatures and defaults are authoritative there.
