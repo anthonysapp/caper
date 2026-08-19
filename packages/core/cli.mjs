@@ -5,6 +5,7 @@ import { bgRed, bold, green, red, white } from 'kleur/colors';
 import fs from 'node:fs';
 import process from 'node:process';
 import { add } from './cli/add.mjs';
+import { agent } from './cli/agent.mjs';
 import { generateCaptions } from './cli/audio/cc.mjs';
 import { compress } from './cli/audio/index.mjs';
 import { create } from './cli/create.mjs';
@@ -63,6 +64,9 @@ switch (args[0]) {
     break;
   case 'add':
     await add(args.slice(1));
+    break;
+  case 'agent':
+    await agent(args.slice(1));
     break;
   case 'create': {
     let packageManager = 'npm'; // Default to npm

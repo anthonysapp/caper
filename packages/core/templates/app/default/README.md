@@ -1,5 +1,7 @@
 # ~NAME~
 
+AI agents: this project ships a `caper` skill (`.claude/skills/caper/SKILL.md`) and pointers in `AGENTS.md`; see `node_modules/@caperjs/core/extras/llms.txt`.
+
 ## Development
 
 - run `~PACKAGE_MANAGER~ install` to install dependencies

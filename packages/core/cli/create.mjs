@@ -6,6 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
 import shell from 'shelljs';
+import { agentInit } from './agent.mjs';
 import { copy, dist, mkdirp, package_manager } from './utils.mjs';
 
 let packageManager = package_manager;
@@ -150,7 +151,7 @@ export function injectPluginsIntoConfig(configContents, pluginConfigs) {
  * @param {string} cwd
  * @param {string[]} plugins
  */
-function write_template_files(cwd, template, applicationNameForPkg, applicationName, defaultName, plugins) {
+async function write_template_files(cwd, template, applicationNameForPkg, applicationName, defaultName, plugins) {
   const dir = dist(`templates/${template}`);
   copy(`${dir}/package.template.json`, `${cwd}/package.json`);
 
@@ -208,6 +209,14 @@ function write_template_files(cwd, template, applicationNameForPkg, applicationN
   readme_contents = readme_contents.replace(/~NAME~/g, defaultName);
   readme_contents = readme_contents.replace(/~PACKAGE_MANAGER~/g, mgr);
   fs.writeFileSync(readme_file, readme_contents, 'utf-8');
+
+  // Install the shipped caper agent skill and upsert pointers into AGENTS.md/CLAUDE.md.
+  // This is best-effort: scaffolding must not fail because the agent init step failed.
+  try {
+    await agentInit(cwd);
+  } catch (e) {
+    console.warn('Warning: failed to install the caper agent skill:', e.message);
+  }
 
   // find __APPLICATION_NAME__.ts and replace it with the application name, then delete ~Application.ts
   const app_file = `${cwd}/src/__APPLICATION_NAME__.ts`;

@@ -36,7 +36,8 @@ few dozen lines of `fs`/`child_process` glue, not a framework of their own.
     — never `import`ed as a value.
   - `./tsconfig` → `config/tsconfig.base.json` — the base config every app
     and plugin template `extends`.
-  - `./extras/llms.txt`, `./extras/css/{accessibility,loader,fullscreen}.css`
+  - `./extras/llms.txt`, `./extras/css/{accessibility,loader,fullscreen}.css`,
+    `./extras/skills/caper/SKILL.md`
     — static assets referenced from app `index.html` (`@import url(...)`)
     or handed to an LLM for framework context.
 - **`files`** ships `lib` (build output), `src` (source, for sourcemaps /
@@ -69,6 +70,7 @@ banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 | `version` | (banner only) | no-op past the version print |
 | `dev`/`start`/`build`/`preview` | rejected, exit 1 (`cli.mjs:50-63`) | removed in 0.2.0; kept as named cases purely to print "run vite directly" instead of "unknown subcommand" |
 | `add` | `add(args.slice(1))` (`cli/add.mjs`) | scaffold one scene/plugin/entity/popup file |
+| `agent init [--dir <skillsDir>]` | `agent(args.slice(1))` (`cli/agent.mjs`) | copies the shipped `caper` agent skill into the app (default `.claude/skills/`) and upserts a marker-delimited pointer block into `AGENTS.md`/`CLAUDE.md` |
 | `create` | `create(projectPath, packageManager)` (`cli/create.mjs`) | parses `--use-yarn`/`--use-pnpm` and a positional path before delegating |
 | `update` | `update()` (`cli/update.mjs`) | installs `@caperjs/core@latest` |
 | `vo generate [inputDir] [csvDir]` | `generateVoiceoverCSV()` (`cli/voiceover/`) | |

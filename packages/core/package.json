@@ -15,6 +15,7 @@
     "build",
     "config/tsconfig.base.json",
     "extras/llms.txt",
+    "extras/skills",
     "extras/css/accessibility.css",
     "extras/css/loader.css",
     "extras/css/fullscreen.css",

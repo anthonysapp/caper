@@ -8,7 +8,13 @@ It sits on top of PixiJS — a renderer, not a game engine — and adds the part
 
 ## Status
 
-This package is **not yet published to npm**. The recommended way to use it is to clone the [Caper monorepo](https://github.com/anthonysapp/caper), run the kitchen-sink, and either fork it as a starter or vendor `packages/core` into your own project. First publish lands in Phase 7.
+Published on npm as `@caperjs/core`.
+
+## For AI agents
+
+- `npx caper agent init` installs the `caper` skill + `AGENTS.md` pointers for this project.
+- The reference is `node_modules/@caperjs/core/extras/llms.txt` — read it by section (`grep -n '^## '`), not whole.
+- Engine source ships in the package under `src/`.
 
 ## Highlights
 
