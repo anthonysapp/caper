@@ -306,6 +306,14 @@ need the `seen` set) and spine `*.png.atlas`. A png is only dropped when a non-p
   thing registers. The old arrangement added a `caper-pwa` rollup input that nothing
   imported, so registration never ran and the API was dead.
 
+**`api` seams for the CLI.** Three plugins expose Vite's standard `api` field so
+`caper types` (`cli/types.mjs`) can run the generators outside a server:
+`vite-plugin-assetpack.api.runOnce()`, `vite-plugin-caper-config.api.generateTypes()`
+and `vite-plugin-asset-types.api.generateTypes()`. The CLI reaches them through
+`vite.resolveConfig(...)` on the app's own `vite.config` (which runs `configResolved`,
+so the closures' `root`/`publicDir` are set). Keep hook behaviour and `api` behaviour
+identical when touching these.
+
 ## Invariants & gotchas
 
 - **`internal/` never imports `plugins/`.** Convention only; the reverse is fine.

@@ -9,7 +9,9 @@ import { agent } from './cli/agent.mjs';
 import { generateCaptions } from './cli/audio/cc.mjs';
 import { compress } from './cli/audio/index.mjs';
 import { create } from './cli/create.mjs';
+import { doctor } from './cli/doctor.mjs';
 import { installPeerDeps } from './cli/install-peerdeps.mjs';
+import { types } from './cli/types.mjs';
 import { update } from './cli/update.mjs';
 import { generateVoiceoverCSV } from './cli/voiceover/index.mjs';
 
@@ -67,6 +69,12 @@ switch (args[0]) {
     break;
   case 'agent':
     await agent(args.slice(1));
+    break;
+  case 'types':
+    await types(args.slice(1));
+    break;
+  case 'doctor':
+    await doctor(args.slice(1));
     break;
   case 'create': {
     let packageManager = 'npm'; // Default to npm

@@ -10,9 +10,15 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveConfig } from 'vite';
+import { caper } from '../index.mjs';
 import { caperConfigPlugin } from './caperConfig.mjs';
 import { logger } from '../internal/util.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const fixtureRoot = path.resolve(here, '../../test/fixtures/app');
 
 let root;
 
@@ -62,5 +68,23 @@ describe('dev watcher', () => {
     const { handlers } = wire();
     await handlers[0](path.resolve(root, 'src/other/Thing.ts'));
     expect(info).not.toHaveBeenCalled();
+  });
+});
+
+describe('api.generateTypes', () => {
+  it('writes caper-app.d.ts to a temp copy of the fixture', async () => {
+    fs.cpSync(fixtureRoot, root, { recursive: true });
+
+    const resolved = await resolveConfig(
+      { configFile: false, root, logLevel: 'silent', plugins: [caper()] },
+      'serve',
+    );
+    const plugin = resolved.plugins.find((p) => p.name === 'vite-plugin-caper-config');
+    await plugin.api.generateTypes();
+
+    const dtsPath = path.join(root, 'src', 'types', 'caper-app.d.ts');
+    expect(fs.existsSync(dtsPath)).toBe(true);
+    const content = fs.readFileSync(dtsPath, 'utf-8');
+    expect(content).toContain("'main'");
   });
 });

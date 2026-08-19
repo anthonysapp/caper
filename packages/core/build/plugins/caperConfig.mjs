@@ -418,6 +418,9 @@ declare module '@caperjs/core' {
 
   return {
     name: 'vite-plugin-caper-config',
+    api: {
+      generateTypes: () => build('Generating types from caper.config.ts'),
+    },
     configResolved(config) {
       publicDir = config.publicDir;
       root = config.root;

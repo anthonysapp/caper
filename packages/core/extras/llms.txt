@@ -214,6 +214,10 @@ subcommands run from the app root.
 | `vite` | Start the dev server. Caper is wired in through `caper()` in the app's own `vite.config.ts`. |
 | `vite build` | Production build. |
 | `vite build && vite preview` | Build then preview locally. |
+| `caper types [--no-assets]` | Regenerate `src/types/caper-app.d.ts` + `caper-assets.d.ts` **without a dev server** (runs AssetPack once unless `--no-assets`). Use after a fresh clone or a rename. |
+| `caper doctor [--offline] [--json]` | One-screen health check: installed vs latest caper, npm vs linked engine (and whether the linked build is stale), generated types present/fresh, asset manifest, agent pointers, peer deps, caches. Exit 1 on any ✗. |
+| `caper agent init [--dir <skillsDir>]` | Install the shipped `caper` agent skill (default `.claude/skills/caper/SKILL.md`) and upsert a pointer block into `AGENTS.md`/`CLAUDE.md`. Re-run after upgrading caper. |
+| `caper agent probe <url> [--action n[=json]]… [--until "<js predicate>"] [--wait ms] [--screenshot p] [--headed] [--json]` | Drive a **running** app headlessly through the automation bridge (§17) in a Chromium you own: boots, sends actions, waits on state, returns context/state/log/errors (+ screenshot). Needs `playwright` in the app's devDependencies. |
 | `caper update` | Update Caper to latest. |
 | `caper install` | Install peer deps (rarely needed; normally automatic). |
 | `caper vo generate [inputDir] [outputDir]` | Voiceover CSV generation from locales. Defaults: `./src/locales` → `./src/assets/audio/vo/csv`. |
@@ -1283,9 +1287,9 @@ implementation of the auto-wiring. Know they exist for debugging.
 
 ### 14.4 Regenerating
 
-Types regen on dev-server restart. After renaming a scene / plugin / popup /
-entity: delete the stale `caper-app.d.ts` / `caper-assets.d.ts`, then
-the dev server — they're re-emitted from scratch.
+Types regen on dev-server restart, or on demand with `npx caper types`
+(no server; runs AssetPack once unless `--no-assets`). After renaming a scene /
+plugin / popup / entity, or on a fresh clone, run it before typechecking.
 
 **Source references:** [build/plugins/assetTypes.mjs](../build/plugins/assetTypes.mjs).
 
@@ -1506,10 +1510,11 @@ Do not start the dev server yourself — it runs forever and blocks.
 
 ### 16.3 Regenerate types after renames
 
-After renaming a scene/plugin/popup/entity, delete
-`src/types/caper-app.d.ts` and `src/types/caper-assets.d.ts` (they're
-generated), then run `pnpm dev`. Old IDs stuck in the union cause weird
-downstream type errors.
+After renaming a scene/plugin/popup/entity run `npx caper types` (regenerates
+`src/types/caper-app.d.ts` and `caper-assets.d.ts` from scratch, no dev server
+needed). Same fix for a fresh clone where the generated files are gitignored. Old
+IDs stuck in the union cause weird downstream type errors. `npx caper doctor`
+tells you when they are stale.
 
 ### 16.4 Fail loud in plugins (see §1.2)
 
@@ -1591,6 +1596,15 @@ serializable for drivers outside the page.
 Use a browser you own. Launch a separate Chromium with Playwright (isolated,
 throwaway profile) and point it at the dev server; do **not** attach to or drive the
 human's own browser session unless they ask you to look at one of their tabs.
+
+The shipped driver does the common case with no code:
+
+```bash
+npx caper agent probe http://localhost:3000/ --action fire --until "s => s && s.phase === 'resolved'" --screenshot scratch/after-fire.png --json
+# → { appId, automation, context, state, actions, log, pageErrors, consoleErrors, screenshot, durationMs }; exit 1 on boot/until timeout or page errors
+```
+
+Write your own only when you need more than actions + one predicate:
 
 ```ts
 import { chromium } from 'playwright';

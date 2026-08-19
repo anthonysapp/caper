@@ -3,11 +3,12 @@ import { bgRed, bold, cyan, green, white } from 'kleur/colors';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { probe } from './probe.mjs';
 
 /**
- * `caper agent init` — installs the shipped `caper` agent skill into the
- * current app and upserts a marker-delimited pointer block into the app's
- * agent context file (`AGENTS.md` or `CLAUDE.md`).
+ * `caper agent <subcommand>` — `init` installs the shipped `caper` agent skill
+ * into the current app; `probe` drives a running Caper app through the
+ * Playwright automation bridge.
  */
 
 const START_MARKER = '<!-- caper:agent-start -->';
@@ -100,7 +101,12 @@ export async function agent(args) {
     return;
   }
 
+  if (args[0] === 'probe') {
+    await probe(args.slice(1));
+    return;
+  }
+
   const subcommand = args[0] ?? '(none)';
-  console.error(bold(bgRed(white(`Unknown agent command: "${subcommand}". Please use "init".`))));
+  console.error(bold(bgRed(white(`Unknown agent command: "${subcommand}". Please use "init" or "probe".`))));
   process.exit(1);
 }

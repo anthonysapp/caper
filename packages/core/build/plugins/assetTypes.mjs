@@ -398,8 +398,10 @@ export function assetTypesPlugin(manifestUrl = 'assets.json') {
       }
       const manifest = JSON.parse(await fs.promises.readFile(manifestPath, 'utf8'));
       await writeAssetTypes(manifest, path.dirname(manifestPath), path.join(publicDir, 'assets'), root);
-      logger.info('Caper asset types plugin:: manifest changed, reloading browser...');
-      viteServer?.ws?.send({ type: 'full-reload' });
+      if (viteServer) {
+        logger.info('Caper asset types plugin:: manifest changed, reloading browser...');
+        viteServer.ws.send({ type: 'full-reload' });
+      }
     } catch (error) {
       logger.error('Caper asset types plugin:: Error handling manifest change:', error);
     }
@@ -409,6 +411,9 @@ export function assetTypesPlugin(manifestUrl = 'assets.json') {
 
   return {
     name: 'vite-plugin-asset-types',
+    api: {
+      generateTypes: () => generate(manifestUrl),
+    },
     configResolved(config) {
       publicDir = config.publicDir;
       root = config.root;

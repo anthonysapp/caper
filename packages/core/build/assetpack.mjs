@@ -302,6 +302,12 @@ export function assetpackPlugin(manifestUrl = defaultManifestUrl, pixiPipesConfi
 
   return {
     name: 'vite-plugin-assetpack',
+    api: {
+      runOnce: async () => {
+        await getConfig();
+        await new AssetPack(apConfig).run();
+      },
+    },
     async configResolved(resolvedConfig) {
       mode = resolvedConfig.command;
       // Captured before getConfig() below, which is what consumes it.
