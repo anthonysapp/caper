@@ -47,7 +47,7 @@ few dozen lines of `fs`/`child_process` glue, not a framework of their own.
   ships in full, including `templates/plugin/` which the published CLI never
   reads (see Templates below) — it rides along only because it lives under
   `packages/core`.
-- **`peerDependencies`**: `pixi.js@8.19.0` (pinned exact — the renderer;
+- **`peerDependencies`**: `pixi.js@8.20.0` (pinned exact — the renderer;
   exact pin avoids two copies of PixiJS existing in one app),
   `@pixi/sound@^6`, `gsap@^3.15` (tweening, used by scene/UI transitions),
   `vite@^8.0.7` (the `./vite` preset plugs into the *consumer's own* Vite,

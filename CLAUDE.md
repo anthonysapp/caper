@@ -78,7 +78,7 @@ There is **no repo-level test command** (root `test` script is a stub). Core che
 
 - **Application is the entry point.** Games extend [`Application`](packages/core/src/core/Application.ts) from `caper`. The framework auto-detects scenes and wires plugins/storage adapters through a registries system ([core/registries.ts](packages/core/src/core/registries.ts)) during bootstrap. Kitchen-sink's [`KitchenSinkApplication.ts`](apps/kitchen-sink/src/KitchenSinkApplication.ts) is the canonical example.
 - **Plugins and storage adapters are first-class.** They are registered via the app config (see `caper.config.ts`) and loaded during bootstrap — not imported ad-hoc. When adding features that touch third-party services (analytics, physics, networking, persistence), prefer creating/extending a plugin or adapter over inlining it in game code.
-- **PixiJS v8 peer dep.** The framework pins `pixi.js@8.10.2`, `@pixi/sound@^6`, and `gsap@^3.13` as peer deps. Plugins/adapters should follow the same peer-dep pattern, not bundle Pixi.
+- **PixiJS v8 peer dep.** The framework pins `pixi.js@8.20.0`, `@pixi/sound@^6`, and `gsap@^3.13` as peer deps. Plugins/adapters should follow the same peer-dep pattern, not bundle Pixi.
 - **Build tooling is a Vite preset.** `@caperjs/core/vite` exports `caper()`; an app's `vite.config.ts` is `plugins: [caper()]` and it runs plain `vite` / `vite build`. The preset lives in `packages/core/build/`. Shared `tsconfig.json` and prettier config are still exported from `config/`.
 - **Signals over events.** The framework uses `typed-signals` for cross-system communication (see `src/signals/`).
 

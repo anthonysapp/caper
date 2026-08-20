@@ -315,7 +315,7 @@ Scheme authoring uses `defineControls(actions, buttons, controls)` for literal-t
 
 ### Purpose
 
-Esoteric Software's Spine runtime for PixiJS v8, vendored into the framework so Caper can pin it against `pixi.js@8.10.2`, plus a dark-tint batcher Pixi does not ship. Opt-in via `config.useSpine`.
+Esoteric Software's Spine runtime for PixiJS v8, vendored into the framework so Caper can pin it against the framework’s exact `pixi.js` (8.20.0 today), plus a dark-tint batcher Pixi does not ship. Opt-in via `config.useSpine`.
 
 ### Interface
 

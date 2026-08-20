@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  pixi.js: 8.19.0
+  pixi.js: 8.20.0
 
 importers:
 
@@ -73,10 +73,10 @@ importers:
         version: link:../../packages/plugin-rollbar
       '@pixi/layout':
         specifier: ^3.2.0
-        version: 3.2.0(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)(yoga-layout@3.2.1)
+        version: 3.2.0(@types/react@19.1.8)(pixi.js@8.20.0)(react@19.1.0)(yoga-layout@3.2.1)
       '@pixi/sound':
         specifier: ^6.0.1
-        version: 6.0.1(pixi.js@8.19.0)
+        version: 6.0.1(pixi.js@8.20.0)
       '@vite-pwa/assets-generator':
         specifier: ^1.0.0
         version: 1.0.0
@@ -93,8 +93,8 @@ importers:
         specifier: 4.1.5
         version: 4.1.5
       pixi.js:
-        specifier: 8.19.0
-        version: 8.19.0
+        specifier: 8.20.0
+        version: 8.20.0
       rimraf:
         specifier: 5.0.5
         version: 5.0.5
@@ -161,13 +161,13 @@ importers:
         version: 4.2.84
       '@pixi/devtools':
         specifier: ^2.0.1
-        version: 2.0.1(pixi.js@8.19.0)
+        version: 2.0.1(pixi.js@8.20.0)
       '@pixi/layout':
         specifier: ^3.2.0
-        version: 3.2.0(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)(yoga-layout@3.2.1)
+        version: 3.2.0(@types/react@19.1.8)(pixi.js@8.20.0)(react@19.1.0)(yoga-layout@3.2.1)
       '@pixi/sound':
         specifier: ^6.0.1
-        version: 6.0.1(pixi.js@8.19.0)
+        version: 6.0.1(pixi.js@8.20.0)
       '@types/stats.js':
         specifier: ^0.17.3
         version: 0.17.4
@@ -191,10 +191,10 @@ importers:
         version: 0.124.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.2)
       pixi-filters:
         specifier: ^6.1.2
-        version: 6.1.3(pixi.js@8.19.0)
+        version: 6.1.3(pixi.js@8.20.0)
       pixi.js:
-        specifier: 8.19.0
-        version: 8.19.0
+        specifier: 8.20.0
+        version: 8.20.0
       prettier:
         specifier: ^3.2.5
         version: 3.6.2
@@ -300,8 +300,8 @@ importers:
         specifier: ^3.15.0
         version: 3.15.0
       pixi.js:
-        specifier: 8.19.0
-        version: 8.19.0
+        specifier: 8.20.0
+        version: 8.20.0
     devDependencies:
       '@caperjs/core':
         specifier: workspace:^
@@ -354,8 +354,8 @@ importers:
         specifier: ^2.26.1
         version: 2.30.1
       pixi.js:
-        specifier: 8.19.0
-        version: 8.19.0
+        specifier: 8.20.0
+        version: 8.20.0
     devDependencies:
       '@caperjs/core':
         specifier: workspace:^
@@ -2172,12 +2172,12 @@ packages:
   '@pixi/devtools@2.0.1':
     resolution: {integrity: sha512-TFCqNkJoLNYHDELgQ3bKWvA33twWpoUhQB8Y+hneBdDBunRsqZ5ZzwH7+6E5eVaVn7eeLAXHs9QGRGsxM0fRlw==}
     peerDependencies:
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
 
   '@pixi/layout@3.2.0':
     resolution: {integrity: sha512-7TtDLHfaF65sTnYjrvRNqNJSQHMH109b04RtNgoy//BjR+pKWFUCgDMnUhs13fdNM0AkGccQW3UqCdylHuGvbA==}
     peerDependencies:
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
       yoga-layout: ^3
 
   '@pixi/msdf-bmfont-xml@3.0.0':
@@ -2187,13 +2187,13 @@ packages:
   '@pixi/react@8.0.2':
     resolution: {integrity: sha512-A42Bw/1YlxxCXhb+nDIgzPpACx5dOh7Yi+ZfBMlZ1sBB/qc7qyX9k7bdDtrnMqz8OofyF2FXg9gPw9MISFsQTA==}
     peerDependencies:
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
       react: '>=19.0.0'
 
   '@pixi/sound@6.0.1':
     resolution: {integrity: sha512-hpFlQSScAR2L/CsEoIvDi7s1oGsu8y9Zd742Vd3982N+q3IF2vFuIfV9HN4ryjlGnhCT8yBlEgs1gp4G9Rt9TA==}
     peerDependencies:
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
 
   '@pixi/svg2ttf@6.1.0':
     resolution: {integrity: sha512-qT7P6F48lyWVWn6w0qxWtxLVVPEcXzAlo9/nimh4cflfKQWdApqfCZVOCgaaO0xHVpClbhCzApQXlJnLEs1oaw==}
@@ -2763,6 +2763,7 @@ packages:
   '@xmldom/xmldom@0.8.13':
     resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xmldom/xmldom@0.9.9':
     resolution: {integrity: sha512-qycIHAucxy/LXAYIjmLmtQ8q9GPnMbnjG1KXhWm9o5sCr6pOYDATkMPiTNa6/v8eELyqOQ2FsEqeoFYmgv/gJg==}
@@ -4798,10 +4799,10 @@ packages:
   pixi-filters@6.1.3:
     resolution: {integrity: sha512-bmdI2Ytz+z/NcADkjew2phKq300aQ9p9nVx9OfkMNuoYEl4gW99ZDNQZfsF834V/jj3CKTsIV4jxA+BI45UYOQ==}
     peerDependencies:
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
 
-  pixi.js@8.19.0:
-    resolution: {integrity: sha512-pq1O6emA/GFjjeF+8d3Pb5t7knD8FsnfWGqQcRjYjsqFZ7QdzG1XgjLDUu0DFJRbafjV5+g8iNLFBx0b9649lg==}
+  pixi.js@8.20.0:
+    resolution: {integrity: sha512-WL7+yhxgNnI87AbucMR2X7yXmi/XhhYA25w2wV1QaNv6WMByM02kSX2ryreSq38OavHytFD0zY0bX6Nqgj/WAA==}
 
   pkg-types@1.3.1:
     resolution: {integrity: sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ==}
@@ -8076,16 +8077,16 @@ snapshots:
 
   '@pixi/colord@2.9.6': {}
 
-  '@pixi/devtools@2.0.1(pixi.js@8.19.0)':
+  '@pixi/devtools@2.0.1(pixi.js@8.20.0)':
     dependencies:
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
 
-  '@pixi/layout@3.2.0(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)(yoga-layout@3.2.1)':
+  '@pixi/layout@3.2.0(@types/react@19.1.8)(pixi.js@8.20.0)(react@19.1.0)(yoga-layout@3.2.1)':
     dependencies:
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
       yoga-layout: 3.2.1
     optionalDependencies:
-      '@pixi/react': 8.0.2(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)
+      '@pixi/react': 8.0.2(@types/react@19.1.8)(pixi.js@8.20.0)(react@19.1.0)
     transitivePeerDependencies:
       - '@types/react'
       - react
@@ -8105,19 +8106,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@pixi/react@8.0.2(@types/react@19.1.8)(pixi.js@8.19.0)(react@19.1.0)':
+  '@pixi/react@8.0.2(@types/react@19.1.8)(pixi.js@8.20.0)(react@19.1.0)':
     dependencies:
       its-fine: 2.0.0(@types/react@19.1.8)(react@19.1.0)
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
       react: 19.1.0
       react-reconciler: 0.31.0(react@19.1.0)
     transitivePeerDependencies:
       - '@types/react'
     optional: true
 
-  '@pixi/sound@6.0.1(pixi.js@8.19.0)':
+  '@pixi/sound@6.0.1(pixi.js@8.20.0)':
     dependencies:
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
 
   '@pixi/svg2ttf@6.1.0':
     dependencies:
@@ -10910,12 +10911,12 @@ snapshots:
     dependencies:
       pngjs: 6.0.0
 
-  pixi-filters@6.1.3(pixi.js@8.19.0):
+  pixi-filters@6.1.3(pixi.js@8.20.0):
     dependencies:
       '@types/gradient-parser': 0.1.5
-      pixi.js: 8.19.0
+      pixi.js: 8.20.0
 
-  pixi.js@8.19.0:
+  pixi.js@8.20.0:
     dependencies:
       '@pixi/colord': 2.9.6
       '@types/earcut': 3.0.0

@@ -37,6 +37,6 @@
   "peerDependencies": {
     "@caperjs/core": "^0.6.0",
     "gsap": "^3.15.0",
-    "pixi.js": "8.19.0"
+    "pixi.js": "8.20.0"
   }
 }
