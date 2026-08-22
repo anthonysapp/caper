@@ -40,7 +40,8 @@ produce working code.
 15. [Common recipes](#15-common-recipes)
 16. [Gotchas & verification loop](#16-gotchas--verification-loop)
 17. [Automation bridge — drive the running app](#17-automation-bridge--drive-the-running-app)
-18. [API reference index](#18-api-reference-index)
+18. [Declarative layer — `@caperjs/solid`](#18-declarative-layer--caperjssolid)
+19. [API reference index](#19-api-reference-index)
 
 ---
 
@@ -1213,6 +1214,9 @@ Each is a separate npm package. Install → list in `plugins: [...]` → use via
 Install via pnpm/npm, then register in `caper.config.ts plugins: [...]`.
 Deep API lives in each plugin's own README on npm.
 
+`@caperjs/solid` is first-party too but is **not** a plugin — it is the optional
+declarative view layer and never appears in `plugins: [...]`. See §18.
+
 Canonical registration shape:
 
 ```ts
@@ -1638,7 +1642,180 @@ Rules of thumb:
 
 ---
 
-## 18. API reference index
+## 18. Declarative layer — `@caperjs/solid`
+
+**Optional and purely additive.** `@caperjs/solid` is a separate package (npm
+`@caperjs/solid`, source `packages/plugin-solid/`) that lets a display object
+declare its members with SolidJS JSX instead of building them by hand. It is
+**not** an `IPlugin` — nothing goes in `plugins: [...]`, there is no `app.solid`.
+Core stays Solid-free; imperative Caper (§6) is unchanged and always available.
+
+Reach for it when a screen is **UI-shaped**: state→view plumbing, lists that
+insert/remove, panels that show and hide. Keep gameplay (`update()` loops,
+physics, entity simulation) imperative — this layer does nothing for it.
+
+### 18.1 The `compose()` contract
+
+A `Container` (or `Scene`) subclass extends `ComposableContainer` /
+`ComposableScene` and returns JSX from `compose()`:
+
+- **Mount once.** The tree mounts the first time the object hits the stage,
+  driven by Pixi's native `'added'` event — so a subclass that overrides
+  `added()` without calling `super.added()` cannot break it.
+- **Dispose on `destroy()`.** The Solid root is torn down there; re-adding the
+  object does **not** remount.
+- **Signals do every update after that.** Fine-grained, no VDOM, no re-render,
+  no diff.
+
+> `compose()` declares what exists, signals say when state changed, `update()`
+> moves things every frame.
+
+### 18.2 Install + build wiring
+
+```sh
+pnpm add @caperjs/solid solid-js
+```
+
+```ts
+// vite.config.ts
+import { caper } from '@caperjs/core/vite';
+
+export default defineConfig({ plugins: [caper({ solid: true })] });
+```
+
+`solid: true` makes the preset resolve `@caperjs/solid/vite` from the **app's**
+`node_modules` and add its Solid JSX plugin (universal renderer, `moduleName:
+'@caperjs/solid'`, `hot: false`). `vite-plugin-solid` ships as a dependency of
+`@caperjs/solid` — never install it directly. `{ solid: { include: [...] } }`
+narrows which files compile as JSX (default `['**/*.tsx']`). For a bare vite or
+vitest config, import `caperSolid()` from `@caperjs/solid/vite` instead.
+
+### 18.3 tsconfig contract (all three required)
+
+```jsonc
+{
+  "compilerOptions": {
+    "jsx": "preserve",              // vite-plugin-solid does the real compile
+    "jsxFactory": "CaperJSX.h",     // type-lookup root only; nothing calls it
+    "types": ["@caperjs/core/client", "@caperjs/solid/jsx"]
+  }
+}
+```
+
+`jsxFactory` exists because a transitive `@types/react` shadows the global `JSX`
+namespace and `jsxImportSource` only applies in `react-jsx` mode. `caper doctor`
+reports a `solid-tsconfig` check with the exact missing keys whenever the app
+depends on `@caperjs/solid`; it reads the app's own `tsconfig.json` and does not
+follow `extends`, so put all three there.
+
+### 18.4 Minimal example
+
+```tsx
+import { animated, ComposableContainer, type Composes } from '@caperjs/solid';
+import type { Graphics } from 'pixi.js';
+import { createSignal } from 'solid-js';
+
+const WIDTH = 220;
+const HEIGHT = 22;
+
+// Module-level so the reference is stable — see rule 2 in §18.6.
+const bg = (g: Graphics) => g.roundRect(0, 0, WIDTH, HEIGHT, 4).fill({ color: 0x22252a });
+const fill = (g: Graphics) => g.roundRect(0, 0, WIDTH, HEIGHT, 4).fill({ color: 0x9aa96b });
+
+export class HealthBar extends ComposableContainer implements Composes {
+  private health = createSignal(100);
+
+  /** Imperative API — an ordinary method that happens to write a signal. */
+  public damage(amount: number) {
+    this.health[1]((hp) => Math.max(0, hp - amount));
+  }
+
+  public compose() {
+    const hp = this.health[0];
+    const hpA = animated(() => hp() / 100); // glides instead of snapping
+
+    return (
+      <container>
+        <graphics draw={bg} />
+        <graphics draw={fill} scale={{ x: hpA(), y: 1 }} />
+        <text text={`${hp()} HP`} anchor={{ x: 0.5, y: 0.5 }} x={WIDTH / 2} y={HEIGHT / 2} />
+      </container>
+    );
+  }
+}
+```
+
+### 18.5 Surface
+
+| Name | One-line |
+| --- | --- |
+| `Composable(Base)` | Mixin adding the `compose()` contract to any display class. |
+| `ComposableContainer` / `ComposableScene` | Prebuilt `Composable(Container)` / `Composable(Scene)`. |
+| `Composes` | The interface a subclass `implements` to declare `compose()`. |
+| `asComponent(Ctor, defaults?)` | Lift an existing display class into JSX; constructs once, applies props reactively (incl. `ref`). |
+| `useTick(fn)` | `app.ticker.add` + `onCleanup` — `update()` for function components. |
+| `animated(source, opts?)` | Gliding accessor: reads like a signal, eases toward its source. `opts: { duration, ease }`. |
+| `<AnimatedShow when enter exit>` | `<Show>` that holds children on stage until the exit animation ends. |
+
+Intrinsic elements: `container`, `sprite`, `text`, `graphics`, `flexContainer`.
+Anything else goes through `asComponent`. Props use the same resolvers as
+`this.add.*`, so `scale={2}`, `scale={{ x, y }}` and `scale={[x, y]}` all behave
+as in factory config; `on*` props attach Pixi listeners and flip `eventMode` to
+`'static'`; `draw` is `<graphics>`-only.
+
+`enter` / `exit` on `<AnimatedShow>` are plain GSAP vars with target properties
+in a `pixi: {...}` block (GSAP's PixiPlugin, which core's `GSAPPlugin` registers
+at bootstrap). `animated()` and `<AnimatedShow>` must be called inside a
+reactive owner — a component body or a `compose()`.
+
+### 18.6 Authoring rules
+
+1. **Signals for event-rate state; `update()` / `useTick` + refs for per-frame
+   bulk motion.** Hundreds of per-frame bindings are fine; moving a crowd every
+   frame still belongs in an imperative loop.
+2. **`draw` functions must be stable references.** Solid batches an element's
+   dynamic props into one `!==`-guarded effect, so an inline `draw={dot(3)}`
+   allocates a new closure whenever any prop in that batch changes and forces a
+   full `clear()` + redraw. Hoist it.
+3. **Never imperatively remove or reparent a child JSX created.** Solid owns
+   those nodes. Building extra things alongside the composed tree is fine.
+4. **Each `compose()` is its own reactive root.** Signals cross roots; Solid
+   *context* does not cross the class boundary — pass props or instance fields.
+5. **`text` elements default to `eventMode: 'none'`** so a label cannot swallow
+   a sibling button's tap. An `on*` prop or an explicit `eventMode` overrides it.
+6. **One-shot effects stay imperative via refs** — a JSX-mounted Caper container
+   still carries the `Animated` mixin, so `bar.shake()` works (§12.3).
+
+### 18.7 Scene constraint — keep `src/scenes/` JSX-free
+
+Discovery parses `src/scenes/**` with `jsx: false`. **Scene files must contain
+no JSX.** Put the view in a sibling directory and have `compose()` return a
+plain function call:
+
+```ts
+// src/scenes/HudScene.ts — plain .ts, no JSX
+import { SceneView } from '@/solid-demo/View';
+import { defineScene } from '@caperjs/core';
+import { ComposableScene, type Composes } from '@caperjs/solid';
+
+export const scene = defineScene({ id: 'hud' });
+
+export default class HudScene extends ComposableScene implements Composes {
+  public compose() {
+    return SceneView(this); // the JSX lives on the other side of this call
+  }
+}
+```
+
+Canonical working example in the caper repo:
+`apps/kitchen-sink/src/scenes/SolidJsxScene.ts` (the JSX-free scene) plus
+`apps/kitchen-sink/src/solid-demo/View.tsx`, `HealthBar.tsx` (nested
+`compose()`) and `Orbiter.ts` (an imperative `update()` class mounted via
+`asComponent`). Deeper API notes live in the package's own README.
+
+---
+
+## 19. API reference index
 
 Flat jump table. Name → section → one-line.
 
@@ -1646,8 +1823,12 @@ Flat jump table. Name → section → one-line.
 | --- | --- | --- |
 | `Application` | §3.4 | Base app class; subclass for typed plugin getters. |
 | `AnimatedSprite` | §6.1, §10 | Pixi AnimatedSprite wrapper (`animations`, `animation`, `autoPlay`). |
+| `animated(source, opts?)` | §18.5 | `@caperjs/solid` — gliding accessor; eases toward its source. |
+| `<AnimatedShow>` | §18.5 | `@caperjs/solid` — `<Show>` that holds children until the exit ends. |
+| `asComponent(Ctor, defaults?)` | §18.5 | `@caperjs/solid` — lift a display class into JSX. |
 | `Button` | §7.2 | Four-state interactive button with sounds + actions. |
 | `Camera` | §10 | Camera controller for scene-level follow/constrain. |
+| `Composable(Base)` / `ComposableContainer` / `ComposableScene` | §18.1 | `@caperjs/solid` — the `compose()` contract. |
 | `Container` | §6, §10 | Caper base container (Animated + WithSignals + Factory). |
 | `create(config, el?, speak?)` | §3.3 | Programmatic app bootstrap. |
 | `defineActions(contexts, map)` | §4.3 | Typed action registry. |
@@ -1675,6 +1856,7 @@ Flat jump table. Name → section → one-line.
 | `Store` | §12.2 | Unified storage-adapter facade. |
 | `Toast` / `Toaster` | §7.4 | Toast notifications. |
 | `UICanvas` | §7.5 | HUD root layer. |
+| `useTick(fn)` | §18.5 | `@caperjs/solid` — per-frame callback inside a Solid component. |
 | `app.actions(id)` | §8 | Returns the action's signal. |
 | `app.assets.loadBundles(ids)` | §8, §11.5 | Load named bundles. |
 | `app.assets.loadSceneAssets(scene)` | §8 | Load a scene's declared bundles. |
@@ -1693,7 +1875,7 @@ Flat jump table. Name → section → one-line.
 | `app.store.save(adapter, key, data)` | §12.2 | Persist via storage adapter. |
 | `app.store.load(adapter, key)` | §12.2 | Read via storage adapter. |
 | `app.timers.delay(ms)` | §8 | Scene-scoped timer. |
-| `Animated.animate(props)` | §12.3 | GSAP tween. |
+| `Animated.animate(props)` | §12.3 | GSAP animation. |
 | `Animated.shake()` / `.pulse()` / `.bob()` | §12.3 | Preset animations. |
 | `this.add.*` / `this.make.*` | §6 | Factory methods on any Container subclass. |
 

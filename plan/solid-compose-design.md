@@ -1,7 +1,11 @@
 # `@caperjs/solid` — declarative composition for Caper (design doc)
 
-Status: **draft for review** · 2026-08-21
-Evidence: working prototype in `apps/kitchen-sink/src/prototypes/solid-jsx/` (throwaway, uncommitted) + research note `research/pixi-react-declarative-caper.md`.
+Status: **shipped** · implemented on `feat/solid` (tickets solid-1…8), 2026-08-22
+Originally drafted 2026-08-21 against a working prototype in
+`apps/kitchen-sink/src/prototypes/solid-jsx/` (throwaway, since absorbed and
+deleted) + research note `research/pixi-react-declarative-caper.md`. The body
+below is the design as approved; "As-built decisions" records where the shipped
+code differs.
 
 ## What this is
 
@@ -82,8 +86,13 @@ Exports:
 - `Composable(Base)` mixin (matching core's mixin idiom) plus prebuilt
   `ComposableContainer` / `ComposableScene`.
 - `asComponent(Ctor, defaults?)` — lift any display class into JSX. Constructs
-  once (untracked), applies reactive props via `spread`. Must pass `skipChildren`
-  when no JSX children are given, or Solid's children pass wipes the class's own.
+  once (untracked), applies reactive props via `spread`, passing `skipChildren`
+  when no JSX children are given. The destructive children pass this guards
+  against turned out **not** to be reproducible on solid-js 1.9.15 —
+  `insertExpression` early-returns when both `prev` and `next` children are
+  `undefined`, so the class's own children survive either way. The guard ships
+  anyway as defense-in-depth: it is one boolean, it documents the intent, and it
+  keeps us off a behaviour we do not control across solid versions.
 - `useTick(fn)` — `app.ticker.add` + `onCleanup`.
 - Catalog: `container, sprite, text, graphics` (raw Pixi) + `flexContainer`
   (Caper). Grow deliberately; `asComponent` covers the long tail.
@@ -150,6 +159,41 @@ in JSX still carries the `Animated` mixin, so `bar.shake()` already works.
    full redraw of every such node. Authoring rule for docs + skill; consider a
    lint.
 
+## As-built decisions
+
+Where the shipped code differs from, or resolves, the design above.
+
+1. **Build-time half lives in the package, not core.** `@caperjs/solid` gained a
+   `./vite` subpath exporting `caperSolid(options?)` — `vite-plugin-solid`
+   preconfigured for the universal renderer. Core's preset knows the *specifier*
+   and never the package, so the dependency arrow only points from the app.
+2. **Core resolves it from the app root, via `createRequire`.** A bare
+   `import('@caperjs/solid/vite')` from inside `@caperjs/core` cannot resolve
+   under pnpm — the two packages are not siblings in a non-hoisted layout. So
+   `caperSolidPlugin` resolves from `process.cwd()/package.json` and throws an
+   actionable error when the app has not installed the package.
+3. **`caper()` stays synchronous.** The resolution is async, but Vite awaits
+   promises inside the `plugins` array, so the promise goes in the array and apps
+   keep writing `plugins: [caper()]` with no `await`.
+4. **`caper doctor` gained a `solid-tsconfig` check**, gated on the app depending
+   on `@caperjs/solid`. Known limitation: it reads the app's own
+   `tsconfig.json` only and does not walk the `extends` chain, so the three keys
+   have to live in the app's file. Documented in the README and in llms.txt §18.3.
+5. **Published name is `@caperjs/solid`, not `@caperjs/plugin-solid`** (the repo
+   directory stays `packages/plugin-solid` for consistency with its siblings).
+   It is a view layer, not an `IPlugin`: nothing goes in `plugins: [...]`, there
+   is no `app.solid`, and the docs say so explicitly to stop the wrong reflex.
+6. **`Composable` mounts off Pixi's native `'added'` event**, not core's `added()`
+   hook. Subclasses routinely override `added()` without calling `super.added()`,
+   which would have silently skipped the mount. Core's own lifecycle listens to
+   the same event, so the two coexist.
+7. **Consuming apps need vitest configured for solid.** Vitest resolves
+   `solid-js` to its non-reactive *server* build by default; `resolve.conditions:
+   ['development', 'browser']` **plus** `test.server.deps.inline: [/solid-js/]`
+   are both required (externalized deps are resolved by node, so the conditions
+   only bite once solid is inlined). This package's own `vitest.config.ts` is the
+   worked example; the README ships the snippet.
+
 ## Open questions (for Anthony)
 
 1. Package name: `@caperjs/solid`? (Assumed above.)
@@ -168,9 +212,10 @@ converge instead of competing. Out of scope here.
 
 ## Prototype disposition
 
-When this doc is approved: absorb the renderer/`Composable`/`asComponent` into
-`packages/plugin-solid` (with tests: mount-once, dispose, nesting, asComponent
-skipChildren, text eventMode default, flex re-measure), then delete
-`apps/kitchen-sink/src/prototypes/solid-jsx/` and rewrite the demo scene as a
-real consumer of the package. If rejected: delete the prototype folder, the vite
-config block, the tsconfig keys, and the two deps; keep this doc as the record.
+**Done.** The renderer, `Composable` and `asComponent` were absorbed into
+`packages/plugin-solid` with the planned tests (mount-once, dispose, nesting,
+`asComponent` children guard, text `eventMode` default, flex re-measure);
+`apps/kitchen-sink/src/prototypes/solid-jsx/` is deleted, and the demo was
+rewritten as a real consumer of the package —
+`apps/kitchen-sink/src/scenes/SolidJsxScene.ts` (JSX-free scene) plus
+`apps/kitchen-sink/src/solid-demo/`.

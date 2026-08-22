@@ -49,7 +49,7 @@ This repo is a **pnpm + Turborepo monorepo** containing the framework, first-par
 ## Repo layout
 
 - [packages/core](packages/core/) — the `@caperjs/core` npm package. Source in [packages/core/src](packages/core/src/): `core/` (Application, config, create, registries), `display/`, `mixins/`, `plugins/`, `signals/`, `store/`, `ui/`, `utils/`. Ships a CLI ([cli.mjs](packages/core/cli.mjs), `create-caper`, plus `caper add scene|plugin|entity|popup`) and reusable vite/assetpack/tsconfig in `config/`. Agent-facing: `extras/llms.txt` is the consumer reference (read it by section), `extras/skills/caper/SKILL.md` the shipped skill, `caper agent init` installs both into an app, `caper types` regenerates the app's generated `.d.ts` without a dev server, `caper doctor` is the one-screen health check, and `caper agent probe <url>` drives a running app headlessly via the automation bridge.
-- [packages/plugin-\*](packages/) — first-party plugins, flat siblings of `core/`. Current set: `plugin-colyseus`, `plugin-crunch` (Crunch physics), `plugin-firebase`, `plugin-google-analytics`, `plugin-rive`, `plugin-rollbar`. Each is an independent publishable package under the `@caperjs` npm scope. The `physics-matter` / `physics-snap` / `springroll` plugins were dropped in Phase 3; storage adapters were merged into the unified plugin contract in Phase 1 (Firebase is now a regular plugin).
+- [packages/plugin-\*](packages/) — first-party plugins, flat siblings of `core/`. Current set: `plugin-colyseus`, `plugin-crunch` (Crunch physics), `plugin-firebase`, `plugin-google-analytics`, `plugin-rive`, `plugin-rollbar`, `plugin-solid` (publishes as `@caperjs/solid` — a declarative Solid JSX view layer, **not** an `IPlugin`; it never appears in `plugins: [...]`). Each is an independent publishable package under the `@caperjs` npm scope. The `physics-matter` / `physics-snap` / `springroll` plugins were dropped in Phase 3; storage adapters were merged into the unified plugin contract in Phase 1 (Firebase is now a regular plugin).
 - [apps/kitchen-sink](apps/kitchen-sink/) — demo / reference app exercising the framework; the canonical place to see real usage of scenes, plugins, popups, entities, UI. Configured via [caper.config.ts](apps/kitchen-sink/caper.config.ts). Doubles as the integration test for every framework change.
 - [scripts/](scripts/) — monorepo-wide build/publish/version scripts and `create-plugin` generator.
 - [plan/](plan/) — fork roadmap ([plan/fork-plan.md](plan/fork-plan.md)) and execution log ([plan/tasks.md](plan/tasks.md)) — read these for the *why* behind any architectural decision.
@@ -113,6 +113,9 @@ in [`packages/core/src/mixins/factory/`](packages/core/src/mixins/factory/).
    `definePopup` / `defineUI` + default-export the class so Vite discovery and
    generated `caper-app.d.ts` stay in sync. Prefer `caper add scene|entity|popup`
    when scaffolding.
+5. **UI-heavy scenes and widgets may declare their members with `compose()` JSX**
+   from `@caperjs/solid` instead of `this.add.*` (see kitchen-sink
+   [src/solid-demo/](apps/kitchen-sink/src/solid-demo/)); gameplay stays imperative.
 
 **Don't do this (unless no Caper API fits):**
 

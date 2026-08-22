@@ -32,6 +32,11 @@ Three settings, and all three are required:
 }
 ```
 
+`caper doctor` checks all three whenever the app depends on `@caperjs/solid`,
+and prints the exact keys that are missing. It reads the app's own
+`tsconfig.json` — settings inherited through `extends` are not followed, so keep
+these three in the app's file.
+
 ## Compose
 
 ```tsx
@@ -105,6 +110,45 @@ called inside a reactive owner (a component body or a `compose()`).
 One-shot effects (shake, pulse) stay imperative through a ref: every Caper
 container carries the `Animated` mixin already.
 
+## Authoring rules
+
+Six rules. The first is the mental model; the rest are the edges that bite.
+
+1. **Signals for event-rate state, `update()` for per-frame bulk motion.**
+   `text={purse()}` on a value that changes when the player does something is
+   free. Hundreds of per-frame bindings are fine too, but moving a crowd of
+   objects every frame still belongs in an imperative `update()` — or in
+   `useTick(fn)` + a `ref` when the code lives in a function component. Per-frame
+   signals are the seasoning, not the meal.
+
+2. **`draw` functions must be stable references.** Solid batches an element's
+   dynamic props into one `!==`-guarded effect, so an inline
+   `draw={dot(3, color)}` allocates a fresh closure on every change of *any* prop
+   in that batch and forces a full `clear()` + redraw. Hoist the factory result
+   to a module constant (or a `createMemo`) and pass the same function every
+   time.
+
+3. **Never imperatively remove or reparent a child JSX created.** Solid owns
+   those nodes and will try to move or dispose them later. Imperative work
+   alongside a composed tree is fine — `initialize()`, `this.add.*`, `update()`
+   all keep working, and `compose()` appends rather than taking over — it just
+   must not reach into the declarative half.
+
+4. **Each `compose()` is its own reactive root.** Signals cross roots fine, so
+   instance fields are the bridge between a class's imperative API and its view.
+   Solid **context** does not cross the class boundary — pass props or read an
+   instance field instead.
+
+5. **`text` elements default to `eventMode: 'none'`.** A hit-testable but
+   non-interactive label sitting over a button would otherwise swallow the tap.
+   Attaching an `on*` prop flips the element to `'static'` automatically, and an
+   explicit `eventMode` prop overrides the default.
+
+6. **One-shot effects stay imperative.** Shake, pulse and friends are a `ref`
+   away: a Caper container mounted from JSX still carries the `Animated` mixin,
+   so `bar.shake()` works unchanged. Reserve `animated()` / `<AnimatedShow>` for
+   motion that is a function of state.
+
 ## Testing your components
 
 Vitest resolves `solid-js` to its **server** build by default, where signals set
@@ -122,8 +166,27 @@ export default defineConfig({
 
 ## Build wiring
 
-`caper({ solid: true })` in the vite preset arrives in a later release. Until
-then, add `vite-plugin-solid` yourself — see the config in
-[plan/solid-compose-design.md](../../plan/solid-compose-design.md)
-(`generate: 'universal'`, `moduleName: '@caperjs/solid'`, `hot: false`, and an
-`include` covering `**/*.tsx`).
+One flag in the app's vite config:
+
+```ts
+import { caper } from '@caperjs/core/vite';
+
+export default defineConfig({
+  plugins: [caper({ solid: true })],
+});
+```
+
+The preset resolves `@caperjs/solid/vite` from the **app's** `node_modules`, so
+the app needs `@caperjs/solid` and `solid-js` installed; `vite-plugin-solid`
+comes with this package and never has to be installed by hand. Pass an object to
+narrow what gets compiled as JSX: `caper({ solid: { include: ['src/ui/**/*.tsx'] } })`
+(default `['**/*.tsx']`).
+
+Outside the preset — a bare vite config, or a vitest config that has to compile
+JSX — use the plugin directly:
+
+```ts
+import { caperSolid } from '@caperjs/solid/vite';
+
+export default defineConfig({ plugins: [caperSolid()] });
+```

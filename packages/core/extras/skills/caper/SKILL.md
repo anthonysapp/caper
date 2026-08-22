@@ -1,6 +1,6 @@
 ---
 name: caper
-description: Work on a game built with the Caper engine (@caperjs/core, PixiJS v8). Use before touching scenes, entities, popups, UI, plugins, caper.config.ts, assets, generated types, or the dev/verify loop in any app that depends on @caperjs/core. Routes you to the exact section of the shipped reference (llms.txt) instead of the whole engine, and gives the verify loop (typecheck, build, headless automation bridge). Trigger for "caper", "add a scene/entity/popup/plugin", "factory methods", "add.sprite", "defineScene", "actions", "UICanvas", "FlexContainer", "caper.config", "caper-app.d.ts", "assetpack", "window.Caper", or any error mentioning @caperjs.
+description: Work on a game built with the Caper engine (@caperjs/core, PixiJS v8). Use before touching scenes, entities, popups, UI, plugins, caper.config.ts, assets, generated types, or the dev/verify loop in any app that depends on @caperjs/core. Routes you to the exact section of the shipped reference (llms.txt) instead of the whole engine, and gives the verify loop (typecheck, build, headless automation bridge). Trigger for "caper", "add a scene/entity/popup/plugin", "factory methods", "add.sprite", "defineScene", "actions", "UICanvas", "FlexContainer", "caper.config", "caper-app.d.ts", "assetpack", "window.Caper", "compose()", "@caperjs/solid", or any error mentioning @caperjs.
 ---
 
 # Caper — how to work in a Caper app
@@ -33,7 +33,8 @@ sed -n '<start>,<end>p' node_modules/@caperjs/core/extras/llms.txt
 | signals, store, mixins                        | §12                                |
 | generated types, virtual modules              | §14                                |
 | drive the running app headlessly              | §17 Automation bridge              |
-| look up one symbol                            | §18 API index (name → section)     |
+| declare a view with JSX (`@caperjs/solid`)    | §18 Declarative layer              |
+| look up one symbol                            | §19 API index (name → section)     |
 
 Engine source also ships: `node_modules/@caperjs/core/src/`. When the doc is
 not enough, open the one file the doc cites, not the whole tree.
@@ -90,7 +91,54 @@ Then check behaviour live, cheapest first:
   foreground; it never exits. If the human has it running, use it. Otherwise
   ask them to run `pnpm dev` and report.
 
-## 4. Gotchas that cost agents the most time
+## 4. Declarative views (`@caperjs/solid`) — only when installed
+
+Optional package, **not** a plugin: it never appears in `plugins: [...]`. Check
+the app's `package.json` for `@caperjs/solid` before writing any JSX; if it is
+absent, rule 4 of §2 stands and everything is `this.add.*`.
+
+When it is installed, split by shape of the work:
+
+| Work | Write it as |
+| ------------------------------------------- | ------------------------- |
+| UI: state→view bindings, lists, show/hide   | `compose()` JSX           |
+| gameplay: `update()` loops, physics, entities | imperative, unchanged   |
+| one-shot shake / pulse on a node            | imperative via a `ref`    |
+
+Shape: extend `ComposableContainer` / `ComposableScene`, `implements Composes`,
+return JSX from `compose()`. It mounts **once** when the object first hits the
+stage and is disposed in `destroy()`; signals do every update after that. Rule
+of thumb: *`compose()` declares what exists, signals say when state changed,
+`update()` moves things every frame.*
+
+Rules that actually bite:
+
+1. **Scene files in `src/scenes/` must stay JSX-free** — discovery parses them
+   with `jsx: false`. `compose()` returns `SceneView(this)` imported from a
+   sibling `.tsx` directory.
+2. **`draw` functions must be stable references.** Inline `draw={dot(3)}`
+   allocates a new closure whenever any dynamic prop on that element changes and
+   forces a full `clear()` + redraw. Hoist to a module constant.
+3. **Never imperatively remove or reparent a child JSX created.** Solid owns
+   those nodes. Building extra things beside the composed tree is fine.
+4. **Each `compose()` is its own reactive root.** Signals cross roots; Solid
+   *context* does not — pass props or read instance fields.
+5. **`text` defaults to `eventMode: 'none'`** so labels can't swallow taps; an
+   `on*` prop or an explicit `eventMode` overrides it.
+6. **Per-frame bulk motion stays in `update()`** (or `useTick` + a `ref`), not in
+   signals.
+
+Setup, if you are the one adding it: `pnpm add @caperjs/solid solid-js`,
+`caper({ solid: true })` in `vite.config.ts`, and three tsconfig keys —
+`"jsx": "preserve"`, `"jsxFactory": "CaperJSX.h"`, and `"@caperjs/solid/jsx"` in
+`types`. `npx caper doctor` reports a `solid-tsconfig` check listing whatever is
+missing; it reads the app's own `tsconfig.json` and does not follow `extends`.
+
+Reference: llms.txt §18, the package README, and the caper repo's kitchen-sink —
+`src/scenes/SolidJsxScene.ts` (JSX-free scene) with `src/solid-demo/View.tsx`,
+`HealthBar.tsx` and `Orbiter.ts`.
+
+## 5. Gotchas that cost agents the most time
 
 - Out-of-context actions are **dropped by the ActionsPlugin**. That is the
   phase guard; do not add `if (phase !== …)` checks around `sendAction`.
