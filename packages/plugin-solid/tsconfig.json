@@ -20,11 +20,19 @@
     "emitDecoratorMetadata": true,
     "allowJs": true,
     "composite": true,
+    // The package's own .tsx sees JSX exactly as a consumer app does: TypeScript
+    // only type-checks it (`preserve`), vite-plugin-solid does the compiling, and
+    // `CaperJSX.h` is the type-lookup root the shipped `jsx.d.ts` declares.
+    "jsx": "preserve",
+    "jsxFactory": "CaperJSX.h",
     "paths": {
       "@caperjs/core/*": ["../../../src/*"]
     }
   },
   "typeRoots": ["./node_modules/@types"],
-  "include": ["./src/**/*.ts", "../../../src/**/*.ts"],
-  "exclude": ["./lib", "./node_modules"]
+  "include": ["./jsx.d.ts", "./src/**/*.ts", "./src/**/*.tsx", "../../../src/**/*.ts"],
+  // The type fixture has its own program (`tsconfig.fixture.json`), which checks
+  // it the way a consumer app resolves the shipped types. Keeping it out of this
+  // one stops the build emitting declarations for it.
+  "exclude": ["./lib", "./node_modules", "./src/__typefixtures__"]
 }

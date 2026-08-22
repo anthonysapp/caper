@@ -2,7 +2,12 @@ import path from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
+import { selfAlias, solidJsx } from './jsxPlugin.mjs';
+
 export default defineConfig({
+  resolve: {
+    alias: selfAlias,
+  },
   build: {
     outDir: './lib',
     sourcemap: true,
@@ -15,5 +20,5 @@ export default defineConfig({
       external: ['pixi.js', 'gsap', 'solid-js', '@caperjs/core'], // External dependencies
     },
   },
-  plugins: [dts()],
+  plugins: [solidJsx(), dts()],
 });

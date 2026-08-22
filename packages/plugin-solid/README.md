@@ -77,6 +77,34 @@ const Orbiter$ = asComponent(Orbiter);
 `useTick(fn)` runs `fn` every frame for the lifetime of the owning component —
 `update()` for function components.
 
+## Animation
+
+`animated(source, opts?)` returns a **gliding** accessor: it reads like any other
+signal, but eases toward its source instead of snapping to it. The binding stays
+declarative — nothing in the view knows an animation is running.
+
+```tsx
+const width = animated(() => hp() / 100); // opts: { duration, ease }
+<graphics draw={BAR_FILL} scale={{ x: width(), y: 1 }} />;
+```
+
+`<AnimatedShow>` is `<Show>` that holds its children on stage until the exit
+animation finishes, so popups and panels can leave gracefully:
+
+```tsx
+<AnimatedShow when={open} exit={{ pixi: { alpha: 0, y: 20 }, duration: 0.3 }}>
+  <container>…</container>
+</AnimatedShow>
+```
+
+`enter` / `exit` are plain GSAP vars; target properties live in a `pixi: {...}`
+block, which is GSAP's PixiPlugin — caper's `GSAPPlugin` registers it at app
+bootstrap, so inside a running app there is nothing to wire up. Both APIs must be
+called inside a reactive owner (a component body or a `compose()`).
+
+One-shot effects (shake, pulse) stay imperative through a ref: every Caper
+container carries the `Animated` mixin already.
+
 ## Testing your components
 
 Vitest resolves `solid-js` to its **server** build by default, where signals set
