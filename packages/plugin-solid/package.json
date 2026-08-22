@@ -12,7 +12,9 @@
   "version": "0.6.1",
   "files": [
     "lib",
-    "src"
+    "src",
+    "jsx.d.ts",
+    "!src/__typefixtures__"
   ],
   "main": "lib/caper-plugin-solid.mjs",
   "types": "lib/index.d.ts",
@@ -20,6 +22,9 @@
     ".": {
       "types": "./lib/index.d.ts",
       "default": "./lib/caper-plugin-solid.mjs"
+    },
+    "./jsx": {
+      "types": "./jsx.d.ts"
     }
   },
   "sideEffects": false,
@@ -27,7 +32,8 @@
     "build": "pnpm run generate-version && vite build",
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
-    "test": "vitest run",
+    "test": "vitest run && pnpm run test:types",
+    "test:types": "node checkJsxTypes.mjs",
     "test:watch": "vitest",
     "generate-version": "node generateVersion.mjs"
   },

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    // The consumer contract, verbatim — if these three stop working together,
+    // every app using `@caperjs/solid` breaks.
+    "jsx": "preserve",
+    "jsxFactory": "CaperJSX.h",
+    "types": ["@caperjs/solid/jsx"]
+  },
+  "include": ["./src/__typefixtures__/**/*.tsx"]
+}
