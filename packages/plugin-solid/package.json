@@ -25,6 +25,8 @@
   "sideEffects": false,
   "scripts": {
     "build": "pnpm run generate-version && vite build",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "generate-version": "node generateVersion.mjs"
