@@ -1,3 +1,7 @@
 import { version } from './version';
 
 export const VERSION = version;
+
+export * from './catalog';
+export * from './renderer';
+export * from './useTick';
