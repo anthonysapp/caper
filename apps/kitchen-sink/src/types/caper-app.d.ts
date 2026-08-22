@@ -15,6 +15,7 @@ type AppActions = keyof AppActionMap;
 // Scenes
 type AppScenes = 
   | 'breakpoints'
+  | 'solid-jsx-prototype'
   | 'start'
   | 'focus'
   | 'voiceover'
@@ -71,6 +72,7 @@ type AppUIs =
 // scenes.load without any AST type extraction.
 type AppSceneClasses = {
   "breakpoints": typeof import('@/scenes/Breakpoints').default;
+  "solid-jsx-prototype": typeof import('@/scenes/SolidJsxScene').default;
   "start": typeof import('@/scenes/Start').default;
   "focus": typeof import('@/scenes/accessibility/FocusScene').default;
   "voiceover": typeof import('@/scenes/accessibility/VoiceoverScene').default;

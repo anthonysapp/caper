@@ -3,13 +3,15 @@
   "compilerOptions": {
     "rootDir": ".",
     "baseUrl": ".",
+    "jsx": "preserve",
+    "jsxFactory": "CaperJSX.h",
     "paths": {
       "@/*": ["src/*"],
       "@caperjs/core/*": ["../../packages/core/src/*"],
       "@caperjs/plugin-google-analytics/*": ["../../packages/plugin-google-analytics/src/*"],
       "@caperjs/plugin-firebase/*": ["../../packages/plugin-firebase/src/*"]
     },
-    "types": ["vite/client", "vite-plugin-pwa/client", "@caperjs/core/client"]
+    "types": ["vite/client", "vite-plugin-pwa/client", "@caperjs/core/client", "@caperjs/solid/jsx"]
   },
   "references": [
     {

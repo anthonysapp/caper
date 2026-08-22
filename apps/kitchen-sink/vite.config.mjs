@@ -15,6 +15,9 @@ export default defineConfig({
       // import time and so could not see whether vite was doing a production
       // build — losing cache-busting and production compression with it.
       assets: { resolutions: { default: 1, low: 0.5 } },
+      // Compiles `src/solid-demo/**/*.tsx` through `@caperjs/solid`'s universal
+      // (Pixi) renderer.
+      solid: true,
     }),
   ],
   resolve: {
@@ -28,6 +31,10 @@ export default defineConfig({
       '@caperjs/plugin-rive': path.resolve(__dirname, '../../packages/plugin-rive/src'),
       '@caperjs/plugin-rollbar': path.resolve(__dirname, '../../packages/plugin-rollbar/src'),
       '@caperjs/plugin-firebase': path.resolve(__dirname, '../../packages/plugin-firebase/src'),
+      // Also where babel-preset-solid's universal output imports its runtime
+      // from. The `/jsx` subpath is types-only and `/vite` resolves in node
+      // config context, so neither goes through this alias.
+      '@caperjs/solid': path.resolve(__dirname, '../../packages/plugin-solid/src'),
     },
   },
 });
