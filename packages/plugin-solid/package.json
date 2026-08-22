@@ -18,8 +18,8 @@
   "types": "lib/index.d.ts",
   "exports": {
     ".": {
-      "default": "./lib/caper-plugin-solid.mjs",
-      "types": "./lib/index.d.ts"
+      "types": "./lib/index.d.ts",
+      "default": "./lib/caper-plugin-solid.mjs"
     }
   },
   "sideEffects": false,
