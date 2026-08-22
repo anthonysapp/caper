@@ -29,7 +29,7 @@ failed). **`plugins/`** holds the Vite adapters, each thin: capture `config.root
 Everything an app author must know.
 
 **The preset.** `caper(options?)` returns a `PluginOption[]`
-(`packages/core/build/index.mjs:103`).
+(`packages/core/build/index.mjs:109`).
 
 ```ts
 // vite.config.ts
@@ -40,7 +40,7 @@ export default defineConfig({ plugins: [caper()] });
 
 Then plain `vite` / `vite build`. There is no `caper build` command.
 
-**`caper()` options** (`packages/core/build/index.mjs:85`):
+**`caper()` options** (`packages/core/build/index.mjs:89`):
 
 | Option | Meaning |
 | --- | --- |
@@ -49,6 +49,7 @@ Then plain `vite` / `vite build`. There is no `caper build` command.
 | `assets.manifestUrl` | Manifest filename, default `assets.json`. Threaded into the manifest pipe too (`assetpack.mjs:177`). |
 | `assets.pngFallback` | `true` keeps the png twins a production build otherwise prunes. |
 | `pwa` | `vite-plugin-pwa` options merged over Caper's PWA defaults. Absent means no service worker. Two sub-keys are Caper's own, stripped before the plugin sees them: `autoRegister` (default `true`) and `update` — `'prompt'` (default, DOM banner), `'auto'` (reload immediately), `'manual'` (no UI; the game listens to `app.onPwaUpdateAvailable`). |
+| `solid` | `true` compiles `.tsx` with `@caperjs/solid`'s Solid JSX plugin. Absent or `false` imports nothing. An object forwards `include` (default `['**/*.tsx']`). See [Solid JSX](#solid-jsx). |
 
 **`caper.config.ts`** is the app's runtime config, validated by a Zod schema
 (`internal/schema.mjs:20` — `.loose()` at the top level, so unknown keys pass, but
@@ -83,6 +84,39 @@ texture, frame, font, audio clip and JSON file as a literal type —
 `assetTypes.mjs:155`). Both `declare module '@caperjs/core'` and augment
 `AppTypeOverrides` / `AssetTypeOverrides`. They are build artefacts — regenerate
 rather than edit.
+
+### Solid JSX
+
+`caper({ solid: true })` adds `vite-plugin-solid`, configured for Caper's
+universal renderer (`generate: 'universal'`, `moduleName: '@caperjs/solid'`), so
+an app can write display trees as JSX.
+
+**The dependency arrow only points one way.** Core never depends on any Solid
+package. The plugin itself is `@caperjs/solid/vite`
+(`packages/plugin-solid/vite.mjs`), which the app gets by installing
+`@caperjs/solid`; core only knows the specifier and imports it lazily when the
+flag is on (`packages/core/build/plugins/solid.mjs:20`). Flag off means zero new
+imports. Missing package means a thrown `[caper] solid: true requires
+@caperjs/solid to be installed`.
+
+**Resolution starts at the app root, not at core.** Under pnpm (and any other
+non-hoisted layout) `@caperjs/solid` is not a sibling of `@caperjs/core`, so a
+bare `import('@caperjs/solid/vite')` from inside the preset would miss even in an
+app that has it installed. The loader builds a `createRequire` on the app root
+(`process.cwd()`) instead. The entry is a **promise** in the plugin array — Vite
+awaits and flattens those, so an app's config stays `plugins: [caper()]`.
+
+**Scenes cannot be `.tsx`.** Discovery parses every scene with oxc in `lang: 'ts'`
+mode (`build/internal/ast.mjs:38`) — no JSX — so a scene file containing JSX
+throws before it is ever registered. The scene stays `.ts` and its `compose()`
+returns a view function imported from a sibling `.tsx`.
+
+**Three tsconfig settings are required** in the app: `"jsx": "preserve"`,
+`"jsxFactory": "CaperJSX.h"`, and `"@caperjs/solid/jsx"` in `compilerOptions.types`.
+`jsxFactory` is a type-lookup root only — `vite-plugin-solid` does the real
+compile; the name exists because a transitive `@types/react` would otherwise
+shadow the global `JSX` namespace, and `jsxImportSource` only works in `react-jsx`
+mode. `caper doctor` checks all three whenever the app depends on `@caperjs/solid`.
 
 ## Pipeline anatomy
 

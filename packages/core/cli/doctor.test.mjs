@@ -99,6 +99,45 @@ ${END_MARKER}`;
     expect(find(checks, 'agent').status).toBe('ok');
   });
 
+  it('skips the solid tsconfig check when the app does not use @caperjs/solid', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/core': '^1' } }), 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'solid-tsconfig')).toBeUndefined();
+  });
+
+  it('names every tsconfig setting a solid app is missing', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/solid': '^1' } }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'tsconfig.json'), '{\n  // solid needs more than this\n  "compilerOptions": { "jsx": "preserve" }\n}\n', 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+    const solid = find(checks, 'solid-tsconfig');
+
+    expect(solid.status).toBe('fail');
+    expect(solid.hint).toContain('"jsxFactory": "CaperJSX.h"');
+    expect(solid.hint).toContain('"@caperjs/solid/jsx" in types');
+    expect(solid.hint).not.toContain('"jsx": "preserve"');
+  });
+
+  it('passes a solid app whose tsconfig has all three settings', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ devDependencies: { '@caperjs/solid': '^1' } }), 'utf-8');
+    fs.writeFileSync(
+      path.join(cwd, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { jsx: 'preserve', jsxFactory: 'CaperJSX.h', types: ['@caperjs/core/client', '@caperjs/solid/jsx'] },
+      }),
+      'utf-8',
+    );
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'solid-tsconfig').status).toBe('ok');
+  });
+
   it('reports a linked package missing its build', async () => {
     const cwd = makeTempDir();
     const checkout = path.join(cwd, 'checkout');

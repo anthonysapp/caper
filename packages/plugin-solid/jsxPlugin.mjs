@@ -7,17 +7,14 @@
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import solid from 'vite-plugin-solid';
+
+import { caperSolid } from './vite.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 /** `vite-plugin-solid`, configured for the Pixi universal renderer. */
 export function solidJsx() {
-  return solid({
-    include: ['**/*.tsx'],
-    hot: false,
-    solid: { generate: 'universal', moduleName: '@caperjs/solid' },
-  });
+  return caperSolid();
 }
 
 /**

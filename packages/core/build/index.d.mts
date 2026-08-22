@@ -19,6 +19,12 @@ export interface CaperOptions {
     autoRegister?: boolean;
     update?: 'prompt' | 'auto' | 'manual';
   };
+  /**
+   * Compile `.tsx` with `@caperjs/solid`'s Solid JSX plugin, resolved from the
+   * app's own `node_modules`. Absent or `false` imports nothing. An object
+   * forwards `include` (default `['**\/*.tsx']`).
+   */
+  solid?: boolean | { include?: string[] };
 }
 
 /**

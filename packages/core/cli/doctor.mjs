@@ -61,6 +61,30 @@ const npmLatestVersion = (pkg, timeoutMs = 5000) =>
     });
   });
 
+const readJson = (file) => {
+  if (!fs.existsSync(file)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return null;
+  }
+};
+
+/** tsconfig.json is JSON with comments and trailing commas often enough to matter. */
+const readJsonc = (file) => {
+  if (!fs.existsSync(file)) return null;
+  try {
+    const raw = fs
+      .readFileSync(file, 'utf-8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:"'\\])\/\/.*$/gm, '$1')
+      .replace(/,(\s*[}\]])/g, '$1');
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 const push = (checks, id, status, label, hint) => {
   checks.push({ id, status, label, ...(hint ? { hint } : {}) });
 };
@@ -168,6 +192,32 @@ export async function runChecks(cwd, { online = true } = {}) {
     }
   });
   push(checks, 'peers', peerStatus, `peer deps: ${peerResults.join(', ')}`, peerStatus !== 'ok' ? 'pnpm install' : undefined);
+
+  // Solid JSX only typechecks with three tsconfig settings, and none of them can
+  // be defaulted from caper's base config: `jsxFactory` is a type-lookup root
+  // that exists because a transitive @types/react would otherwise shadow the
+  // global JSX namespace. Apps without @caperjs/solid never see this check.
+  const appPkg = readJson(path.join(cwd, 'package.json'));
+  const appDeps = { ...appPkg?.dependencies, ...appPkg?.devDependencies };
+  if (appDeps['@caperjs/solid']) {
+    const tsconfig = readJsonc(path.join(cwd, 'tsconfig.json'));
+    if (!tsconfig) {
+      push(checks, 'solid-tsconfig', 'fail', 'solid tsconfig unreadable', 'tsconfig.json is missing or not parseable');
+    } else {
+      const compilerOptions = tsconfig.compilerOptions ?? {};
+      const missing = [];
+      if (compilerOptions.jsx !== 'preserve') missing.push('"jsx": "preserve"');
+      if (compilerOptions.jsxFactory !== 'CaperJSX.h') missing.push('"jsxFactory": "CaperJSX.h"');
+      if (!compilerOptions.types?.includes('@caperjs/solid/jsx')) missing.push('"@caperjs/solid/jsx" in types');
+      push(
+        checks,
+        'solid-tsconfig',
+        missing.length ? 'fail' : 'ok',
+        missing.length ? 'solid tsconfig incomplete' : 'solid tsconfig',
+        missing.length ? `add ${missing.join(', ')} to tsconfig.json compilerOptions` : undefined,
+      );
+    }
+  }
 
   const caches = ['.assetpack', '.cache', 'dist'].filter((name) => fs.existsSync(path.join(cwd, name)));
   push(checks, 'caches', 'ok', `caches${caches.length ? `: ${caches.join(', ')}` : ' clean'}`, caches.length ? 'rm -rf them on weird asset/name mismatches' : undefined);

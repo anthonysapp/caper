@@ -25,6 +25,7 @@ import { entityListPlugin, pluginListPlugin, popupListPlugin, sceneListPlugin, u
 import { pngFallbackPrunePlugin } from './plugins/pruneFallbacks.mjs';
 import { caperPwaPlugins } from './plugins/pwa.mjs';
 import { createCaperRuntimePlugin } from './plugins/runtime.mjs';
+import { caperSolidPlugin } from './plugins/solid.mjs';
 import { createCaperViewportPlugin } from './plugins/viewport.mjs';
 
 const buildFlags = readCaperBuildFlags();
@@ -96,6 +97,9 @@ function caperPluginList({ assets = {}, pwa } = {}) {
  *   DOM update banner; 'auto' reloads the page as soon as a new build lands;
  *   'manual' installs no UI at all and leaves it to the game, which listens to
  *   `app.onPwaUpdateAvailable`).
+ * @property {boolean|{include?: string[]}} [solid] Compile `.tsx` with
+ *   `@caperjs/solid`'s Solid JSX plugin. Absent or `false` imports nothing.
+ *   An object forwards `include` (default `['**\/*.tsx']`).
  */
 
 /**
@@ -108,6 +112,9 @@ export function caper(options = {}) {
       name: 'caper:defaults',
       config: (userConfig, env) => caperDefaults(userConfig, env),
     },
+    // Vite awaits promises in the plugins array, so the lazy import stays off
+    // `caper()`'s own signature — projects keep writing `plugins: [caper()]`.
+    ...(options.solid ? [caperSolidPlugin(options.solid)] : []),
     ...caperPluginList(options),
   ];
 }
