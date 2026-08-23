@@ -179,6 +179,8 @@ Where the shipped code differs from, or resolves, the design above.
    on `@caperjs/solid`. Known limitation: it reads the app's own
    `tsconfig.json` only and does not walk the `extends` chain, so the three keys
    have to live in the app's file. Documented in the README and in llms.txt §18.3.
+   (Follow-up 2026-08-21: this limitation was removed; the check now walks the
+   `extends` chain.)
 5. **Published name is `@caperjs/solid`, not `@caperjs/plugin-solid`** (the repo
    directory stays `packages/plugin-solid` for consistency with its siblings).
    It is a view layer, not an `IPlugin`: nothing goes in `plugins: [...]`, there

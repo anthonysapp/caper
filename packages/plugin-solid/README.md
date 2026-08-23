@@ -33,9 +33,8 @@ Three settings, and all three are required:
 ```
 
 `caper doctor` checks all three whenever the app depends on `@caperjs/solid`,
-and prints the exact keys that are missing. It reads the app's own
-`tsconfig.json` — settings inherited through `extends` are not followed, so keep
-these three in the app's file.
+and prints the exact keys that are missing. It walks the `extends` chain, so
+these three can live in a shared base config instead of the app's own file.
 
 ## Compose
 

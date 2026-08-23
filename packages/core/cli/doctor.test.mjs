@@ -138,6 +138,121 @@ ${END_MARKER}`;
     expect(find(checks, 'solid-tsconfig').status).toBe('ok');
   });
 
+  it('resolves solid tsconfig settings inherited through a relative extends', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/solid': '^1' } }), 'utf-8');
+    fs.writeFileSync(
+      path.join(cwd, 'base.tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { jsx: 'preserve', jsxFactory: 'CaperJSX.h', types: ['@caperjs/core/client', '@caperjs/solid/jsx'] },
+      }),
+      'utf-8',
+    );
+    fs.writeFileSync(path.join(cwd, 'tsconfig.json'), JSON.stringify({ extends: './base.tsconfig.json' }), 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'solid-tsconfig').status).toBe('ok');
+  });
+
+  it("lets the app's own tsconfig override a bad base setting", async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/solid': '^1' } }), 'utf-8');
+    fs.writeFileSync(
+      path.join(cwd, 'base.tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { jsx: 'preserve', jsxFactory: 'Wrong.h', types: ['@caperjs/core/client', '@caperjs/solid/jsx'] },
+      }),
+      'utf-8',
+    );
+    fs.writeFileSync(
+      path.join(cwd, 'tsconfig.json'),
+      JSON.stringify({ extends: './base.tsconfig.json', compilerOptions: { jsxFactory: 'CaperJSX.h' } }),
+      'utf-8',
+    );
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'solid-tsconfig').status).toBe('ok');
+  });
+
+  it("fails when the app's own tsconfig overrides a good base setting with a bad one", async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/solid': '^1' } }), 'utf-8');
+    fs.writeFileSync(
+      path.join(cwd, 'base.tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { jsx: 'preserve', jsxFactory: 'CaperJSX.h', types: ['@caperjs/core/client', '@caperjs/solid/jsx'] },
+      }),
+      'utf-8',
+    );
+    fs.writeFileSync(
+      path.join(cwd, 'tsconfig.json'),
+      JSON.stringify({ extends: './base.tsconfig.json', compilerOptions: { jsxFactory: 'Wrong.h' } }),
+      'utf-8',
+    );
+
+    const checks = await runChecks(cwd, { online: false });
+    const solid = find(checks, 'solid-tsconfig');
+
+    expect(solid.status).toBe('fail');
+    expect(solid.hint).toContain('"jsxFactory": "CaperJSX.h"');
+  });
+
+  it('resolves solid tsconfig settings from a later entry in an extends array', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/solid': '^1' } }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'first.tsconfig.json'), JSON.stringify({ compilerOptions: { strict: true } }), 'utf-8');
+    fs.writeFileSync(
+      path.join(cwd, 'second.tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { jsx: 'preserve', jsxFactory: 'CaperJSX.h', types: ['@caperjs/core/client', '@caperjs/solid/jsx'] },
+      }),
+      'utf-8',
+    );
+    fs.writeFileSync(path.join(cwd, 'tsconfig.json'), JSON.stringify({ extends: ['./first.tsconfig.json', './second.tsconfig.json'] }), 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'solid-tsconfig').status).toBe('ok');
+  });
+
+  it('resolves solid tsconfig settings through a chained extends', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/solid': '^1' } }), 'utf-8');
+    fs.writeFileSync(
+      path.join(cwd, 'grandparent.tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { jsx: 'preserve', jsxFactory: 'CaperJSX.h', types: ['@caperjs/core/client', '@caperjs/solid/jsx'] },
+      }),
+      'utf-8',
+    );
+    fs.writeFileSync(path.join(cwd, 'parent.tsconfig.json'), JSON.stringify({ extends: './grandparent.tsconfig.json' }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'tsconfig.json'), JSON.stringify({ extends: './parent.tsconfig.json' }), 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'solid-tsconfig').status).toBe('ok');
+  });
+
+  it('does not throw on a broken extends path and falls back to the own tsconfig', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/solid': '^1' } }), 'utf-8');
+    fs.writeFileSync(
+      path.join(cwd, 'tsconfig.json'),
+      JSON.stringify({ extends: './does-not-exist.json', compilerOptions: { jsx: 'preserve' } }),
+      'utf-8',
+    );
+
+    const checks = await runChecks(cwd, { online: false });
+    const solid = find(checks, 'solid-tsconfig');
+
+    expect(solid.status).toBe('fail');
+    expect(solid.hint).toContain('"jsxFactory": "CaperJSX.h"');
+    expect(solid.hint).toContain('"@caperjs/solid/jsx" in types');
+    expect(solid.hint).not.toContain('"jsx": "preserve"');
+  });
+
   it('reports a linked package missing its build', async () => {
     const cwd = makeTempDir();
     const checkout = path.join(cwd, 'checkout');

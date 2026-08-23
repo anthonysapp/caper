@@ -1705,8 +1705,8 @@ vitest config, import `caperSolid()` from `@caperjs/solid/vite` instead.
 `jsxFactory` exists because a transitive `@types/react` shadows the global `JSX`
 namespace and `jsxImportSource` only applies in `react-jsx` mode. `caper doctor`
 reports a `solid-tsconfig` check with the exact missing keys whenever the app
-depends on `@caperjs/solid`; it reads the app's own `tsconfig.json` and does not
-follow `extends`, so put all three there.
+depends on `@caperjs/solid`; it walks the `extends` chain, so the three keys can
+live in a shared base config.
 
 ### 18.4 Minimal example
 

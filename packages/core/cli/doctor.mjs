@@ -2,6 +2,7 @@ import { dim, green, red, yellow } from 'kleur/colors';
 
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -87,6 +88,82 @@ const readJsonc = (file) => {
 
 const push = (checks, id, status, label, hint) => {
   checks.push({ id, status, label, ...(hint ? { hint } : {}) });
+};
+
+/**
+ * Resolve a tsconfig `extends` entry to an absolute config file path,
+ * TypeScript-style: relative specs resolve against the extending config's
+ * directory, everything else resolves node-module-style (bare package name,
+ * `+ .json`, `+ /tsconfig.json`) rooted at that same config file so an app's
+ * own node_modules is used. Returns null (never throws) when nothing resolves.
+ */
+const resolveExtendsSpec = (spec, fromConfigFile) => {
+  const fromDir = path.dirname(fromConfigFile);
+  const isRelative = spec.startsWith('./') || spec.startsWith('../') || path.isAbsolute(spec);
+
+  if (isRelative) {
+    const base = path.isAbsolute(spec) ? spec : path.resolve(fromDir, spec);
+    if (fs.existsSync(base) && fs.statSync(base).isFile()) return base;
+    const withJson = base.endsWith('.json') ? base : `${base}.json`;
+    return fs.existsSync(withJson) ? withJson : null;
+  }
+
+  const require = createRequire(fromConfigFile);
+  const candidates = [spec, `${spec}.json`, `${spec}/tsconfig.json`];
+  for (const candidate of candidates) {
+    try {
+      return require.resolve(candidate);
+    } catch {
+      // try the next candidate
+    }
+  }
+  // Some bare specs are effectively relative paths, or node-module resolution
+  // fails for other plausible reasons — fall back to filesystem paths relative
+  // to the extending config's directory before giving up.
+  for (const candidate of candidates) {
+    const asPath = path.resolve(fromDir, candidate);
+    if (fs.existsSync(asPath) && fs.statSync(asPath).isFile()) return asPath;
+  }
+  return null;
+};
+
+/**
+ * Effective `compilerOptions` for a tsconfig, walking `extends` (string or
+ * array, TS 5 style) like `tsc` does: the own config's fields override
+ * wholesale, later array entries beat earlier ones, and each base can itself
+ * extend further (recursion). Cycle-guarded per ancestor chain and depth
+ * capped; unreadable/unresolvable bases are silently skipped so doctor never
+ * crashes on a weird config.
+ */
+const resolveEffectiveCompilerOptions = (configFile, ancestors = new Set(), depth = 0) => {
+  if (depth > 10) return {};
+
+  let real;
+  try {
+    real = fs.realpathSync(configFile);
+  } catch {
+    real = configFile;
+  }
+  if (ancestors.has(real)) return {};
+
+  const config = readJsonc(configFile);
+  if (!config) return {};
+
+  const nextAncestors = new Set(ancestors);
+  nextAncestors.add(real);
+
+  let inherited = {};
+  if (config.extends) {
+    const specs = Array.isArray(config.extends) ? config.extends : [config.extends];
+    for (const spec of specs) {
+      const resolved = resolveExtendsSpec(spec, configFile);
+      if (!resolved) continue;
+      const baseOptions = resolveEffectiveCompilerOptions(resolved, nextAncestors, depth + 1);
+      inherited = { ...inherited, ...baseOptions };
+    }
+  }
+
+  return { ...inherited, ...(config.compilerOptions ?? {}) };
 };
 
 export async function runChecks(cwd, { online = true } = {}) {
@@ -200,11 +277,12 @@ export async function runChecks(cwd, { online = true } = {}) {
   const appPkg = readJson(path.join(cwd, 'package.json'));
   const appDeps = { ...appPkg?.dependencies, ...appPkg?.devDependencies };
   if (appDeps['@caperjs/solid']) {
-    const tsconfig = readJsonc(path.join(cwd, 'tsconfig.json'));
+    const tsconfigPath = path.join(cwd, 'tsconfig.json');
+    const tsconfig = readJsonc(tsconfigPath);
     if (!tsconfig) {
       push(checks, 'solid-tsconfig', 'fail', 'solid tsconfig unreadable', 'tsconfig.json is missing or not parseable');
     } else {
-      const compilerOptions = tsconfig.compilerOptions ?? {};
+      const compilerOptions = resolveEffectiveCompilerOptions(tsconfigPath);
       const missing = [];
       if (compilerOptions.jsx !== 'preserve') missing.push('"jsx": "preserve"');
       if (compilerOptions.jsxFactory !== 'CaperJSX.h') missing.push('"jsxFactory": "CaperJSX.h"');
