@@ -75,6 +75,12 @@ no vsync — floor numbers, not real hardware): **100 dots ≈ 70 fps,
 hundreds of per-frame bindings are fine; bulk per-frame motion still belongs
 in `update()` loops. Re-measure on real hardware before quoting numbers.
 
+Real-hardware follow-up (2026-08-23, Apple M4, headed Chromium, ANGLE Metal):
+**60 fps flat — vsync-capped — at 100, 500, and 2000 per-frame bindings.** The
+SwiftShader numbers above are a software-rendering floor; on real hardware the
+binding overhead is not measurable at these scales. Guidance stands on
+principle (bulk motion belongs in `update()`), not on an observed fps cost.
+
 ## Package shape
 
 `packages/plugin-solid` → npm `@caperjs/solid`. **Core stays Solid-free.**
