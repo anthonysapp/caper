@@ -1881,5 +1881,5 @@ Flat jump table. Name → section → one-line.
 
 ---
 
-**Last updated:** with `@caperjs/core@0.5.x` (PixiJS 8.x); version in `../package.json`. When in doubt, read the
+**Last updated:** with `@caperjs/core@0.6.x` (PixiJS 8.x); version in `../package.json`. When in doubt, read the
 cited framework source file — signatures and defaults are authoritative there.
