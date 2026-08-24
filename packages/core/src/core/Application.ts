@@ -66,6 +66,7 @@ import { IFullScreenPlugin } from '../plugins/FullScreenPlugin';
 import { type IGSAPPlugin } from '../plugins/GSAPPlugin';
 import { ILookupPlugin } from '../plugins/LookupPlugin';
 import { ITimerPlugin } from '../plugins/TimerPlugin';
+import { shouldEnableScreenDebug } from '../plugins/screenDebugFlag';
 import { Signal } from '../signals';
 
 type App = AppTypeOverrides['App'];
@@ -1012,6 +1013,13 @@ export class Application extends PIXIPApplication implements IApplication {
         id: 'stats',
         module: () => import('../plugins/StatsPlugin'),
         namedExport: 'StatsPlugin',
+      });
+    }
+    if (shouldEnableScreenDebug()) {
+      await this.loadPlugin({
+        id: 'screenDebug',
+        module: () => import('../plugins/ScreenDebugPlugin'),
+        namedExport: 'ScreenDebugPlugin',
       });
     }
     if (this.config.useVoiceover) {

@@ -375,3 +375,13 @@ functions. `initialize` creates the panel, gives it `id="stats"`, appends it to
 `'stats'`. `destroy()` removes the ticker callback and the DOM node before calling
 `super.destroy()`. Not exported from `plugins/index.ts`. If `Application.containerElement`
 is unset the panel is silently never attached (`:14`).
+
+---
+
+## ScreenDebugPlugin (`screenDebug`)
+
+`packages/core/src/plugins/ScreenDebugPlugin.ts` — fixed on-device viewport diagnostics overlay.
+Loaded after the defaults when `?caper-screen-debug=1` or `true` is present, or when that choice has
+been persisted in same-origin local storage. It reports viewport, safe-area, canvas, renderer, and
+resizer measurements with a short resize timeline and visible-bottom/canvas-bottom marker lines;
+`?caper-screen-debug=0` or `false` disables it and clears the persisted choice.

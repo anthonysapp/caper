@@ -13,6 +13,8 @@ export * from './LookupPlugin';
 export * from './Plugin';
 export * from './PopupManagerPlugin';
 export * from './ResizerPlugin';
+export * from './ScreenDebugPlugin';
+export * from './screenDebugFlag';
 export * from './SceneManagerPlugin';
 export * from './TimerPlugin';
 export * from './WebEventsPlugin';

@@ -465,6 +465,12 @@ Every allowed key in `caper.config.ts`. Defer shape details to
 
 Plus all standard PixiJS `ApplicationOptions` (`antialias`, `width`, `height`, etc.).
 
+Screen viewport debugging is available through the built-in `screenDebug` overlay.
+Open the game URL in a normal browser tab with `?caper-screen-debug=1` to enable it.
+Then relaunch the installed PWA; the same-origin setting persists without an address bar.
+Use `?caper-screen-debug=0` in a browser tab to disable it.
+A screenshot containing the overlay and marker lines is the diagnostic artifact.
+
 **Scene/plugin/popup/entity registrations are NOT in this table** — they're
 discovered from disk. Plugins list above is the one exception.
 
