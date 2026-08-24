@@ -9,7 +9,7 @@
     "@caperjs/core",
     "caper"
   ],
-  "version": "0.6.1",
+  "version": "0.7.0",
   "files": [
     "lib",
     "src",
@@ -58,7 +58,7 @@
     "vite-plugin-solid": "^2.11.0"
   },
   "peerDependencies": {
-    "@caperjs/core": "^0.6.1",
+    "@caperjs/core": "^0.7.0",
     "gsap": "^3.13.0",
     "pixi.js": "8.20.0",
     "solid-js": "^1.9.0"

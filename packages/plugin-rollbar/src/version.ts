@@ -1,2 +1,2 @@
-export const version = '0.6.1';
+export const version = '0.7.0';
 export const rollbarVersion = '2.26.4';
