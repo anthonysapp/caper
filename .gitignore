@@ -28,3 +28,4 @@ apps/kitchen-sink/node_modules
 # TypeScript incremental build cache — regenerated on every build
 *.tsbuildinfo
 .claude/settings.local.json
+.playwright-mcp/
