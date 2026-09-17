@@ -42,7 +42,7 @@ severity and `file:line`.
 
 ## Overview
 
-**Caper** (`@caperjs/core`) is an opinionated **HTML game framework built on PixiJS v8**. It adds scene management, plugins, asset pipeline, build config, and project tooling on top of PixiJS, which is a renderer — not a game engine. Caper is a personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel) by Relish Studios; the fork narrows scope, modernizes the dep stack, unifies the plugin contract (no more separate "storage adapter" type), and ships fewer half-finished things. Full rationale in [plan/fork-plan.md](plan/fork-plan.md).
+**Caper** (`@caperjs/core`) is an opinionated **HTML game framework built on PixiJS v8**. It adds scene management, plugins, asset pipeline, build config, and project tooling on top of PixiJS, which is a renderer — not a game engine. Caper is a personal fork of [dill-pixel](https://github.com/relishinc/dill-pixel) by Relish Studios; the fork narrows scope, modernizes the dep stack, unifies the plugin contract (no more separate "storage adapter" type), and ships fewer half-finished things.
 
 This repo is a **pnpm + Turborepo monorepo** containing the framework, first-party plugins, and a kitchen-sink demo app. (The original `apps/docs/` site was deleted in Phase 6 — it was almost entirely upstream content that no longer matched the fork. A new docs surface will be designed from scratch when one is needed.)
 
@@ -52,7 +52,6 @@ This repo is a **pnpm + Turborepo monorepo** containing the framework, first-par
 - [packages/plugin-\*](packages/) — first-party plugins, flat siblings of `core/`. Current set: `plugin-colyseus`, `plugin-crunch` (Crunch physics), `plugin-firebase`, `plugin-google-analytics`, `plugin-rive`, `plugin-rollbar`, `plugin-solid` (publishes as `@caperjs/solid` — a declarative Solid JSX view layer, **not** an `IPlugin`; it never appears in `plugins: [...]`). Each is an independent publishable package under the `@caperjs` npm scope. The `physics-matter` / `physics-snap` / `springroll` plugins were dropped in Phase 3; storage adapters were merged into the unified plugin contract in Phase 1 (Firebase is now a regular plugin).
 - [apps/kitchen-sink](apps/kitchen-sink/) — demo / reference app exercising the framework; the canonical place to see real usage of scenes, plugins, popups, entities, UI. Configured via [caper.config.ts](apps/kitchen-sink/caper.config.ts). Doubles as the integration test for every framework change.
 - [scripts/](scripts/) — monorepo-wide build/publish/version scripts and `create-plugin` generator.
-- [plan/](plan/) — fork roadmap ([plan/fork-plan.md](plan/fork-plan.md)) and execution log ([plan/tasks.md](plan/tasks.md)) — read these for the *why* behind any architectural decision.
 
 Workspaces are declared in [pnpm-workspace.yaml](pnpm-workspace.yaml); Turbo tasks in [turbo.json](turbo.json) (only `build` with `^build` deps, and a persistent uncached `dev`).
 
