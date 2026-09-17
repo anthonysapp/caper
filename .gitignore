@@ -31,3 +31,4 @@ apps/kitchen-sink/node_modules
 .playwright-mcp/
 plan/
 research/
+.cursor/rules/
