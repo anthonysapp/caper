@@ -11,3 +11,4 @@ Process: when a defect is found, add it here with severity + file:line; when fix
 | Severity | Location | Defect |
 |---|---|---|
 | Low | `packages/plugin-crunch/src/CrunchPhysicsPlugin.ts:484` | `initialize(options?: Partial<CrunchPhysicsOptions>, _app: IApplication)` puts a required parameter after an optional one — invalid TS (TS1016). Vite's dep-scan logs a non-fatal `[PARSE_ERROR]` on every kitchen-sink dev start. Fix: make `_app` optional or reorder to match the plugin contract. |
+| Medium | `packages/plugin-colyseus/src/ColyseusPlugin.ts:49` | Client endpoint is hardcoded to `ws://localhost:${port}`; only the port is configurable. Any deployed build (or a device on the LAN, or a native shell) can never reach a real server. Fix: accept an `endpoint` / `url` option (env `VITE_COLYSEUS_URL`), falling back to localhost only in dev. |
