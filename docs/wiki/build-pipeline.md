@@ -293,6 +293,18 @@ adapter: `configResolved` derives the output path from Vite's `publicDir`,
 `buildStart` either starts `AssetPack.watch()` (serve) or `AssetPack.run()` (build),
 `buildEnd` stops the watcher.
 
+Gotcha: dev and production build **separate AssetPack caches but share one output
+folder** (Vite's `publicDir`) — a cache hit only means "my inputs are unchanged," not
+"the folder still matches my last output." Without help, switching modes (e.g. `vite`
+then `vite build`) leaves the shared folder holding the *other* mode's files while the
+manifest still lists the current mode's (hashed vs. unhashed) names — every asset
+request misses, silently, exit code 0. `internal/outputMarker.mjs` fixes this: a small
+marker file inside AssetPack's cache folder (`.assetpack/caper-output-mode.json`, not
+the output folder) records which mode last wrote the shared folder; `assetpackPlugin`
+checks it before each `AssetPack.run()`/`watch()` and forces a cache-less rebuild
+(`{ cache: false }`) whenever the mode changed, or the marker's missing, or the output
+folder's empty.
+
 The interesting part is `resolvePixiPipesConfig` (`assetpack.mjs:156`), the only
 place the merge is observable. Caper's defaults encode four deliberate departures
 from AssetPack's: **retina-first resolutions** `{ high: 2, default: 1, low: 0.5 }`
@@ -347,6 +359,62 @@ and `vite-plugin-asset-types.api.generateTypes()`. The CLI reaches them through
 `vite.resolveConfig(...)` on the app's own `vite.config` (which runs `configResolved`,
 so the closures' `root`/`publicDir` are set). Keep hook behaviour and `api` behaviour
 identical when touching these.
+
+## Native (Tauri)
+
+**Detection.** The Tauri CLI runs an app's `vite` / `vite build` as a child
+process and sets `TAURI_ENV_PLATFORM` (`windows|macos|linux|ios|android`,
+always set under `tauri dev` / `tauri build`) and, for mobile dev on a device
+only, `TAURI_DEV_HOST` (the LAN IP). `tauriDefaults(env = process.env)`
+(`defaults.mjs`) returns `{}` when `TAURI_ENV_PLATFORM` is unset, otherwise:
+
+```js
+{
+  clearScreen: false,
+  envPrefix: ['VITE_', 'TAURI_ENV_'],
+  server: {
+    open: false,
+    strictPort: true,
+    host: host || false, // host = TAURI_DEV_HOST
+    ...(host ? { hmr: { protocol: 'ws', host, port: 1421 } } : {}),
+    watch: { ignored: ['**/src-tauri/**'] },
+  },
+}
+```
+
+`caperDefaults` overlays this onto `caperDefaultValues` *before* the
+`fillMissing` call, so it **overrides** caper's own browser-facing server
+defaults (`open: true`, `host: true`) rather than merely filling their gaps —
+Tauri owns the window chrome, so a browser tab popping open alongside it, or
+the dev server refusing a LAN connection under `strictPort`, are both wrong.
+**Project config still wins**: `fillMissing` runs on the overlaid result the
+same as always, so a project's own `server.port`/`server.open` survive
+untouched. `envPrefix` and `server.watch.ignored` are arrays, which
+`fillMissing` always contributes (per its own array rule above) — vite then
+concatenates them with whatever the project set, so `envPrefix` ends up a
+correct superset rather than replacing a project's own prefixes. No
+`build.target`/`minify`/`sourcemap` or native-flag `define` is set here —
+Vite's own defaults already suit every Tauri webview, and native branching is
+runtime-only (`isTauri`, below).
+
+**PWA auto-skip.** Service workers cannot register on Tauri's
+`tauri://localhost` origin, and the PWA defaults force `base: '/'`. When
+`TAURI_ENV_PLATFORM` is set and the `pwa` option is present, `caperPluginList`
+(`index.mjs`) drops the PWA plugin entirely — no `vite-plugin-pwa`, and no
+`pwaRuntimeSnippet()` appended to `caper-runtime`, so no `virtual:pwa-register`
+import ships — and logs one info line explaining why.
+
+**Runtime flag.** `isTauri` (`src/utils/platform.ts`) is `true` when
+`'__TAURI_INTERNALS__' in window`, guarded by `typeof window !== 'undefined'`
+so it is safe to evaluate under the [SSR stub](#the-ssr-stub). Re-exported from
+`@caperjs/core` the same way as `isTouch`/`isMobile`.
+
+**Game-surface CSS.** `extras/css/fullscreen.css` disables browser gestures
+that fight a native shell: `overscroll-behavior: none` on `html`/`body`,
+`user-select`/`-webkit-touch-callout: none` on `#caper-game-container`, and
+`touch-action: none` on its `canvas` — scoped to the game container rather
+than `body` so an app's scrollable, selectable HTML chrome outside the
+container (kitchen-sink's UI shell) still works normally.
 
 ## Invariants & gotchas
 

@@ -24,6 +24,12 @@ export const isTouch: boolean =
     : false;
 
 /**
+ * Check if we're running inside a Tauri webview (the native app shell), as
+ * opposed to a plain browser tab.
+ */
+export const isTauri: boolean = typeof window !== 'undefined' ? '__TAURI_INTERNALS__' in window : false;
+
+/**
  * Checks if the device is a mobile device.
  * This uses the `isMobile` function from the `@pixi/utils` package.
  * @type {boolean}
