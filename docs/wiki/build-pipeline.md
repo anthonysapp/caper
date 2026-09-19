@@ -362,6 +362,9 @@ identical when touching these.
 
 ## Native (Tauri)
 
+> The whole native story (CLI, runtime plugin, Android steps, gotchas) lives in
+> [native-tauri.md](native-tauri.md). This section covers only what the Vite preset does.
+
 **Detection.** The Tauri CLI runs an app's `vite` / `vite build` as a child
 process and sets `TAURI_ENV_PLATFORM` (`windows|macos|linux|ios|android`,
 always set under `tauri dev` / `tauri build`) and, for mobile dev on a device

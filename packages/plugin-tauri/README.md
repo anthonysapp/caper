@@ -104,3 +104,15 @@ rejection rather than swallowing it.
 ## License
 
 MIT
+
+## Android
+
+- **Back button:** delivered as the key `GoBack` (see `backButtonKey`). Bind it in your controls
+  config, e.g. `toggle_pause: ['P', 'GoBack']`, `close: ['Escape', 'GoBack']`; action contexts decide
+  which fires. While the option is on, back never closes the app by itself.
+- **Fullscreen:** Tauri's `setFullscreen()` is unsupported on mobile, so no native driver is
+  installed there and `app.fullScreen` keeps using the webview's own Fullscreen API. Hide the system
+  bars in `MainActivity.kt` instead; see the repo's `docs/wiki/native-tauri.md`.
+- **Pause:** `pauseOnHide` covers the Home button and app switching (`tauri://suspended` /
+  `tauri://resumed` are wired too).
+
