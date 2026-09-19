@@ -443,11 +443,11 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
       const result = fn();
       if (result && typeof (result as Promise<void>).catch === 'function') {
         (result as Promise<void>).catch((error) => {
-          Logger.error('Fullscreen driver failed:', error);
+          Logger.error('Fullscreen driver failed:', describeError(error));
         });
       }
     } catch (error) {
-      Logger.error('Fullscreen driver failed:', error);
+      Logger.error('Fullscreen driver failed:', describeError(error));
     }
   }
 
@@ -466,5 +466,16 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
     } catch (error) {
       Logger.error('Fullscreen driver unsubscribe failed:', error);
     }
+  }
+}
+
+/** Drivers reject with whatever their platform hands back, often a plain object. */
+function describeError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
   }
 }
