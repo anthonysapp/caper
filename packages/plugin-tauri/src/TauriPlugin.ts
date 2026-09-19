@@ -1,4 +1,13 @@
-import { type FullscreenDriver, type IApplication, type IPlugin, isDev, isTauri, Logger, Plugin } from '@caperjs/core';
+import {
+  type FullscreenDriver,
+  type IApplication,
+  type IPlugin,
+  isDev,
+  isMobile,
+  isTauri,
+  Logger,
+  Plugin,
+} from '@caperjs/core';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import type { Window as TauriWindow } from '@tauri-apps/api/window';
 import type { Store as TauriStore } from '@tauri-apps/plugin-store';
@@ -136,7 +145,10 @@ export class TauriPlugin extends Plugin<TauriPluginOptions> implements ITauriPlu
   }
 
   public async postInitialize(_app: IApplication): Promise<void> {
-    if (!isTauri || !this._options.nativeFullscreen) {
+    // Desktop only. Tauri's window.setFullscreen() rejects on Android/iOS, where the
+    // webview's own HTML Fullscreen API works (and the Android shell already hides the
+    // system bars), so on mobile core's DOM path is the one to keep.
+    if (!isTauri || isMobile || !this._options.nativeFullscreen) {
       return;
     }
 

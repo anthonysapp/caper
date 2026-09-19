@@ -60,7 +60,7 @@ desktop and on the web without branching.
 | -------------------- | ------------------------ | --------------------------------------------------------------------------------- |
 | `pauseOnHide`        | `true`                   | `app.pause()` when the webview is hidden, `app.resume()` when it comes back.       |
 | `pauseOnBlur`        | `false`                  | Same, driven by the native window losing and regaining focus.                      |
-| `nativeFullscreen`   | `true`                   | Install a fullscreen driver on `app.fullScreen` backed by the native window.       |
+| `nativeFullscreen`   | `true`                   | Desktop only: install a fullscreen driver on `app.fullScreen` backed by the native window. On Android/iOS the webview's own fullscreen is kept (Tauri's `setFullscreen` is unsupported there). |
 | `disableContextMenu` | `true` in prod, `false` in dev | `preventDefault()` on `contextmenu`, hiding the webview's own menu.          |
 | `storeFile`          | `'caper-save.json'`      | File under the app data dir that `save`/`load` persist to.                         |
 

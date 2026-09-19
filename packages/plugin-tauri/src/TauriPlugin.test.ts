@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // singleton. Stub it the way plugin-crunch stubs core for Sensor.test.ts, with a
 // base class faithful to `addDisposer` / `listen` / `destroy`.
 const h = vi.hoisted(() => {
-  const flags = { isTauri: true, isDev: false };
+  const flags = { isTauri: true, isDev: false, isMobile: false };
   const app: any = {
     paused: false,
     pause: vi.fn(),
@@ -62,6 +62,9 @@ vi.mock('@caperjs/core', () => {
     },
     get isDev() {
       return h.flags.isDev;
+    },
+    get isMobile() {
+      return h.flags.isMobile;
     },
   };
 });
@@ -298,6 +301,25 @@ describe('TauriPlugin native fullscreen', () => {
 
     await plugin.initialize({ nativeFullscreen: false }, h.app);
     await plugin.postInitialize(h.app);
+
+    expect(h.app.fullScreen.setFullscreenDriver).not.toHaveBeenCalled();
+  });
+
+  // Found on a Pixel 8: Tauri's window.setFullscreen() is desktop-only and rejects on
+  // Android/iOS, while the mobile webview's own HTML Fullscreen API works. Installing
+  // the native driver there replaced a working path with a failing one.
+  it('leaves core DOM fullscreen alone on mobile', async () => {
+    plugin.destroy();
+    plugin = new TauriPlugin();
+    h.app.fullScreen.setFullscreenDriver.mockClear();
+    h.flags.isMobile = true;
+
+    try {
+      await plugin.initialize({}, h.app);
+      await plugin.postInitialize(h.app);
+    } finally {
+      h.flags.isMobile = false;
+    }
 
     expect(h.app.fullScreen.setFullscreenDriver).not.toHaveBeenCalled();
   });
