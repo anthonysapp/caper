@@ -2,6 +2,7 @@ import {
   type FullscreenDriver,
   type IApplication,
   type IPlugin,
+  isAndroid,
   isDev,
   isMobile,
   isTauri,
@@ -25,6 +26,15 @@ export interface TauriPluginOptions {
   disableContextMenu?: boolean;
   /** File the disk-backed key/value store lives in, under the app data dir. Default `'caper-save.json'`. */
   storeFile?: string;
+  /**
+   * Android only: the keyboard key a back-button press (or back gesture) is delivered
+   * as. Bind it in your controls config like any key, e.g.
+   * `close: ['Escape', 'GoBack']`, `toggle_pause: ['P', 'GoBack']`; action contexts
+   * decide which one fires. While this is on, back never closes the app by itself.
+   * `false` leaves Android's default behavior alone. Default `'GoBack'` (the DOM
+   * standard name for this key).
+   */
+  backButtonKey?: string | false;
 }
 
 /**
@@ -54,6 +64,7 @@ function defaultOptions(): Required<TauriPluginOptions> {
     nativeFullscreen: true,
     disableContextMenu: !isDev,
     storeFile: 'caper-save.json',
+    backButtonKey: 'GoBack',
   };
 }
 
@@ -142,6 +153,7 @@ export class TauriPlugin extends Plugin<TauriPluginOptions> implements ITauriPlu
     }
 
     await this._listenLifecycle();
+    await this._listenBackButton();
   }
 
   public async postInitialize(_app: IApplication): Promise<void> {
@@ -274,6 +286,28 @@ export class TauriPlugin extends Plugin<TauriPluginOptions> implements ITauriPlu
    * Mobile webviews are suspended rather than hidden, so `visibilitychange` is
    * not enough on iOS/Android. These events exist from `@tauri-apps/api` v2.
    */
+  /**
+   * Android's back button, delivered as an ordinary key press. Caper's keyboard
+   * controls read keys off the document, so the game's controls config and action
+   * contexts decide what back does; nothing is hard-coded here.
+   */
+  private async _listenBackButton(): Promise<void> {
+    const key = this._options.backButtonKey;
+    if (!isAndroid || !key) {
+      return;
+    }
+    try {
+      const { onBackButtonPress } = await import('@tauri-apps/api/app');
+      const listener = await onBackButtonPress(() => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+      });
+      this.addDisposer(() => void listener.unregister());
+    } catch (error) {
+      Logger.error(`[${this.id}] could not listen for the Android back button:`, error);
+    }
+  }
+
   private async _listenLifecycle(): Promise<void> {
     const { listen, TauriEvent } = await import('@tauri-apps/api/event');
     const suspended = (TauriEvent as Record<string, string>).WINDOW_SUSPENDED;

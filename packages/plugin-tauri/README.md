@@ -63,6 +63,7 @@ desktop and on the web without branching.
 | `nativeFullscreen`   | `true`                   | Desktop only: install a fullscreen driver on `app.fullScreen` backed by the native window. On Android/iOS the webview's own fullscreen is kept (Tauri's `setFullscreen` is unsupported there). |
 | `disableContextMenu` | `true` in prod, `false` in dev | `preventDefault()` on `contextmenu`, hiding the webview's own menu.          |
 | `storeFile`          | `'caper-save.json'`      | File under the app data dir that `save`/`load` persist to.                         |
+| `backButtonKey`      | `'GoBack'`               | Android only: the key a back press is delivered as. Bind it in `controls.keyboard` like any key (`close: ['Escape', 'GoBack']`); action contexts route it. Back never closes the app while this is on. `false` keeps Android's default. |
 
 Pausing is ownership-aware: the plugin only resumes an app it paused itself, so
 a game already paused by its own menu is not resumed out from under the player.

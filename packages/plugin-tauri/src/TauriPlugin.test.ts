@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // singleton. Stub it the way plugin-crunch stubs core for Sensor.test.ts, with a
 // base class faithful to `addDisposer` / `listen` / `destroy`.
 const h = vi.hoisted(() => {
-  const flags = { isTauri: true, isDev: false, isMobile: false };
+  const flags = { isTauri: true, isDev: false, isMobile: false, isAndroid: false };
   const app: any = {
     paused: false,
     pause: vi.fn(),
@@ -66,6 +66,9 @@ vi.mock('@caperjs/core', () => {
     get isMobile() {
       return h.flags.isMobile;
     },
+    get isAndroid() {
+      return h.flags.isAndroid;
+    },
   };
 });
 
@@ -88,6 +91,19 @@ const storeLoad = vi.hoisted(() => vi.fn(async () => tauriStore));
 vi.mock('@tauri-apps/plugin-store', () => ({ load: storeLoad }));
 
 const tauriListen = vi.hoisted(() => vi.fn(async (_e: string, _cb: any) => vi.fn()));
+const backButton = vi.hoisted(() => {
+  const state: { handler: ((payload: { canGoBack: boolean }) => void) | null; unregister: ReturnType<typeof vi.fn> } = {
+    handler: null,
+    unregister: vi.fn(),
+  };
+  const onBackButtonPress = vi.fn(async (handler: (payload: { canGoBack: boolean }) => void) => {
+    state.handler = handler;
+    return { unregister: state.unregister };
+  });
+  return { state, onBackButtonPress };
+});
+vi.mock('@tauri-apps/api/app', () => ({ onBackButtonPress: backButton.onBackButtonPress }));
+
 vi.mock('@tauri-apps/api/event', () => ({
   listen: tauriListen,
   TauriEvent: { WINDOW_SUSPENDED: 'tauri://suspended', WINDOW_RESUMED: 'tauri://resumed' },
@@ -406,5 +422,66 @@ describe('TauriPlugin quit', () => {
     await plugin.initialize({}, h.app);
     await plugin.quit();
     expect(tauriWindow.close).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('TauriPlugin Android back button', () => {
+  let plugin: TauriPlugin;
+  const keys: string[] = [];
+  const record = (e: Event) => keys.push(`${e.type}:${(e as KeyboardEvent).key}`);
+
+  beforeEach(() => {
+    keys.length = 0;
+    backButton.state.handler = null;
+    backButton.state.unregister.mockClear();
+    backButton.onBackButtonPress.mockClear();
+    h.flags.isTauri = true;
+    h.flags.isAndroid = true;
+    document.addEventListener('keydown', record);
+    document.addEventListener('keyup', record);
+    plugin = new TauriPlugin();
+  });
+
+  afterEach(() => {
+    plugin.destroy();
+    h.flags.isAndroid = false;
+    document.removeEventListener('keydown', record);
+    document.removeEventListener('keyup', record);
+  });
+
+  // The back button is just another key: Caper's keyboard controls pick it up from the
+  // document like any key, and the game's own controls config + action contexts decide
+  // what it does (close a popup, toggle pause, ...). No behavior is hard-coded here.
+  it('turns a back press into a GoBack key press on the document', async () => {
+    await plugin.initialize({}, h.app);
+    expect(backButton.onBackButtonPress).toHaveBeenCalledTimes(1);
+
+    backButton.state.handler?.({ canGoBack: false });
+
+    expect(keys).toEqual(['keydown:GoBack', 'keyup:GoBack']);
+  });
+
+  it('uses the configured key name', async () => {
+    await plugin.initialize({ backButtonKey: 'Escape' }, h.app);
+    backButton.state.handler?.({ canGoBack: false });
+    expect(keys).toEqual(['keydown:Escape', 'keyup:Escape']);
+  });
+
+  it('does not listen when backButtonKey is false, or off Android', async () => {
+    await plugin.initialize({ backButtonKey: false }, h.app);
+    expect(backButton.onBackButtonPress).not.toHaveBeenCalled();
+
+    plugin.destroy();
+    plugin = new TauriPlugin();
+    h.flags.isAndroid = false;
+    await plugin.initialize({}, h.app);
+    expect(backButton.onBackButtonPress).not.toHaveBeenCalled();
+  });
+
+  it('unregisters the native listener on destroy', async () => {
+    await plugin.initialize({}, h.app);
+    plugin.destroy();
+    expect(backButton.state.unregister).toHaveBeenCalledTimes(1);
   });
 });
