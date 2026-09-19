@@ -286,7 +286,11 @@ export type KeyboardKey =
   | 'IntlBackslash'
   | 'MetaLeft'
   | 'MetaRight'
-  | 'ContextMenu';
+  | 'ContextMenu'
+  // Navigation keys sent by Android's back button/gesture (delivered by
+  // @caperjs/plugin-tauri), TV remotes, and some Android browsers.
+  | 'GoBack'
+  | 'BrowserBack';
 
 export type { Spine } from '../plugins/spine/pixi-spine';
 
