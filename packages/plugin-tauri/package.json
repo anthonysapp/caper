@@ -1,0 +1,47 @@
+{
+  "name": "@caperjs/plugin-tauri",
+  "description": "Tauri native shell integration",
+  "keywords": [
+    "tauri",
+    "native",
+    "desktop",
+    "@caperjs/core",
+    "caper"
+  ],
+  "version": "0.7.1",
+  "files": [
+    "lib",
+    "src",
+    "!src/**/*.test.ts"
+  ],
+  "main": "lib/caper-plugin-tauri.mjs",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./lib/caper-plugin-tauri.mjs",
+      "types": "./lib/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run generate-version && vite build",
+    "test": "vitest run",
+    "generate-version": "node generateVersion.mjs"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@caperjs/core": "workspace:^",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-store": "^2",
+    "happy-dom": "^15",
+    "vite": "^8.0.7",
+    "vite-plugin-dts": "^4.5.3",
+    "vitest": "^3"
+  },
+  "peerDependencies": {
+    "@caperjs/core": "^0.7.1",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-store": "^2"
+  }
+}
