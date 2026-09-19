@@ -248,6 +248,15 @@ already declared its own layout.
 
 ## Invariants & gotchas
 
+- **Never identify a Pixi event by object identity across tasks.** Pixi pools
+  its `FederatedEvent`s (`EventBoundary`: `clonePointerEvent` -> dispatch ->
+  `freeEvent`), so consecutive clicks arrive as the *same object*. `Button`
+  dedupes the accessibility click+tap pair (one instance dispatched twice,
+  synchronously) via `_lastClickEvent`, and must forget it in a microtask
+  (`Button.ts` `handleClick`). Holding it longer (shipped 2026-08-02 to
+  0.7.1) swallowed every click after a button's first and left `isDown` stuck
+  `true`. Guarded by the "recycles one pooled event object" test in
+  `ui/Button.test.ts`.
 - **Z-order goes through `reorderElement` / `bringToFront` / `sendToBack`** —
   the sanctioned reorder path, sibling to `addElement`/`removeElement`. Each
   reorders the element within its shared region container (changing both
