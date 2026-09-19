@@ -1,10 +1,16 @@
 # Known Bugs — packages/core
 
-**No known open defects.** The 2026-08-02 audit backlog (≈50 defects) and every follow-up finding through 2026-08-04 are fixed — each test-first in its own conventional commit. (One reported item — a UICanvas lifecycle double-registration — was investigated and disproved: UICanvas composes `WithSignals(Factory())` directly and never touches the lifecycle mixin.)
+**One open core defect (plugin ordering, below).** The 2026-08-02 audit backlog (≈50 defects) and every follow-up finding through 2026-08-04 are fixed — each test-first in its own conventional commit. (One reported item — a UICanvas lifecycle double-registration — was investigated and disproved: UICanvas composes `WithSignals(Factory())` directly and never touches the lifecycle mixin.)
 
 CI guards the state on every push and PR: lint (`--max-warnings 0`), core + kitchen-sink typechecks, 373 tests, framework/plugin/demo builds, and a blocking headless boot smoke test.
 
 Process: when a defect is found, add it here with severity + file:line; when fixed, remove it and update any matching wiki gotcha.
+
+## Open defects (core)
+
+| Severity | Location | Defect |
+|---|---|---|
+| Medium | `packages/core/build/internal/discovery.mjs:232-235`, `packages/core/src/core/Application.ts:1053`, `src/core/config.ts:87` | **`requires` declared on an npm plugin's class is never read.** Discovery hardcodes `requires: []` for every `@caperjs/plugin-*` package, with a comment claiming "the runtime topo-sort reads from the live instance". It does not: `sortPluginsByRequires(this.plugins, ...)` only looks at the list items, before any plugin is instantiated. So `public readonly requires = ['firebase']` on a published plugin gives no ordering and no "missing required plugin" bootstrap error. Harmless for `@caperjs/plugin-tauri` (it needs only the built-in `fullscreen`, registered earlier, and wires it in `postInitialize`). Fix: read a static `requires` from the package at discovery time (e.g. a `caper.requires` field in its `package.json`), or re-sort after import, and make the comment true. |
 
 ## Open defects (first-party plugins)
 
