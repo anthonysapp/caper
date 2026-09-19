@@ -2,6 +2,7 @@ import { AssetPack, Logger } from '@assetpack/core';
 import { pixiPipes } from '@assetpack/core/pixi';
 import process from 'node:process';
 import path from 'path';
+import { outputModeKey, shouldBypassCache, writeMarker } from './internal/outputMarker.mjs';
 
 const cwd = process.cwd();
 
@@ -300,12 +301,39 @@ export function assetpackPlugin(manifestUrl = defaultManifestUrl, pixiPipesConfi
     }
   }
 
+  // AssetPack caches by config hash, and dev/production get separate cache
+  // files but share one output folder (vite's publicDir). A cache hit only
+  // means "my inputs are unchanged" -- it says nothing about whether the
+  // other mode overwrote the shared folder since. The marker records which
+  // mode last wrote the folder, so a mode switch forces a cache-less run
+  // instead of silently leaving the folder out of sync with the manifest.
+  function markerPath() {
+    return path.join(apConfig.cacheLocation || '.assetpack', 'caper-output-mode.json');
+  }
+
+  function prepareRun() {
+    const key = outputModeKey({ isProduction, pixiPipesConfig, manifestUrl });
+    const bypass = shouldBypassCache({ markerPath: markerPath(), outputDir: apConfig.output, key });
+    if (bypass) {
+      Logger.info(
+        'Caper assetpack plugin:: output folder was not last written by this mode, rebuilding assets without cache',
+      );
+    }
+    return { config: bypass ? { ...apConfig, cache: false } : apConfig, key };
+  }
+
+  function markRun(key) {
+    writeMarker({ markerPath: markerPath(), key, outputDir: apConfig.output });
+  }
+
   return {
     name: 'vite-plugin-assetpack',
     api: {
       runOnce: async () => {
         await getConfig();
-        await new AssetPack(apConfig).run();
+        const { config, key } = prepareRun();
+        await new AssetPack(config).run();
+        markRun(key);
       },
     },
     async configResolved(resolvedConfig) {
@@ -333,7 +361,8 @@ export function assetpackPlugin(manifestUrl = defaultManifestUrl, pixiPipesConfi
       await getConfig();
       if (mode === 'serve') {
         if (ap) return;
-        ap = new AssetPack(apConfig);
+        const { config, key } = prepareRun();
+        ap = new AssetPack(config);
         // Vite does not reload the page when files under publicDir change, so
         // without this the browser keeps serving stale assets after a rebuild.
         // One reload per completed rebuild batch; the initial pass is skipped
@@ -342,6 +371,7 @@ export function assetpackPlugin(manifestUrl = defaultManifestUrl, pixiPipesConfi
         await ap.watch(() => {
           if (initial) {
             initial = false;
+            markRun(key);
             return;
           }
           const hot = server?.environments?.client?.hot ?? server?.ws;
@@ -349,7 +379,9 @@ export function assetpackPlugin(manifestUrl = defaultManifestUrl, pixiPipesConfi
           Logger.info('Caper assetpack plugin:: assets rebuilt, reloading page');
         });
       } else {
-        await new AssetPack(apConfig).run();
+        const { config, key } = prepareRun();
+        await new AssetPack(config).run();
+        markRun(key);
       }
       isBuilding = false;
     },
