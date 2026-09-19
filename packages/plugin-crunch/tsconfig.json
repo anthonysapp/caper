@@ -26,5 +26,5 @@
   },
   "typeRoots": ["./node_modules/@types"],
   "include": ["./src/**/*.ts", "../../../src/**/*.ts"],
-  "exclude": ["./lib", "./node_modules"]
+  "exclude": ["./lib", "./node_modules", "./src/**/*.test.ts"]
 }
