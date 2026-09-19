@@ -5,6 +5,24 @@ import type { IPlugin } from './Plugin';
 import { Plugin } from './Plugin';
 
 /**
+ * Supplies fullscreen to the {@link FullScreenPlugin} from somewhere other than the
+ * DOM Fullscreen API — a native shell, say, where `requestFullscreen` does not exist.
+ *
+ * Install one with {@link IFullScreenPlugin.setFullscreenDriver}; passing `null`
+ * restores the plugin's normal DOM behavior.
+ */
+export interface FullscreenDriver {
+  /** Whether this driver can enter fullscreen at all. */
+  readonly supported: boolean;
+  /** Enter fullscreen. A rejected promise is logged, never thrown. */
+  request(): void | Promise<void>;
+  /** Leave fullscreen. A rejected promise is logged, never thrown. */
+  exit(): void | Promise<void>;
+  /** Start reporting state changes; returns an unsubscribe. Called once when the driver is set. */
+  subscribe?(notify: (isFullscreen: boolean) => void): () => void;
+}
+
+/**
  * Interface for the FullScreen plugin providing cross-browser fullscreen functionality.
  * Handles fullscreen mode management with comprehensive browser compatibility.
  */
@@ -21,6 +39,8 @@ export interface IFullScreenPlugin extends IPlugin {
   setFullScreen: (value: boolean) => void;
   /** Sets the element to be used for fullscreen operations */
   setFullScreenElement: (element: HTMLElement | Window | null) => void;
+  /** Installs (or, with `null`, removes) a driver that supplies fullscreen instead of the DOM */
+  setFullscreenDriver: (driver: FullscreenDriver | null) => void;
   /** Whether the current environment supports fullscreen functionality */
   readonly canFullscreen: boolean;
 }
@@ -80,6 +100,12 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
   private _isFullScreen: boolean = false;
   /** Internal reference to the fullscreen target element */
   private _fullScreenElement: HTMLElement | Window | null = null;
+  /** Installed driver, if any. When set it replaces every DOM fullscreen path. */
+  private _driver: FullscreenDriver | null = null;
+  /** Unsubscribe handed back by the current driver's `subscribe`. */
+  private _driverUnsubscribe: (() => void) | null = null;
+  /** Last state the current driver reported. */
+  private _driverIsFullScreen: boolean = false;
 
   /**
    * Sets the fullscreen state and triggers the appropriate fullscreen operation.
@@ -193,6 +219,11 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
    */
   public setFullScreen(value: boolean) {
     this._isFullScreen = value;
+    const driver = this._driver;
+    if (driver) {
+      this._runDriver(() => (value ? driver.request() : driver.exit()));
+      return;
+    }
     if (value) {
       this._requestFullscreen();
     } else {
@@ -227,6 +258,42 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
   }
 
   /**
+   * Installs a driver that supplies fullscreen instead of the DOM Fullscreen API —
+   * for native shells (Tauri, say) whose webview has no `requestFullscreen`.
+   *
+   * Setting a driver unsubscribes the previous one. Passing `null` removes the
+   * driver and restores the plugin's normal DOM behavior.
+   *
+   * @param driver - The driver to install, or `null` to remove the current one.
+   *
+   * @example
+   * ```typescript
+   * fullscreenPlugin.setFullscreenDriver({
+   *   supported: true,
+   *   request: () => win.setFullscreen(true),
+   *   exit: () => win.setFullscreen(false),
+   *   subscribe: (notify) => win.onResized(async () => notify(await win.isFullscreen())),
+   * });
+   * ```
+   */
+  public setFullscreenDriver(driver: FullscreenDriver | null): void {
+    this._unsubscribeDriver();
+    this._driver = driver;
+    this._driverIsFullScreen = false;
+    if (driver?.subscribe) {
+      this._driverUnsubscribe = driver.subscribe(this._onDriverStateChange);
+    }
+  }
+
+  /**
+   * Tears down the plugin, unsubscribing any installed fullscreen driver.
+   */
+  public destroy(): void {
+    this._unsubscribeDriver();
+    super.destroy();
+  }
+
+  /**
    * Checks if the current environment and element support fullscreen functionality.
    *
    * @returns True if fullscreen is supported and available
@@ -244,6 +311,9 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
    * ```
    */
   public get canFullscreen(): boolean {
+    if (this._driver) {
+      return this._driver.supported;
+    }
     const element = this._fullScreenElement || Application.containerElement;
     if (!element) return false;
 
@@ -263,6 +333,9 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
    * @returns True if any element is currently in fullscreen mode
    */
   public get isFullscreen(): boolean {
+    if (this._driver) {
+      return this._driverIsFullScreen;
+    }
     return !!(
       document.fullscreenElement ||
       (document as any).webkitFullscreenElement ||
@@ -345,5 +418,53 @@ export class FullScreenPlugin extends Plugin implements IFullScreenPlugin {
     // the real state instead of trusting the cached flag
     this._isFullScreen = this.isFullscreen;
     this.onFullScreenChange.emit(this._isFullScreen);
+  }
+
+  /**
+   * Handles a state change reported by the installed driver. Emits only when the
+   * value actually changed — drivers poll (Tauri has no fullscreen-change event).
+   * @private
+   */
+  private _onDriverStateChange(isFullscreen: boolean): void {
+    if (isFullscreen === this._driverIsFullScreen) {
+      return;
+    }
+    this._driverIsFullScreen = isFullscreen;
+    this._isFullScreen = isFullscreen;
+    this.onFullScreenChange.emit(isFullscreen);
+  }
+
+  /**
+   * Runs a driver call, swallowing (and logging) any sync throw or rejection.
+   * @private
+   */
+  private _runDriver(fn: () => void | Promise<void>): void {
+    try {
+      const result = fn();
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        (result as Promise<void>).catch((error) => {
+          Logger.error('Fullscreen driver failed:', error);
+        });
+      }
+    } catch (error) {
+      Logger.error('Fullscreen driver failed:', error);
+    }
+  }
+
+  /**
+   * Drops the current driver's subscription, if it has one.
+   * @private
+   */
+  private _unsubscribeDriver(): void {
+    const unsubscribe = this._driverUnsubscribe;
+    this._driverUnsubscribe = null;
+    if (!unsubscribe) {
+      return;
+    }
+    try {
+      unsubscribe();
+    } catch (error) {
+      Logger.error('Fullscreen driver unsubscribe failed:', error);
+    }
   }
 }

@@ -86,23 +86,39 @@ when the event carries no `screen.orientation` (`:142`).
 
 ## FullScreenPlugin (`fullscreen`)
 
-`packages/core/src/plugins/FullScreenPlugin.ts:69` — cross-browser fullscreen wrapper
+`packages/core/src/plugins/FullScreenPlugin.ts:89` — cross-browser fullscreen wrapper
 (standard + `webkit`/`moz`/`ms` prefixes). Reached as `app.fullScreen`.
 
 **Interface.** `toggleFullScreen()`, `setFullScreen(value)`,
-`setFullScreenElement(el | window | null)`, getters `isFullScreen` (plugin's own
+`setFullScreenElement(el | window | null)`,
+`setFullscreenDriver(driver | null)` (`:279`), getters `isFullScreen` (plugin's own
 belief), `isFullscreen` (queried from the document, all four vendor properties),
 `canFullscreen` (capability probe on the target element). Signal
-`onFullScreenChange(isFullscreen)`. All three setters are core functions (`:301`).
+`onFullScreenChange(isFullscreen)`. The three element/state setters are core
+functions (`:361`); `setFullscreenDriver` is not.
+
+**Seams.** `FullscreenDriver` (`:14`, exported from `@caperjs/core`) lets another
+plugin supply fullscreen when the DOM Fullscreen API is missing — a Tauri webview has
+no `requestFullscreen` at all, so `@caperjs/plugin-tauri` installs a driver over
+`getCurrentWindow().setFullscreen()`. Shape: `readonly supported`,
+`request()`, `exit()`, optional `subscribe(notify) => unsubscribe`. With a driver
+installed, `canFullscreen` returns `driver.supported`, `setFullScreen` /
+`toggleFullScreen` call `request`/`exit` instead of the DOM paths, and `isFullscreen`
+returns the last state `notify` reported (starting `false`) — the plugin emits
+`onFullScreenChange` only when that value actually changes, because drivers without a
+native change event poll. A rejected `request`/`exit` is logged via `Logger`, never
+thrown (`_runDriver`, `:441`). Setting a new driver unsubscribes the previous one, and
+so does `destroy()` (`:291`); `setFullscreenDriver(null)` restores DOM behavior
+unchanged.
 
 **Gotchas.** Two very similar names: `isFullScreen` is cached state, `isFullscreen`
-(`:278`) is the truth. The change handler (`:356`) re-reads `this.isFullscreen` (the
+(`:335`) is the truth. The change handler (`:416`) re-reads `this.isFullscreen` (the
 vendor-prefixed-aware getter) and assigns it to `_isFullScreen` before emitting, so a
 user-initiated exit (Esc / browser chrome) keeps the cached flag in sync.
-`_requestFullscreen` **throws** when no element is available (`:313`) while
-`setFullScreenElement(null)` only warns. `initialize` registers `fullscreenchange`
-twice (`:146`, `:150`); harmless, same function reference. `destroy()` removes all
-four vendor-prefixed listeners and calls `super.destroy()`.
+`_requestFullscreen` **throws** when no element is available (`:373`) while
+`setFullScreenElement(null)` only warns. `initialize` (`:172`) registers all four
+vendor-prefixed change events through `listen`, so `destroy()` removes them via the
+base class's disposers.
 
 ---
 
