@@ -74,8 +74,10 @@ export const controls = defineControls(actions, buttons, {
       combo: 'Shift+L',
     },
     up: {
-      toggle_pause: 'P',
-      close: 'Escape',
+      // 'GoBack' is Android's back button/gesture, delivered as a key by @caperjs/plugin-tauri.
+      // Same key on two actions: the action contexts pick (close in menu/popup, pause elsewhere).
+      toggle_pause: ['P', 'GoBack'],
+      close: ['Escape', 'GoBack'],
       stop_move_left: ['ArrowLeft', 'A'],
       stop_move_right: ['ArrowRight', 'D'],
       select: ['Enter', 'Space'],
