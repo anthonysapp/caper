@@ -220,6 +220,7 @@ subcommands run from the app root.
 | `caper agent init [--dir <skillsDir>]` | Install the shipped `caper` agent skill (default `.claude/skills/caper/SKILL.md`) and upsert a pointer block into `AGENTS.md`/`CLAUDE.md`. Re-run after upgrading caper. |
 | `caper agent probe <url> [--action n[=json]]… [--until "<js predicate>"] [--wait ms] [--screenshot p] [--headed] [--json]` | Drive a **running** app headlessly through the automation bridge (§17) in a Chromium you own: boots, sends actions, waits on state, returns context/state/log/errors (+ screenshot). Needs `playwright` in the app's devDependencies. |
 | `caper native init [--identifier <id>] [--port <n>] [--icon <png>]` | One-shot Tauri v2 scaffolding: adds `@tauri-apps/cli`, runs `tauri init --ci`, pins a `dev.caper.*`-style identifier + a stable non-3000 dev port, adds `native:dev`/`native:build` scripts. No-ops with "already initialized" if `src-tauri/` exists. |
+| `caper native plugin` | Wires an already-`native init`'d app up for `@caperjs/plugin-tauri`: adds its JS deps, runs `tauri add store`, and patches the window permissions it needs into `capabilities/default.json`. Fails with "run `caper native init` first" if `src-tauri/` is missing; idempotent otherwise. |
 | `caper update` | Update Caper to latest. |
 | `caper install` | Install peer deps (rarely needed; normally automatic). |
 | `caper vo generate [inputDir] [outputDir]` | Voiceover CSV generation from locales. Defaults: `./src/locales` → `./src/assets/audio/vo/csv`. |

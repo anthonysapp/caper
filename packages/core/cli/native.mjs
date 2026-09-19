@@ -107,7 +107,12 @@ export function commandsFor(pm, port) {
     args: pm === 'npm' ? ['install', '-D', pkg] : ['add', '-D', pkg],
   });
 
-  return { dev, build, addDev };
+  const add = (...pkgs) => ({
+    cmd: pm,
+    args: pm === 'npm' ? ['install', ...pkgs] : ['add', ...pkgs],
+  });
+
+  return { dev, build, addDev, add };
 }
 
 function renderCommand({ cmd, args }) {
@@ -135,6 +140,34 @@ export function patchPackageScripts(pkg) {
   if (!('native:dev' in scripts)) scripts['native:dev'] = 'tauri dev';
   if (!('native:build' in scripts)) scripts['native:build'] = 'tauri build';
   return { ...pkg, scripts };
+}
+
+/**
+ * Window permissions `@caperjs/plugin-tauri` needs in `src-tauri/capabilities/default.json`
+ * (native fullscreen + quit). `tauri add store` handles the store plugin's own permission.
+ */
+export const TAURI_PLUGIN_PERMISSIONS = Object.freeze([
+  'core:window:allow-set-fullscreen',
+  'core:window:allow-is-fullscreen',
+  'core:window:allow-close',
+]);
+
+/** Returns a new capabilities object with each of `permissions` missing from `capabilities.permissions` appended; object-form entries and order are untouched. */
+export function patchCapabilities(capabilities, permissions) {
+  const existing = Array.isArray(capabilities.permissions) ? [...capabilities.permissions] : [];
+  const existingStrings = new Set(existing.filter((p) => typeof p === 'string'));
+  const missing = permissions.filter((p) => !existingStrings.has(p));
+
+  return {
+    ...capabilities,
+    permissions: [...existing, ...missing],
+  };
+}
+
+/** The subset of `names` present in neither `pkg.dependencies` nor `pkg.devDependencies`. */
+export function missingDeps(pkg, names) {
+  const deps = { ...(pkg?.dependencies ?? {}), ...(pkg?.devDependencies ?? {}) };
+  return names.filter((name) => !(name in deps));
 }
 
 /** The default injectable `run`: a synchronous, inherited-stdio child process that throws on non-zero exit. */
@@ -237,8 +270,77 @@ export async function initNative(cwd, opts = {}, { run = defaultRun } = {}) {
   return { status: 'ok', name, title, identifier, port, pm };
 }
 
+/**
+ * The I/O core of `caper native plugin` — wires an already-`native init`'d app
+ * up for `@caperjs/plugin-tauri`: adds its JS deps, runs `tauri add store`
+ * (Rust crate + registration + permission + `@tauri-apps/plugin-store`), and
+ * patches in the window permissions the plugin needs. No console output — the
+ * CLI wrapper below owns presentation. Idempotent: a second run makes zero
+ * `run` calls and zero writes.
+ *
+ * @param {string} cwd
+ * @param {object} [opts] unused today; kept for symmetry with `initNative`
+ * @param {{ run?: typeof defaultRun }} [deps]
+ */
+export async function addNativePlugin(cwd, opts = {}, { run = defaultRun } = {}) {
+  const pkgPath = path.join(cwd, 'package.json');
+  if (!fs.existsSync(pkgPath)) {
+    throw new Error('no package.json found in this directory.');
+  }
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+
+  const srcTauriDir = path.join(cwd, 'src-tauri');
+  const tauriConfPath = path.join(srcTauriDir, 'tauri.conf.json');
+  if (!fs.existsSync(srcTauriDir) || !fs.existsSync(tauriConfPath)) {
+    throw new Error('no src-tauri/ found — run `caper native init` first.');
+  }
+
+  const pm = packageManagerFor(cwd);
+  const { add } = commandsFor(pm, 0);
+
+  const addedDeps = missingDeps(pkg, ['@caperjs/plugin-tauri', '@tauri-apps/api']);
+  if (addedDeps.length) {
+    const specs = addedDeps.map((name) => (name === '@tauri-apps/api' ? `${name}@^2` : name));
+    const { cmd, args } = add(...specs);
+    run(cmd, args, { cwd });
+  }
+
+  const cargoTomlPath = path.join(srcTauriDir, 'Cargo.toml');
+  const cargoToml = fs.existsSync(cargoTomlPath) ? fs.readFileSync(cargoTomlPath, 'utf-8') : '';
+  const ranTauriAddStore = !cargoToml.includes('tauri-plugin-store');
+  if (ranTauriAddStore) {
+    run(EXEC_RUNNER[pm], ['tauri', 'add', 'store'], { cwd });
+  }
+
+  const capabilitiesPath = path.join(srcTauriDir, 'capabilities/default.json');
+  if (!fs.existsSync(capabilitiesPath)) {
+    throw new Error(`src-tauri/capabilities/default.json is missing.`);
+  }
+  const capabilitiesRaw = fs.readFileSync(capabilitiesPath, 'utf-8');
+  let capabilities;
+  try {
+    capabilities = JSON.parse(capabilitiesRaw);
+  } catch {
+    throw new Error('src-tauri/capabilities/default.json is not valid JSON.');
+  }
+  const patched = patchCapabilities(capabilities, TAURI_PLUGIN_PERMISSIONS);
+  const capabilitiesChanged = JSON.stringify(patched) !== JSON.stringify(capabilities);
+  if (capabilitiesChanged) {
+    writeJson(capabilitiesPath, patched, 2);
+  }
+
+  return {
+    status: 'ok',
+    changed: addedDeps.length > 0 || ranTauriAddStore || capabilitiesChanged,
+    addedDeps,
+    ranTauriAddStore,
+    capabilitiesChanged,
+  };
+}
+
 function printUsage() {
   console.error(red('Usage: caper native init [--identifier <id>] [--port <n>] [--icon <png>]'));
+  console.error(red('       caper native plugin'));
 }
 
 function parseInitArgs(args) {
@@ -296,6 +398,29 @@ async function runInit(args) {
   console.log(`  The first ${cyan('native:build')} compiles Rust — expect a few minutes.`);
 }
 
+async function runPlugin() {
+  let result;
+  try {
+    result = await addNativePlugin(process.cwd());
+  } catch (err) {
+    console.error(red(`caper native plugin: ${err.message}`));
+    process.exit(1);
+  }
+
+  if (!result.changed) {
+    console.log(yellow('Already wired up for @caperjs/plugin-tauri — nothing to do.'));
+  } else {
+    console.log(green(bold('✓ Wired up for')) + ` ${cyan('@caperjs/plugin-tauri')}`);
+    if (result.addedDeps.length) console.log(`  ${yellow('added deps:')} ${result.addedDeps.join(', ')}`);
+    if (result.ranTauriAddStore) console.log(`  ${yellow('ran:')} tauri add store`);
+    if (result.capabilitiesChanged) console.log(`  ${yellow('capabilities:')} window permissions added to src-tauri/capabilities/default.json`);
+  }
+
+  console.log(`\n  Add to ${cyan('caper.config.ts')}:`);
+  console.log(`    plugins: [..., 'tauri'],  ${dim("// or ['tauri', { pauseOnBlur: true }] to pass options")}`);
+  console.log(`  Use it as your Store adapter id ${cyan('tauri')} for durable saves.`);
+}
+
 /**
  * CLI entry for `caper native`.
  *
@@ -304,6 +429,11 @@ async function runInit(args) {
 export async function native(args) {
   if (args[0] === 'init') {
     await runInit(args.slice(1));
+    return;
+  }
+
+  if (args[0] === 'plugin') {
+    await runPlugin();
     return;
   }
 

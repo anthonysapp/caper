@@ -22,7 +22,7 @@ sed -n '<start>,<end>p' node_modules/@caperjs/core/extras/llms.txt
 | --------------------------------------------- | ---------------------------------- |
 | know the rules before writing any code        | §1 Rules of engagement             |
 | scaffold a scene / entity / popup / plugin    | §2.2 CLI, §15 Recipes              |
-| package the app as a native desktop app (Tauri)| §2.2 CLI `caper native init`      |
+| package the app as a native desktop app (Tauri)| §2.2 CLI `caper native init` / `caper native plugin` |
 | boot, `create()`, custom `Application`        | §3                                 |
 | `caper.config.ts`, actions, contexts, data    | §4                                 |
 | scene lifecycle, assets per scene, transitions| §5                                 |

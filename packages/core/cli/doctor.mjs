@@ -6,6 +6,8 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { TAURI_PLUGIN_PERMISSIONS } from './native.mjs';
+
 /**
  * `caper doctor` — one-shot health report for a Caper app.
  *
@@ -357,6 +359,35 @@ export async function runChecks(cwd, { online = true, run = defaultDoctorRun, pl
         `@tauri-apps/cli ${tauriCliVersion}`,
         major === 2 ? undefined : 'expected @tauri-apps/cli major version 2',
       );
+    }
+
+    // Only relevant once the app actually depends on @caperjs/plugin-tauri —
+    // `caper native init` alone doesn't need the store crate or its permissions.
+    if (appDeps['@caperjs/plugin-tauri']) {
+      let cargoToml = null;
+      try {
+        cargoToml = fs.readFileSync(path.join(cwd, 'src-tauri/Cargo.toml'), 'utf-8');
+      } catch {
+        // fails below
+      }
+      if (cargoToml === null) {
+        push(checks, 'native-plugin', 'fail', 'src-tauri/Cargo.toml unreadable', 'caper native plugin');
+      } else if (!cargoToml.includes('tauri-plugin-store')) {
+        push(checks, 'native-plugin', 'fail', 'src-tauri/Cargo.toml is missing tauri-plugin-store', 'caper native plugin');
+      } else {
+        const capabilities = readJson(path.join(cwd, 'src-tauri/capabilities/default.json'));
+        if (!capabilities) {
+          push(checks, 'native-plugin', 'fail', 'src-tauri/capabilities/default.json unreadable', 'caper native plugin');
+        } else {
+          const permissions = Array.isArray(capabilities.permissions) ? capabilities.permissions : [];
+          const missing = TAURI_PLUGIN_PERMISSIONS.filter((p) => !permissions.includes(p));
+          if (missing.length) {
+            push(checks, 'native-plugin', 'warn', `missing capability permissions: ${missing.join(', ')}`, 'caper native plugin');
+          } else {
+            push(checks, 'native-plugin', 'ok', 'native plugin wiring');
+          }
+        }
+      }
     }
 
     const tauriConf = readJson(path.join(cwd, 'src-tauri/tauri.conf.json'));

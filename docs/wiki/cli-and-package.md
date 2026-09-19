@@ -72,9 +72,10 @@ banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 | `add` | `add(args.slice(1))` (`cli/add.mjs`) | scaffold one scene/plugin/entity/popup file |
 | `agent init [--dir <skillsDir>]` | `agent(args.slice(1))` (`cli/agent.mjs`) | copies the shipped `caper` agent skill into the app (default `.claude/skills/`) and upserts a marker-delimited pointer block into `AGENTS.md`/`CLAUDE.md` |
 | `native init [--identifier <id>] [--port <n>] [--icon <png>]` | `native(args.slice(1))` (`cli/native.mjs`) | one-shot Tauri v2 scaffolding — see [Native (Tauri)](#native-tauri) below |
+| `native plugin` | `native(args.slice(1))` (`cli/native.mjs`) | wires an already-`native init`'d app up for `@caperjs/plugin-tauri` — see [Native (Tauri)](#native-tauri) below |
 | `agent probe <url> [opts]` | `probe(args)` (`cli/probe.mjs`, via `cli/agent.mjs`) | launches the app's own `playwright` Chromium, waits for `Caper.__readyApps`, sends `--action`s, optional `--until` predicate via `Caper.automation[id].waitFor`, returns context/state/log/errors (+ `--screenshot`); exit 1 on boot/until timeout or page errors, 2 if playwright is missing |
 | `types [--no-assets]` | `types(args)` (`cli/types.mjs`) | `vite.resolveConfig` on the app's own `vite.config`, then calls the `api` seams: `vite-plugin-assetpack.api.runOnce()` → `vite-plugin-caper-config.api.generateTypes()` → `vite-plugin-asset-types.api.generateTypes()`; same output as a dev-server start, no server |
-| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
+| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri`, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
 | `create` | `create(projectPath, packageManager)` (`cli/create.mjs`) | parses `--use-yarn`/`--use-pnpm` and a positional path before delegating |
 | `update` | `update()` (`cli/update.mjs`) | installs `@caperjs/core@latest` |
 | `vo generate [inputDir] [csvDir]` | `generateVoiceoverCSV()` (`cli/voiceover/`) | |
@@ -122,6 +123,32 @@ detects and configures for Tauri. `native init`:
    overwriting either if already present.
 5. Runs `tauri icon <path>` only when `--icon` is given.
 
+**`caper native plugin`** (`native.mjs:285` `addNativePlugin`) wires an
+already-`native init`'d app up for the runtime plugin `@caperjs/plugin-tauri`
+(pause-on-hide, native fullscreen, durable saves, quit). Fails with "run
+`caper native init` first" if `./src-tauri` doesn't exist. Otherwise:
+
+1. Adds whichever of `@caperjs/plugin-tauri` and `@tauri-apps/api@^2` are
+   missing as runtime dependencies, in one `run` call (`missingDeps`,
+   `native.mjs:168`).
+2. Runs `tauri add store` — the Tauri CLI's own one-shot for a plugin: edits
+   `src-tauri/Cargo.toml` and `src-tauri/src/lib.rs` to register the
+   `tauri-plugin-store` crate, adds its permission, and installs the JS
+   package `@tauri-apps/plugin-store` — but only if `Cargo.toml` doesn't
+   already mention `tauri-plugin-store`.
+3. Patches `src-tauri/capabilities/default.json`, appending whichever of
+   `TAURI_PLUGIN_PERMISSIONS` (`native.mjs:149`:
+   `core:window:allow-set-fullscreen`, `core:window:allow-is-fullscreen`,
+   `core:window:allow-close`) are missing from its `permissions` array
+   (`patchCapabilities`, `native.mjs:156` — object-form entries and existing
+   order are left alone; the file is rewritten only if something changed).
+   Fails naming the file if it's missing or not valid JSON.
+4. Prints the line to add to `caper.config.ts` to register the plugin, and
+   the reminder to use `tauri` as the Store adapter id for durable saves.
+
+Idempotent: a second run makes zero `run` calls and zero writes, and reports
+that nothing was needed.
+
 **Identifier rule**: defaults to `dev.caper.<slug>` (slug = the app's
 `package.json` name, scope stripped, lowercased, non-alnum runs collapsed to
 `-`). Must match a reverse-DNS shape
@@ -139,7 +166,13 @@ major 2 resolvable from the app), `native-identifier` (fails on
 `com.tauri.dev`, warns on the `dev.caper.*` default), `native-dev-port`
 (warns when `tauri.conf.json`'s `devUrl` port disagrees with
 `beforeDevCommand`'s `--port`, or is the shared default `3000`), and — macOS
-only — `native-xcode-clt` (`xcode-select -p`).
+only — `native-xcode-clt` (`xcode-select -p`). A sixth row,
+`native-plugin`, appears only when the app also depends on
+`@caperjs/plugin-tauri`: `fail` if `src-tauri/Cargo.toml` doesn't mention
+`tauri-plugin-store` (hint: `caper native plugin`); else `warn` naming any of
+`TAURI_PLUGIN_PERMISSIONS` missing from `capabilities/default.json` (same
+hint); else `ok`. Unreadable `Cargo.toml`/`capabilities/default.json` ->
+`fail` naming the file.
 
 **`caper create [path] [--use-yarn|--use-pnpm]`**
 (`packages/core/cli/create.mjs`; `create-caper.mjs` is a thin wrapper around

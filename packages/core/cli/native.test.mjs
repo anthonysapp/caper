@@ -7,16 +7,20 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  addNativePlugin,
   appSlug,
   commandsFor,
   defaultIdentifier,
   defaultPort,
   initNative,
   isValidIdentifier,
+  missingDeps,
   packageManagerFor,
   parsePort,
+  patchCapabilities,
   patchPackageScripts,
   patchTauriConfig,
+  TAURI_PLUGIN_PERMISSIONS,
 } from './native.mjs';
 
 let tempDir = null;
@@ -159,31 +163,41 @@ describe('packageManagerFor', () => {
 
 describe('commandsFor', () => {
   it('builds pnpm commands', () => {
-    const { dev, build, addDev } = commandsFor('pnpm', 3123);
+    const { dev, build, addDev, add } = commandsFor('pnpm', 3123);
     expect(dev).toEqual({ cmd: 'pnpm', args: ['vite', '--port', '3123'] });
     expect(build).toEqual({ cmd: 'pnpm', args: ['vite', 'build'] });
     expect(addDev('@tauri-apps/cli@^2')).toEqual({ cmd: 'pnpm', args: ['add', '-D', '@tauri-apps/cli@^2'] });
+    expect(add('@caperjs/plugin-tauri', '@tauri-apps/api@^2')).toEqual({
+      cmd: 'pnpm',
+      args: ['add', '@caperjs/plugin-tauri', '@tauri-apps/api@^2'],
+    });
   });
 
   it('builds yarn commands', () => {
-    const { dev, build, addDev } = commandsFor('yarn', 3123);
+    const { dev, build, addDev, add } = commandsFor('yarn', 3123);
     expect(dev).toEqual({ cmd: 'yarn', args: ['vite', '--port', '3123'] });
     expect(build).toEqual({ cmd: 'yarn', args: ['vite', 'build'] });
     expect(addDev('@tauri-apps/cli@^2')).toEqual({ cmd: 'yarn', args: ['add', '-D', '@tauri-apps/cli@^2'] });
+    expect(add('@caperjs/plugin-tauri')).toEqual({ cmd: 'yarn', args: ['add', '@caperjs/plugin-tauri'] });
   });
 
   it('builds bun commands', () => {
-    const { dev, build, addDev } = commandsFor('bun', 3123);
+    const { dev, build, addDev, add } = commandsFor('bun', 3123);
     expect(dev).toEqual({ cmd: 'bunx', args: ['vite', '--port', '3123'] });
     expect(build).toEqual({ cmd: 'bunx', args: ['vite', 'build'] });
     expect(addDev('@tauri-apps/cli@^2')).toEqual({ cmd: 'bun', args: ['add', '-D', '@tauri-apps/cli@^2'] });
+    expect(add('@caperjs/plugin-tauri')).toEqual({ cmd: 'bun', args: ['add', '@caperjs/plugin-tauri'] });
   });
 
   it('builds npm commands', () => {
-    const { dev, build, addDev } = commandsFor('npm', 3123);
+    const { dev, build, addDev, add } = commandsFor('npm', 3123);
     expect(dev).toEqual({ cmd: 'npx', args: ['vite', '--port', '3123'] });
     expect(build).toEqual({ cmd: 'npx', args: ['vite', 'build'] });
     expect(addDev('@tauri-apps/cli@^2')).toEqual({ cmd: 'npm', args: ['install', '-D', '@tauri-apps/cli@^2'] });
+    expect(add('@caperjs/plugin-tauri', '@tauri-apps/api@^2')).toEqual({
+      cmd: 'npm',
+      args: ['install', '@caperjs/plugin-tauri', '@tauri-apps/api@^2'],
+    });
   });
 });
 
@@ -413,5 +427,224 @@ describe('initNative', () => {
 
     await expect(initNative(dir, { identifier: 'com.tauri.dev' }, { run: stubbedRun(calls) })).rejects.toThrow();
     await expect(initNative(dir, { identifier: 'not valid' }, { run: stubbedRun(calls) })).rejects.toThrow();
+  });
+});
+
+describe('TAURI_PLUGIN_PERMISSIONS', () => {
+  it('is a frozen array of the three window permissions', () => {
+    expect(Object.isFrozen(TAURI_PLUGIN_PERMISSIONS)).toBe(true);
+    expect(TAURI_PLUGIN_PERMISSIONS).toEqual([
+      'core:window:allow-set-fullscreen',
+      'core:window:allow-is-fullscreen',
+      'core:window:allow-close',
+    ]);
+  });
+});
+
+describe('patchCapabilities', () => {
+  it('appends missing permissions, keeping existing order', () => {
+    const capabilities = { permissions: ['core:default', 'core:window:allow-set-fullscreen'] };
+
+    const patched = patchCapabilities(capabilities, TAURI_PLUGIN_PERMISSIONS);
+
+    expect(patched.permissions).toEqual([
+      'core:default',
+      'core:window:allow-set-fullscreen',
+      'core:window:allow-is-fullscreen',
+      'core:window:allow-close',
+    ]);
+  });
+
+  it('does not duplicate permissions already present', () => {
+    const capabilities = { permissions: [...TAURI_PLUGIN_PERMISSIONS] };
+
+    const patched = patchCapabilities(capabilities, TAURI_PLUGIN_PERMISSIONS);
+
+    expect(patched.permissions).toEqual([...TAURI_PLUGIN_PERMISSIONS]);
+  });
+
+  it('preserves object-form permission entries untouched', () => {
+    const objectEntry = { identifier: 'core:window:allow-set-title' };
+    const capabilities = { permissions: [objectEntry] };
+
+    const patched = patchCapabilities(capabilities, TAURI_PLUGIN_PERMISSIONS);
+
+    expect(patched.permissions[0]).toBe(objectEntry);
+    expect(patched.permissions).toEqual([objectEntry, ...TAURI_PLUGIN_PERMISSIONS]);
+  });
+
+  it('creates the permissions array when absent', () => {
+    const capabilities = { identifier: 'default' };
+
+    const patched = patchCapabilities(capabilities, TAURI_PLUGIN_PERMISSIONS);
+
+    expect(patched.permissions).toEqual([...TAURI_PLUGIN_PERMISSIONS]);
+  });
+
+  it('does not mutate the original object', () => {
+    const capabilities = { permissions: ['core:default'] };
+
+    patchCapabilities(capabilities, TAURI_PLUGIN_PERMISSIONS);
+
+    expect(capabilities.permissions).toEqual(['core:default']);
+  });
+});
+
+describe('missingDeps', () => {
+  it('returns names absent from both dependencies and devDependencies', () => {
+    const pkg = { dependencies: { a: '1' }, devDependencies: { b: '1' } };
+    expect(missingDeps(pkg, ['a', 'b', 'c'])).toEqual(['c']);
+  });
+
+  it('returns everything when there are no deps at all', () => {
+    expect(missingDeps({}, ['a', 'b'])).toEqual(['a', 'b']);
+  });
+});
+
+describe('addNativePlugin', () => {
+  function scaffoldNativePlugin(dir, { pkg = {}, cargoToml = '[package]\nname = "my-game"\n', capabilities } = {}) {
+    fs.writeFileSync(path.join(dir, 'pnpm-lock.yaml'), '', 'utf-8');
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ name: 'my-game', version: '1.0.0', ...pkg }, null, 2) + '\n',
+      'utf-8',
+    );
+    fs.mkdirSync(path.join(dir, 'src-tauri/capabilities'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'src-tauri/tauri.conf.json'), JSON.stringify({ identifier: 'dev.caper.my-game' }, null, 2) + '\n', 'utf-8');
+    fs.writeFileSync(path.join(dir, 'src-tauri/Cargo.toml'), cargoToml, 'utf-8');
+    fs.writeFileSync(
+      path.join(dir, 'src-tauri/capabilities/default.json'),
+      JSON.stringify(
+        capabilities ?? {
+          $schema: '../gen/schemas/desktop-schema.json',
+          identifier: 'default',
+          description: 'Capability for the main window',
+          windows: ['main'],
+          permissions: ['core:default'],
+        },
+        null,
+        2,
+      ) + '\n',
+      'utf-8',
+    );
+  }
+
+  // Mirrors what `pnpm add <pkg>` / `tauri add store` actually do to the
+  // filesystem, so a *second* call sees the real post-install state.
+  function stubbedPluginRun(calls) {
+    return (cmd, args, opts) => {
+      calls.push({ cmd, args, opts });
+      if (args[0] === 'tauri' && args[1] === 'add' && args[2] === 'store') {
+        const cargoTomlPath = path.join(opts.cwd, 'src-tauri/Cargo.toml');
+        const existing = fs.readFileSync(cargoTomlPath, 'utf-8');
+        fs.writeFileSync(cargoTomlPath, `${existing}\n[dependencies]\ntauri-plugin-store = "2"\n`, 'utf-8');
+      } else if (args[0] === 'add' || args[0] === 'install') {
+        const pkgPath = path.join(opts.cwd, 'package.json');
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        pkg.dependencies = pkg.dependencies ?? {};
+        for (const spec of args.slice(1)) {
+          const at = spec.lastIndexOf('@');
+          const name = at > 0 ? spec.slice(0, at) : spec;
+          const version = at > 0 ? spec.slice(at + 1) : 'latest';
+          pkg.dependencies[name] = version;
+        }
+        fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+      }
+      return { status: 0 };
+    };
+  }
+
+  it('runs the full first-time flow: adds deps, runs tauri add store, and patches capabilities', async () => {
+    const dir = makeTempDir();
+    scaffoldNativePlugin(dir);
+    const calls = [];
+
+    const result = await addNativePlugin(dir, {}, { run: stubbedPluginRun(calls) });
+
+    expect(result.status).toBe('ok');
+    expect(result.changed).toBe(true);
+    expect(result.addedDeps).toEqual(['@caperjs/plugin-tauri', '@tauri-apps/api']);
+    expect(result.ranTauriAddStore).toBe(true);
+    expect(result.capabilitiesChanged).toBe(true);
+    expect(calls).toHaveLength(2);
+
+    const addCall = calls.find((c) => c.args[0] === 'add');
+    expect(addCall.cmd).toBe('pnpm');
+    expect(addCall.args).toEqual(['add', '@caperjs/plugin-tauri', '@tauri-apps/api@^2']);
+
+    const storeCall = calls.find((c) => c.args[0] === 'tauri');
+    expect(storeCall.cmd).toBe('pnpm');
+    expect(storeCall.args).toEqual(['tauri', 'add', 'store']);
+
+    const capabilities = JSON.parse(fs.readFileSync(path.join(dir, 'src-tauri/capabilities/default.json'), 'utf-8'));
+    expect(capabilities.permissions).toEqual(['core:default', ...TAURI_PLUGIN_PERMISSIONS]);
+  });
+
+  it('is idempotent: a second run makes zero run calls and leaves files unchanged', async () => {
+    const dir = makeTempDir();
+    scaffoldNativePlugin(dir);
+
+    await addNativePlugin(dir, {}, { run: stubbedPluginRun([]) });
+
+    const pkgAfterFirst = fs.readFileSync(path.join(dir, 'package.json'), 'utf-8');
+    const cargoAfterFirst = fs.readFileSync(path.join(dir, 'src-tauri/Cargo.toml'), 'utf-8');
+    const capabilitiesAfterFirst = fs.readFileSync(path.join(dir, 'src-tauri/capabilities/default.json'), 'utf-8');
+
+    const secondCalls = [];
+    const result = await addNativePlugin(dir, {}, { run: stubbedPluginRun(secondCalls) });
+
+    expect(secondCalls).toHaveLength(0);
+    expect(result.changed).toBe(false);
+    expect(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8')).toBe(pkgAfterFirst);
+    expect(fs.readFileSync(path.join(dir, 'src-tauri/Cargo.toml'), 'utf-8')).toBe(cargoAfterFirst);
+    expect(fs.readFileSync(path.join(dir, 'src-tauri/capabilities/default.json'), 'utf-8')).toBe(capabilitiesAfterFirst);
+  });
+
+  it('fails clearly when src-tauri does not exist, and writes nothing', async () => {
+    const dir = makeTempDir();
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'my-game' }, null, 2) + '\n', 'utf-8');
+    const calls = [];
+
+    await expect(addNativePlugin(dir, {}, { run: stubbedPluginRun(calls) })).rejects.toThrow(/caper native init/);
+    expect(calls).toHaveLength(0);
+    expect(fs.existsSync(path.join(dir, 'src-tauri'))).toBe(false);
+  });
+
+  it('fails clearly when capabilities/default.json is missing', async () => {
+    const dir = makeTempDir();
+    scaffoldNativePlugin(dir);
+    fs.rmSync(path.join(dir, 'src-tauri/capabilities/default.json'));
+
+    await expect(addNativePlugin(dir, {}, { run: stubbedPluginRun([]) })).rejects.toThrow(/capabilities\/default\.json/);
+  });
+
+  it('fails clearly when capabilities/default.json is not valid JSON', async () => {
+    const dir = makeTempDir();
+    scaffoldNativePlugin(dir);
+    fs.writeFileSync(path.join(dir, 'src-tauri/capabilities/default.json'), '{ not json', 'utf-8');
+
+    await expect(addNativePlugin(dir, {}, { run: stubbedPluginRun([]) })).rejects.toThrow(/capabilities\/default\.json/);
+  });
+
+  it('skips the dep-add call when both deps are already present', async () => {
+    const dir = makeTempDir();
+    scaffoldNativePlugin(dir, { pkg: { dependencies: { '@caperjs/plugin-tauri': '^1', '@tauri-apps/api': '^2' } } });
+    const calls = [];
+
+    const result = await addNativePlugin(dir, {}, { run: stubbedPluginRun(calls) });
+
+    expect(result.addedDeps).toEqual([]);
+    expect(calls.find((c) => c.args[0] === 'add' || c.args[0] === 'install')).toBeUndefined();
+  });
+
+  it('skips tauri add store when Cargo.toml already lists tauri-plugin-store', async () => {
+    const dir = makeTempDir();
+    scaffoldNativePlugin(dir, { cargoToml: '[dependencies]\ntauri-plugin-store = "2"\n' });
+    const calls = [];
+
+    const result = await addNativePlugin(dir, {}, { run: stubbedPluginRun(calls) });
+
+    expect(result.ranTauriAddStore).toBe(false);
+    expect(calls.find((c) => c.args[0] === 'tauri')).toBeUndefined();
   });
 });

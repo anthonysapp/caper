@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { agentInit } from './agent.mjs';
 import { parseRustcVersion, runChecks } from './doctor.mjs';
+import { TAURI_PLUGIN_PERMISSIONS } from './native.mjs';
 
 const START_MARKER = '<!-- caper:agent-start -->';
 const END_MARKER = '<!-- caper:agent-end -->';
@@ -573,5 +574,118 @@ describe('runChecks native rows', () => {
     });
 
     expect(find(checks, 'native-xcode-clt')).toBeUndefined();
+  });
+});
+
+function writePluginAppPkg(cwd) {
+  fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/plugin-tauri': '^1' } }), 'utf-8');
+}
+
+function writeCargoToml(cwd, { withStorePlugin = true } = {}) {
+  fs.writeFileSync(
+    path.join(cwd, 'src-tauri/Cargo.toml'),
+    withStorePlugin ? '[dependencies]\ntauri-plugin-store = "2"\n' : '[dependencies]\ntauri = "2"\n',
+    'utf-8',
+  );
+}
+
+function writeCapabilities(cwd, permissions = ['core:default', ...TAURI_PLUGIN_PERMISSIONS]) {
+  fs.mkdirSync(path.join(cwd, 'src-tauri/capabilities'), { recursive: true });
+  fs.writeFileSync(
+    path.join(cwd, 'src-tauri/capabilities/default.json'),
+    JSON.stringify({ $schema: '../gen/schemas/desktop-schema.json', identifier: 'default', windows: ['main'], permissions }),
+    'utf-8',
+  );
+}
+
+describe('runChecks native-plugin row', () => {
+  it('is absent when src-tauri exists but the app does not depend on @caperjs/plugin-tauri', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    expect(find(checks, 'native-plugin')).toBeUndefined();
+  });
+
+  it('is absent when the app depends on the plugin but src-tauri does not exist', async () => {
+    const cwd = makeTempDir();
+    writePluginAppPkg(cwd);
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'native-plugin')).toBeUndefined();
+  });
+
+  it('fails when Cargo.toml is unreadable', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+    writePluginAppPkg(cwd);
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+    const row = find(checks, 'native-plugin');
+
+    expect(row.status).toBe('fail');
+    expect(row.label).toContain('Cargo.toml');
+    expect(row.hint).toMatch(/caper native plugin/);
+  });
+
+  it('fails when Cargo.toml is missing tauri-plugin-store', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+    writePluginAppPkg(cwd);
+    writeCargoToml(cwd, { withStorePlugin: false });
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+    const row = find(checks, 'native-plugin');
+
+    expect(row.status).toBe('fail');
+    expect(row.hint).toMatch(/caper native plugin/);
+  });
+
+  it('warns when window permissions are missing from capabilities/default.json', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+    writePluginAppPkg(cwd);
+    writeCargoToml(cwd);
+    writeCapabilities(cwd, ['core:default']);
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+    const row = find(checks, 'native-plugin');
+
+    expect(row.status).toBe('warn');
+    expect(row.label).toContain('core:window:allow-set-fullscreen');
+  });
+
+  it('fails when capabilities/default.json is unreadable', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+    writePluginAppPkg(cwd);
+    writeCargoToml(cwd);
+    // no capabilities/default.json written
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+    const row = find(checks, 'native-plugin');
+
+    expect(row.status).toBe('fail');
+    expect(row.hint).toMatch(/caper native plugin/);
+  });
+
+  it('is ok when Cargo.toml has the store plugin and all window permissions are present', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+    writePluginAppPkg(cwd);
+    writeCargoToml(cwd);
+    writeCapabilities(cwd);
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    expect(find(checks, 'native-plugin').status).toBe('ok');
   });
 });
