@@ -61,19 +61,20 @@ few dozen lines of `fs`/`child_process` glue, not a framework of their own.
 ## CLI commands
 
 **`cli.mjs`** (`packages/core/cli.mjs`) is the single dispatcher registered
-as the `caper` bin. It gates on Node ≥ 18 (`cli.mjs:16-23`), prints a version
+as the `caper` bin. It gates on Node ≥ 18 (`cli.mjs:19-27`), prints a version
 banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 
 | subcommand | handler | notes |
 |---|---|---|
 | `install` | `installPeerDeps()` (`cli/install-peerdeps.mjs`) | installs the peer deps listed above into the consumer project |
 | `version` | (banner only) | no-op past the version print |
-| `dev`/`start`/`build`/`preview` | rejected, exit 1 (`cli.mjs:50-63`) | removed in 0.2.0; kept as named cases purely to print "run vite directly" instead of "unknown subcommand" |
+| `dev`/`start`/`build`/`preview` | rejected, exit 1 (`cli.mjs:57-67`) | removed in 0.2.0; kept as named cases purely to print "run vite directly" instead of "unknown subcommand" |
 | `add` | `add(args.slice(1))` (`cli/add.mjs`) | scaffold one scene/plugin/entity/popup file |
 | `agent init [--dir <skillsDir>]` | `agent(args.slice(1))` (`cli/agent.mjs`) | copies the shipped `caper` agent skill into the app (default `.claude/skills/`) and upserts a marker-delimited pointer block into `AGENTS.md`/`CLAUDE.md` |
+| `native init [--identifier <id>] [--port <n>] [--icon <png>]` | `native(args.slice(1))` (`cli/native.mjs`) | one-shot Tauri v2 scaffolding — see [Native (Tauri)](#native-tauri) below |
 | `agent probe <url> [opts]` | `probe(args)` (`cli/probe.mjs`, via `cli/agent.mjs`) | launches the app's own `playwright` Chromium, waits for `Caper.__readyApps`, sends `--action`s, optional `--until` predicate via `Caper.automation[id].waitFor`, returns context/state/log/errors (+ `--screenshot`); exit 1 on boot/until timeout or page errors, 2 if playwright is missing |
 | `types [--no-assets]` | `types(args)` (`cli/types.mjs`) | `vite.resolveConfig` on the app's own `vite.config`, then calls the `api` seams: `vite-plugin-assetpack.api.runOnce()` → `vite-plugin-caper-config.api.generateTypes()` → `vite-plugin-asset-types.api.generateTypes()`; same output as a dev-server start, no server |
-| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches; exit 1 on any `fail` |
+| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
 | `create` | `create(projectPath, packageManager)` (`cli/create.mjs`) | parses `--use-yarn`/`--use-pnpm` and a positional path before delegating |
 | `update` | `update()` (`cli/update.mjs`) | installs `@caperjs/core@latest` |
 | `vo generate [inputDir] [csvDir]` | `generateVoiceoverCSV()` (`cli/voiceover/`) | |
@@ -94,6 +95,51 @@ existing file. Critically, `add()` never touches `caper.config.ts` or any
 registry — the new file is inert until the app's Vite-plugin discovery
 (outside this page's scope) picks it up on the next dev reload, and for a
 plugin, until it's also added to `caper.config.ts`'s `plugins` array.
+
+### Native (Tauri)
+
+**`caper native init [--identifier <id>] [--port <n>] [--icon <png>]`**
+(`packages/core/cli/native.mjs`) is the one-shot setup for packaging an app
+with Tauri v2 — see the wiki's [build-pipeline Native (Tauri)
+section](build-pipeline.md#native-tauri) for how the Vite preset itself
+detects and configures for Tauri. `native init`:
+
+1. Exits 0 with "already initialized" and touches nothing if `./src-tauri`
+   already exists.
+2. Adds `@tauri-apps/cli@^2` as a devDependency if it isn't one already.
+3. Runs `tauri init --ci` with a generated `--app-name`/`--window-title`
+   (from `package.json`), `--frontend-dist ../dist`, a pinned `--dev-url`,
+   and `--before-dev-command`/`--before-build-command`: `vite --port N`
+   (pins the dev server's port) and a bare `vite build`. Deliberately not the
+   app's own `build` script: those often clean first, and cleaning Vite's
+   `cacheDir` (`.cache`) during a native build 504s every pre-bundled dep on
+   a dev server running out of the same folder. Apps with extra build steps
+   edit `build.beforeBuildCommand` in `src-tauri/tauri.conf.json`.
+4. Patches the generated `src-tauri/tauri.conf.json` (sets `identifier` and
+   window 0's `title`/`width: 1280`/`height: 720`; leaves everything else,
+   including `app.security.csp`, untouched) and adds `native:dev: "tauri
+   dev"` / `native:build: "tauri build"` scripts to `package.json` without
+   overwriting either if already present.
+5. Runs `tauri icon <path>` only when `--icon` is given.
+
+**Identifier rule**: defaults to `dev.caper.<slug>` (slug = the app's
+`package.json` name, scope stripped, lowercased, non-alnum runs collapsed to
+`-`). Must match a reverse-DNS shape
+(`/^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/`); Tauri's own placeholder
+`com.tauri.dev` is always rejected, including when passed via `--identifier`.
+
+**Port rule**: defaults to a stable integer in `3100-3999`, hashed from the
+same slug (same app, same port every run; never `3000`, which every Caper
+app's own dev server defaults to). `--port` accepts any integer
+`1024-65535`.
+
+`caper doctor` (below) adds five rows once `src-tauri/` exists:
+`native-rust` (needs rustc ≥ 1.88.0), `native-tauri-cli` (`@tauri-apps/cli`
+major 2 resolvable from the app), `native-identifier` (fails on
+`com.tauri.dev`, warns on the `dev.caper.*` default), `native-dev-port`
+(warns when `tauri.conf.json`'s `devUrl` port disagrees with
+`beforeDevCommand`'s `--port`, or is the shared default `3000`), and — macOS
+only — `native-xcode-clt` (`xcode-select -p`).
 
 **`caper create [path] [--use-yarn|--use-pnpm]`**
 (`packages/core/cli/create.mjs`; `create-caper.mjs` is a thin wrapper around

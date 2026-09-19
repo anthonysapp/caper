@@ -219,11 +219,23 @@ subcommands run from the app root.
 | `caper doctor [--offline] [--json]` | One-screen health check: installed vs latest caper, npm vs linked engine (and whether the linked build is stale), generated types present/fresh, asset manifest, agent pointers, peer deps, caches. Exit 1 on any ✗. |
 | `caper agent init [--dir <skillsDir>]` | Install the shipped `caper` agent skill (default `.claude/skills/caper/SKILL.md`) and upsert a pointer block into `AGENTS.md`/`CLAUDE.md`. Re-run after upgrading caper. |
 | `caper agent probe <url> [--action n[=json]]… [--until "<js predicate>"] [--wait ms] [--screenshot p] [--headed] [--json]` | Drive a **running** app headlessly through the automation bridge (§17) in a Chromium you own: boots, sends actions, waits on state, returns context/state/log/errors (+ screenshot). Needs `playwright` in the app's devDependencies. |
+| `caper native init [--identifier <id>] [--port <n>] [--icon <png>]` | One-shot Tauri v2 scaffolding: adds `@tauri-apps/cli`, runs `tauri init --ci`, pins a `dev.caper.*`-style identifier + a stable non-3000 dev port, adds `native:dev`/`native:build` scripts. No-ops with "already initialized" if `src-tauri/` exists. |
 | `caper update` | Update Caper to latest. |
 | `caper install` | Install peer deps (rarely needed; normally automatic). |
 | `caper vo generate [inputDir] [outputDir]` | Voiceover CSV generation from locales. Defaults: `./src/locales` → `./src/assets/audio/vo/csv`. |
 | `caper audio compress [audioDir]` | Compress audio files. |
 | `caper audio captions [csvDir] [outputDir]` | Generate `cc.json` closed-captions from CSV. |
+
+**Native (Tauri) builds.** `caper native init` sets up `src-tauri/` in one
+command (identifier, pinned dev port, `native:dev`/`native:build` scripts);
+`caper doctor` then reports `native-*` rows (rustc ≥ 1.88, `@tauri-apps/cli`
+major 2, identifier, dev port, and Xcode CLT on macOS) once `src-tauri/`
+exists. Under the Tauri CLI (detected via `TAURI_ENV_PLATFORM`), the preset
+configures the dev server for you — no extra `vite.config.ts` needed — and
+disables the PWA plugin, since service workers don't work on the `tauri://`
+origin. Check `isTauri` (exported from `@caperjs/core`, alongside
+`isTouch`/`isMobile`) at runtime to branch native-only behavior. `caper`
+deliberately does not wrap `tauri dev`/`tauri build` — same rule as `vite`.
 
 **Name normalization.** `caper add` accepts any case and produces PascalCase
 class name + kebab-case id. `caper add scene "My Cool Scene"` → class `MyCoolScene`,

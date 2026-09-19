@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { agentInit } from './agent.mjs';
-import { runChecks } from './doctor.mjs';
+import { parseRustcVersion, runChecks } from './doctor.mjs';
 
 const START_MARKER = '<!-- caper:agent-start -->';
 const END_MARKER = '<!-- caper:agent-end -->';
@@ -292,5 +292,286 @@ ${END_MARKER}`;
 
     expect(link.status).toBe('ok');
     expect(link.label).toContain('linked from');
+  });
+});
+
+describe('parseRustcVersion', () => {
+  it('parses a normal rustc --version line', () => {
+    expect(parseRustcVersion('rustc 1.98.1 (48a229cea 2026-09-01)')).toBe('1.98.1');
+  });
+
+  it('returns null for garbage input', () => {
+    expect(parseRustcVersion('command not found')).toBeNull();
+    expect(parseRustcVersion('')).toBeNull();
+    expect(parseRustcVersion(undefined)).toBeNull();
+  });
+});
+
+function writeTauriConf(cwd, overrides = {}) {
+  fs.mkdirSync(path.join(cwd, 'src-tauri'), { recursive: true });
+  fs.writeFileSync(
+    path.join(cwd, 'src-tauri/tauri.conf.json'),
+    JSON.stringify(
+      {
+        identifier: 'dev.caper.my-game',
+        build: {
+          frontendDist: '../dist',
+          devUrl: 'http://localhost:3123',
+          beforeDevCommand: 'pnpm vite --port 3123',
+          beforeBuildCommand: 'pnpm run build',
+        },
+        app: { windows: [{ title: 'My Game', width: 1280, height: 720 }], security: { csp: null } },
+        ...overrides,
+      },
+      null,
+      2,
+    ),
+    'utf-8',
+  );
+}
+
+function writeTauriCli(cwd, version) {
+  const dir = path.join(cwd, 'node_modules/@tauri-apps/cli');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: '@tauri-apps/cli', version }), 'utf-8');
+}
+
+function makeRun(responses) {
+  return (cmd, args) => {
+    const key = `${cmd} ${args.join(' ')}`;
+    if (key in responses) {
+      const value = responses[key];
+      if (value instanceof Error) throw value;
+      return value;
+    }
+    throw new Error(`unstubbed command in test: ${key}`);
+  };
+}
+
+describe('runChecks native rows', () => {
+  it('are absent when src-tauri does not exist', async () => {
+    const cwd = makeTempDir();
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'native-rust')).toBeUndefined();
+    expect(find(checks, 'native-tauri-cli')).toBeUndefined();
+    expect(find(checks, 'native-identifier')).toBeUndefined();
+    expect(find(checks, 'native-dev-port')).toBeUndefined();
+    expect(find(checks, 'native-xcode-clt')).toBeUndefined();
+  });
+
+  it('report rustc ok when the version is new enough', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, {
+      online: false,
+      run: makeRun({ 'rustc --version': 'rustc 1.98.1 (48a229cea 2026-09-01)' }),
+    });
+
+    const rust = find(checks, 'native-rust');
+    expect(rust.status).toBe('ok');
+    expect(rust.label).toContain('1.98.1');
+  });
+
+  it('fails rustc when the version is below 1.88.0', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, {
+      online: false,
+      run: makeRun({ 'rustc --version': 'rustc 1.87.0 (abc 2025-01-01)' }),
+    });
+
+    const rust = find(checks, 'native-rust');
+    expect(rust.status).toBe('fail');
+    expect(rust.hint).toMatch(/rustup/);
+  });
+
+  it('fails rustc when it is not installed', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, {
+      online: false,
+      run: makeRun({ 'rustc --version': new Error('command not found') }),
+    });
+
+    const rust = find(checks, 'native-rust');
+    expect(rust.status).toBe('fail');
+    expect(rust.hint).toMatch(/rustup\.rs/);
+  });
+
+  it('reports native-tauri-cli ok when @tauri-apps/cli major 2 is resolvable', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    expect(find(checks, 'native-tauri-cli').status).toBe('ok');
+  });
+
+  it('fails native-tauri-cli when @tauri-apps/cli is missing', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    const tauriCli = find(checks, 'native-tauri-cli');
+    expect(tauriCli.status).toBe('fail');
+    expect(tauriCli.hint).toMatch(/caper native init/);
+  });
+
+  it('warns native-tauri-cli on a non-2 major version', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '1.6.0');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    expect(find(checks, 'native-tauri-cli').status).toBe('warn');
+  });
+
+  it('fails native-identifier on the tauri placeholder', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd, { identifier: 'com.tauri.dev' });
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    expect(find(checks, 'native-identifier').status).toBe('fail');
+  });
+
+  it('warns native-identifier on the dev.caper.* default', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd, { identifier: 'dev.caper.my-game' });
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    const identifier = find(checks, 'native-identifier');
+    expect(identifier.status).toBe('warn');
+    expect(identifier.hint).toMatch(/before shipping/);
+  });
+
+  it('passes native-identifier for a real identifier', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd, { identifier: 'dev.caperjs.kitchensink' });
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    expect(find(checks, 'native-identifier').status).toBe('ok');
+  });
+
+  it('fails native-identifier when tauri.conf.json is unreadable', async () => {
+    const cwd = makeTempDir();
+    fs.mkdirSync(path.join(cwd, 'src-tauri'), { recursive: true });
+    fs.writeFileSync(path.join(cwd, 'src-tauri/tauri.conf.json'), '{ not json', 'utf-8');
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    expect(find(checks, 'native-identifier').status).toBe('fail');
+  });
+
+  it('warns native-dev-port when beforeDevCommand port differs from devUrl', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd, {
+      build: {
+        frontendDist: '../dist',
+        devUrl: 'http://localhost:3123',
+        beforeDevCommand: 'pnpm vite --port 3200',
+        beforeBuildCommand: 'pnpm run build',
+      },
+    });
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    expect(find(checks, 'native-dev-port').status).toBe('warn');
+  });
+
+  it('warns native-dev-port when devUrl is the shared default port 3000', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd, {
+      build: {
+        frontendDist: '../dist',
+        devUrl: 'http://localhost:3000',
+        beforeDevCommand: 'pnpm vite',
+        beforeBuildCommand: 'pnpm run build',
+      },
+    });
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    const devPort = find(checks, 'native-dev-port');
+    expect(devPort.status).toBe('warn');
+    expect(devPort.hint).toMatch(/collides/);
+  });
+
+  it('passes native-dev-port for a consistent non-3000 port', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd, {
+      build: {
+        frontendDist: '../dist',
+        devUrl: 'http://localhost:3123',
+        beforeDevCommand: 'pnpm vite --port 3123',
+        beforeBuildCommand: 'pnpm run build',
+      },
+    });
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, { online: false, run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }) });
+
+    expect(find(checks, 'native-dev-port').status).toBe('ok');
+  });
+
+  it('reports native-xcode-clt ok on darwin when xcode-select succeeds', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, {
+      online: false,
+      platform: 'darwin',
+      run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()', 'xcode-select -p': '/Library/Developer/CommandLineTools' }),
+    });
+
+    expect(find(checks, 'native-xcode-clt').status).toBe('ok');
+  });
+
+  it('fails native-xcode-clt on darwin when xcode-select fails', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, {
+      online: false,
+      platform: 'darwin',
+      run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()', 'xcode-select -p': new Error('not installed') }),
+    });
+
+    expect(find(checks, 'native-xcode-clt').status).toBe('fail');
+  });
+
+  it('omits native-xcode-clt on non-darwin platforms', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await runChecks(cwd, {
+      online: false,
+      platform: 'linux',
+      run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()' }),
+    });
+
+    expect(find(checks, 'native-xcode-clt')).toBeUndefined();
   });
 });
