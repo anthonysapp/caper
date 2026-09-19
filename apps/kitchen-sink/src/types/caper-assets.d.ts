@@ -371,8 +371,8 @@ export type AssetAudio =
   | 'Drumming Sticks.ogg'
   | 'Game Over'
   | 'Game Over.ogg'
-  | 'Mishief Stroll'
-  | 'Mishief Stroll.ogg'
+  | 'Mischief Stroll'
+  | 'Mischief Stroll.ogg'
   | 'Night at the Beach'
   | 'Night at the Beach.ogg'
   | 'audio/music/Cheerful Annoyance'
@@ -381,8 +381,8 @@ export type AssetAudio =
   | 'audio/music/Drumming Sticks.ogg'
   | 'audio/music/Game Over'
   | 'audio/music/Game Over.ogg'
-  | 'audio/music/Mishief Stroll'
-  | 'audio/music/Mishief Stroll.ogg'
+  | 'audio/music/Mischief Stroll'
+  | 'audio/music/Mischief Stroll.ogg'
   | 'audio/music/Night at the Beach'
   | 'audio/music/Night at the Beach.ogg'
   | 'audio/sfx/click'
@@ -423,7 +423,7 @@ export type AssetAudio =
   | 'vo_intro_2_fr.mp3';
 
 export type AssetAudioByBundle = {
-    audio: 'Cheerful Annoyance' | 'Cheerful Annoyance.ogg' | 'Drumming Sticks' | 'Drumming Sticks.ogg' | 'Game Over' | 'Game Over.ogg' | 'Mishief Stroll' | 'Mishief Stroll.ogg' | 'Night at the Beach' | 'Night at the Beach.ogg' | 'audio/music/Cheerful Annoyance' | 'audio/music/Cheerful Annoyance.ogg' | 'audio/music/Drumming Sticks' | 'audio/music/Drumming Sticks.ogg' | 'audio/music/Game Over' | 'audio/music/Game Over.ogg' | 'audio/music/Mishief Stroll' | 'audio/music/Mishief Stroll.ogg' | 'audio/music/Night at the Beach' | 'audio/music/Night at the Beach.ogg' | 'audio/sfx/click' | 'audio/sfx/click.ogg' | 'audio/sfx/clonk' | 'audio/sfx/clonk.wav' | 'audio/sfx/hover' | 'audio/sfx/hover.ogg' | 'audio/vo/en/vo_intro_0_en' | 'audio/vo/en/vo_intro_0_en.mp3' | 'audio/vo/en/vo_intro_1_en' | 'audio/vo/en/vo_intro_1_en.mp3' | 'audio/vo/en/vo_intro_2_en' | 'audio/vo/en/vo_intro_2_en.mp3' | 'audio/vo/fr/vo_intro_0_fr' | 'audio/vo/fr/vo_intro_0_fr.mp3' | 'audio/vo/fr/vo_intro_1_fr' | 'audio/vo/fr/vo_intro_1_fr.mp3' | 'audio/vo/fr/vo_intro_2_fr' | 'audio/vo/fr/vo_intro_2_fr.mp3' | 'click' | 'click.ogg' | 'clonk' | 'clonk.wav' | 'hover' | 'hover.ogg' | 'vo_intro_0_en' | 'vo_intro_0_en.mp3' | 'vo_intro_0_fr' | 'vo_intro_0_fr.mp3' | 'vo_intro_1_en' | 'vo_intro_1_en.mp3' | 'vo_intro_1_fr' | 'vo_intro_1_fr.mp3' | 'vo_intro_2_en' | 'vo_intro_2_en.mp3' | 'vo_intro_2_fr' | 'vo_intro_2_fr.mp3';
+    audio: 'Cheerful Annoyance' | 'Cheerful Annoyance.ogg' | 'Drumming Sticks' | 'Drumming Sticks.ogg' | 'Game Over' | 'Game Over.ogg' | 'Mischief Stroll' | 'Mischief Stroll.ogg' | 'Night at the Beach' | 'Night at the Beach.ogg' | 'audio/music/Cheerful Annoyance' | 'audio/music/Cheerful Annoyance.ogg' | 'audio/music/Drumming Sticks' | 'audio/music/Drumming Sticks.ogg' | 'audio/music/Game Over' | 'audio/music/Game Over.ogg' | 'audio/music/Mischief Stroll' | 'audio/music/Mischief Stroll.ogg' | 'audio/music/Night at the Beach' | 'audio/music/Night at the Beach.ogg' | 'audio/sfx/click' | 'audio/sfx/click.ogg' | 'audio/sfx/clonk' | 'audio/sfx/clonk.wav' | 'audio/sfx/hover' | 'audio/sfx/hover.ogg' | 'audio/vo/en/vo_intro_0_en' | 'audio/vo/en/vo_intro_0_en.mp3' | 'audio/vo/en/vo_intro_1_en' | 'audio/vo/en/vo_intro_1_en.mp3' | 'audio/vo/en/vo_intro_2_en' | 'audio/vo/en/vo_intro_2_en.mp3' | 'audio/vo/fr/vo_intro_0_fr' | 'audio/vo/fr/vo_intro_0_fr.mp3' | 'audio/vo/fr/vo_intro_1_fr' | 'audio/vo/fr/vo_intro_1_fr.mp3' | 'audio/vo/fr/vo_intro_2_fr' | 'audio/vo/fr/vo_intro_2_fr.mp3' | 'click' | 'click.ogg' | 'clonk' | 'clonk.wav' | 'hover' | 'hover.ogg' | 'vo_intro_0_en' | 'vo_intro_0_en.mp3' | 'vo_intro_0_fr' | 'vo_intro_0_fr.mp3' | 'vo_intro_1_en' | 'vo_intro_1_en.mp3' | 'vo_intro_1_fr' | 'vo_intro_1_fr.mp3' | 'vo_intro_2_en' | 'vo_intro_2_en.mp3' | 'vo_intro_2_fr' | 'vo_intro_2_fr.mp3';
   };
 export type AssetAudioIn<B extends AssetBundles> = B extends keyof AssetAudioByBundle ? AssetAudioByBundle[B] : never;
 

@@ -8,9 +8,9 @@
     "clean:dev": "rimraf dist .cache",
     "start": "pnpm clean && vite",
     "dev": "pnpm clean:dev && vite",
-    "build": "pnpm clean && vite build",
+    "build": "vite build",
     "types": "tsc",
-    "preview": "pnpm clean && vite build && vite preview",
+    "preview": "vite build && vite preview",
     "lint": "eslint \"src/**/*.ts\"",
     "lint-fix": "eslint \"src/**/*.ts\" --fix",
     "smoke": "node scripts/smoke.mjs",
@@ -23,12 +23,15 @@
     "spritesheets": "node assets/images/export_spritesheets",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
-    "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/assets/static/caper.png"
+    "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/assets/static/caper.png",
+    "native:dev": "tauri dev",
+    "native:build": "tauri build"
   },
   "author": "Anthony Sapp <anthony@anthonysapp.dev>",
   "license": "MIT",
   "private": true,
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11",
     "@types/dat.gui": "^0.7.13",
     "playwright": "^1.62.1",
     "typescript": "^5.9.0",
