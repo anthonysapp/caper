@@ -31,6 +31,7 @@ export default defineConfig({
       '@caperjs/plugin-rive': path.resolve(__dirname, '../../packages/plugin-rive/src'),
       '@caperjs/plugin-rollbar': path.resolve(__dirname, '../../packages/plugin-rollbar/src'),
       '@caperjs/plugin-firebase': path.resolve(__dirname, '../../packages/plugin-firebase/src'),
+      '@caperjs/plugin-tauri': path.resolve(__dirname, '../../packages/plugin-tauri/src'),
       // Also where babel-preset-solid's universal output imports its runtime
       // from. The `/jsx` subpath is types-only and `/vite` resolves in node
       // config context, so neither goes through this alias.

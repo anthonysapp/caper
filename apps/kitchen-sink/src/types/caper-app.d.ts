@@ -46,6 +46,7 @@ type AppPlugins =
   | 'google-analytics'
   | 'rive'
   | 'rollbar'
+  | 'tauri'
   | 'test';
 
 // Popups

@@ -191,6 +191,8 @@ export default defineConfig({
         ]
       : []),
     'firebase',
+    // Inert on the web; only does anything inside the Tauri shell (native:dev / native:build).
+    'tauri',
   ],
   i18n: {
     loadAll: true,
