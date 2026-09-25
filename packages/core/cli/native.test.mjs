@@ -8,18 +8,27 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   addNativePlugin,
+  ANDROID_RUST_TARGETS,
+  androidNative,
   appSlug,
   commandsFor,
   defaultIdentifier,
   defaultPort,
+  findMainActivity,
   initNative,
   isValidIdentifier,
   missingDeps,
+  missingRustTargets,
   packageManagerFor,
   parsePort,
+  patchAndroidScripts,
   patchCapabilities,
   patchPackageScripts,
   patchTauriConfig,
+  planBuildRs,
+  planMainActivity,
+  renderMainActivity,
+  resolveAndroidEnv,
   TAURI_PLUGIN_PERMISSIONS,
 } from './native.mjs';
 
@@ -646,5 +655,385 @@ describe('addNativePlugin', () => {
 
     expect(result.ranTauriAddStore).toBe(false);
     expect(calls.find((c) => c.args[0] === 'tauri')).toBeUndefined();
+  });
+});
+
+const STOCK_MAIN_ACTIVITY =
+  'package x.y.z\n\nimport android.os.Bundle\nimport androidx.activity.enableEdgeToEdge\n\nclass MainActivity : TauriActivity() {\n  override fun onCreate(savedInstanceState: Bundle?) {\n    enableEdgeToEdge()\n    super.onCreate(savedInstanceState)\n  }\n}\n';
+const STOCK_BUILD_RS = 'fn main() {\n    tauri_build::build()\n}\n';
+
+describe('resolveAndroidEnv', () => {
+  const HOME = '/Users/me';
+  const MAC_SDK = '/Users/me/Library/Android/sdk';
+  const JBR = '/Applications/Android Studio.app/Contents/jbr/Contents/Home';
+
+  function fakeFs(paths, dirs = {}) {
+    const set = new Set(paths);
+    return {
+      exists: (p) => set.has(p),
+      listDir: (p) => dirs[p] ?? [],
+    };
+  }
+
+  it('uses explicit env values as-is', () => {
+    const { env, missing } = resolveAndroidEnv({
+      env: { ANDROID_HOME: '/sdk', NDK_HOME: '/ndk', JAVA_HOME: '/java', PATH: '/rup/bin:/usr/bin' },
+      platform: 'linux',
+      homedir: HOME,
+      ...fakeFs(['/rup/bin/rustup']),
+    });
+    expect(env.ANDROID_HOME).toBe('/sdk');
+    expect(env.NDK_HOME).toBe('/ndk');
+    expect(env.JAVA_HOME).toBe('/java');
+    expect(env.PATH).toBe('/rup/bin:/usr/bin');
+    expect(missing).toEqual([]);
+  });
+
+  it('falls back to ANDROID_SDK_ROOT for ANDROID_HOME', () => {
+    const { env } = resolveAndroidEnv({ env: { ANDROID_SDK_ROOT: '/root-sdk', PATH: '' }, platform: 'linux', homedir: HOME, ...fakeFs([]) });
+    expect(env.ANDROID_HOME).toBe('/root-sdk');
+  });
+
+  it('finds the macOS SDK, the highest NDK (numerically), and Android Studio JBR on darwin', () => {
+    const { env, missing } = resolveAndroidEnv({
+      env: { PATH: '/rup/bin' },
+      platform: 'darwin',
+      homedir: HOME,
+      ...fakeFs([MAC_SDK, JBR, '/rup/bin/rustup'], {
+        [`${MAC_SDK}/ndk`]: ['27.0.12077973', '27.1.12297006', '9.9.9', '.DS_Store'],
+      }),
+    });
+    expect(env.ANDROID_HOME).toBe(MAC_SDK);
+    expect(env.NDK_HOME).toBe(`${MAC_SDK}/ndk/27.1.12297006`);
+    expect(env.JAVA_HOME).toBe(JBR);
+    expect(missing).toEqual([]);
+  });
+
+  it('does not probe macOS paths on other platforms and reports what is missing', () => {
+    const { env, missing } = resolveAndroidEnv({
+      env: { PATH: '/usr/bin' },
+      platform: 'linux',
+      homedir: HOME,
+      ...fakeFs([MAC_SDK, JBR]),
+    });
+    expect(env.ANDROID_HOME).toBeUndefined();
+    expect(missing).toEqual(expect.arrayContaining(['ANDROID_HOME', 'NDK_HOME', 'JAVA_HOME', 'rustup']));
+  });
+
+  it('prepends keg-only Homebrew rustup when rustup is not on PATH', () => {
+    const { env, missing } = resolveAndroidEnv({
+      env: { PATH: '/usr/bin' },
+      platform: 'darwin',
+      homedir: HOME,
+      ...fakeFs(['/opt/homebrew/opt/rustup/bin/rustup', `${HOME}/.cargo/bin/rustup`]),
+    });
+    expect(env.PATH).toBe('/opt/homebrew/opt/rustup/bin:/usr/bin');
+    expect(missing).not.toContain('rustup');
+  });
+
+  it('falls back to ~/.cargo/bin when there is no Homebrew rustup', () => {
+    const { env } = resolveAndroidEnv({
+      env: { PATH: '/usr/bin' },
+      platform: 'linux',
+      homedir: HOME,
+      ...fakeFs([`${HOME}/.cargo/bin/rustup`]),
+    });
+    expect(env.PATH).toBe(`${HOME}/.cargo/bin:/usr/bin`);
+  });
+
+  it("prepends rustup's proxies when Homebrew's rustc would shadow them", () => {
+    const { env } = resolveAndroidEnv({
+      env: { PATH: `/opt/homebrew/bin:${HOME}/.cargo/bin` },
+      platform: 'darwin',
+      homedir: HOME,
+      ...fakeFs(['/opt/homebrew/bin/rustc', `${HOME}/.cargo/bin/rustup`, `${HOME}/.cargo/bin/rustc`]),
+    });
+    expect(env.PATH).toBe(`${HOME}/.cargo/bin:/opt/homebrew/bin:${HOME}/.cargo/bin`);
+  });
+
+  it("prepends keg-only rustup when Homebrew links rustup next to its own rust's rustc", () => {
+    const { env } = resolveAndroidEnv({
+      env: { PATH: '/opt/homebrew/bin:/usr/bin' },
+      platform: 'darwin',
+      homedir: HOME,
+      ...fakeFs(['/opt/homebrew/bin/rustc', '/opt/homebrew/bin/rustup', '/opt/homebrew/opt/rustup/bin/rustup']),
+    });
+    expect(env.PATH).toBe('/opt/homebrew/opt/rustup/bin:/opt/homebrew/bin:/usr/bin');
+  });
+
+  it('leaves PATH alone when rustup already comes first', () => {
+    const { env } = resolveAndroidEnv({
+      env: { PATH: `${HOME}/.cargo/bin:/opt/homebrew/bin` },
+      platform: 'darwin',
+      homedir: HOME,
+      ...fakeFs(['/opt/homebrew/bin/rustc', `${HOME}/.cargo/bin/rustup`, `${HOME}/.cargo/bin/rustc`, '/opt/homebrew/opt/rustup/bin/rustup']),
+    });
+    expect(env.PATH).toBe(`${HOME}/.cargo/bin:/opt/homebrew/bin`);
+  });
+
+  it('keeps unrelated env vars', () => {
+    const { env } = resolveAndroidEnv({ env: { FOO: 'bar', PATH: '' }, platform: 'linux', homedir: HOME, ...fakeFs([]) });
+    expect(env.FOO).toBe('bar');
+  });
+});
+
+describe('missingRustTargets', () => {
+  it('lists the four Android targets', () => {
+    expect(ANDROID_RUST_TARGETS).toEqual(['aarch64-linux-android', 'armv7-linux-androideabi', 'i686-linux-android', 'x86_64-linux-android']);
+    expect(Object.isFrozen(ANDROID_RUST_TARGETS)).toBe(true);
+  });
+
+  it('returns the targets absent from `rustup target list --installed` output', () => {
+    const out = 'aarch64-apple-darwin\naarch64-linux-android\nx86_64-linux-android\n';
+    expect(missingRustTargets(out)).toEqual(['armv7-linux-androideabi', 'i686-linux-android']);
+  });
+
+  it('returns nothing when all are installed', () => {
+    expect(missingRustTargets(ANDROID_RUST_TARGETS.join('\n'))).toEqual([]);
+  });
+});
+
+describe('planBuildRs', () => {
+  it('writes when build.rs is missing', () => {
+    expect(planBuildRs(null)).toBe('write');
+  });
+
+  it("writes over Tauri's stock build.rs, whitespace-insensitively", () => {
+    expect(planBuildRs(STOCK_BUILD_RS)).toBe('write');
+    expect(planBuildRs('fn main(){tauri_build::build()}')).toBe('write');
+  });
+
+  it('skips when the 16 KB link arg is already there', () => {
+    expect(planBuildRs('fn main() { println!("cargo:rustc-link-arg=-Wl,-z,max-page-size=16384"); tauri_build::build() }')).toBe('skip');
+  });
+
+  it('warns on a customized build.rs', () => {
+    expect(planBuildRs('fn main() {\n    do_something();\n    tauri_build::build()\n}\n')).toBe('warn');
+  });
+});
+
+describe('planMainActivity / renderMainActivity', () => {
+  it("replaces Tauri's stock template", () => {
+    expect(planMainActivity(STOCK_MAIN_ACTIVITY)).toBe('write');
+  });
+
+  it('replaces an empty-body stock class', () => {
+    expect(planMainActivity('package a.b\n\nclass MainActivity : TauriActivity()\n')).toBe('write');
+    expect(planMainActivity('package a.b\n\nclass MainActivity : TauriActivity() {}\n')).toBe('write');
+  });
+
+  it('skips when the system bars are already hidden', () => {
+    expect(planMainActivity(renderMainActivity('package x.y.z'))).toBe('skip');
+  });
+
+  it('warns on a customized MainActivity', () => {
+    const custom = STOCK_MAIN_ACTIVITY.replace('super.onCreate(savedInstanceState)', 'super.onCreate(savedInstanceState)\n    doMore()');
+    expect(planMainActivity(custom)).toBe('warn');
+  });
+
+  it("keeps the original package line and hides the bars in onCreate and onWindowFocusChanged", () => {
+    const out = renderMainActivity('package dev.caper.my_game');
+    expect(out.startsWith('package dev.caper.my_game\n')).toBe(true);
+    expect(out).toContain('WindowInsetsCompat.Type.systemBars()');
+    expect(out).toContain('BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE');
+    expect(out).toContain('override fun onWindowFocusChanged');
+  });
+});
+
+describe('patchAndroidScripts', () => {
+  it('adds the android scripts when absent', () => {
+    expect(patchAndroidScripts({ scripts: { dev: 'vite' } }).scripts).toEqual({
+      dev: 'vite',
+      'native:android:dev': 'tauri android dev',
+      'native:android:build': 'tauri android build',
+    });
+  });
+
+  it('never overwrites existing ones and does not mutate', () => {
+    const pkg = { scripts: { 'native:android:dev': 'custom' } };
+    const out = patchAndroidScripts(pkg);
+    expect(out.scripts['native:android:dev']).toBe('custom');
+    expect(out.scripts['native:android:build']).toBe('tauri android build');
+    expect(pkg.scripts).toEqual({ 'native:android:dev': 'custom' });
+  });
+});
+
+describe('androidNative', () => {
+  function scaffoldAndroidApp(dir) {
+    fs.writeFileSync(path.join(dir, 'pnpm-lock.yaml'), '', 'utf-8');
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'my-game', scripts: { dev: 'vite' } }, null, 4) + '\n', 'utf-8');
+    fs.mkdirSync(path.join(dir, 'src-tauri'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'src-tauri/tauri.conf.json'), JSON.stringify({ identifier: 'dev.caper.mygame' }, null, 2) + '\n', 'utf-8');
+    fs.writeFileSync(path.join(dir, 'src-tauri/build.rs'), STOCK_BUILD_RS, 'utf-8');
+    const bin = path.join(dir, 'bin');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'rustup'), '', 'utf-8');
+    return {
+      env: { PATH: bin, ANDROID_HOME: path.join(dir, 'sdk'), NDK_HOME: path.join(dir, 'ndk'), JAVA_HOME: path.join(dir, 'java') },
+      platform: 'linux',
+      homedir: path.join(dir, 'home'),
+    };
+  }
+
+  // Mirrors what `rustup target add` / `tauri android init` do to the machine.
+  function stubs(state, calls) {
+    return {
+      exec: (cmd, args, opts) => {
+        calls.push({ kind: 'exec', cmd, args, opts });
+        if (cmd === 'rustup' && args.join(' ') === 'target list --installed') return state.installed.join('\n') + '\n';
+        throw new Error(`unstubbed exec: ${cmd} ${args.join(' ')}`);
+      },
+      run: (cmd, args, opts) => {
+        calls.push({ kind: 'run', cmd, args, opts });
+        if (cmd === 'rustup' && args[0] === 'target' && args[1] === 'add') {
+          state.installed.push(...args.slice(2));
+        } else if (cmd === 'pnpm' && args.join(' ') === 'tauri android init --ci') {
+          const dir = path.join(opts.cwd, 'src-tauri/gen/android/app/src/main/java/x/y/z');
+          fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(path.join(dir, 'MainActivity.kt'), STOCK_MAIN_ACTIVITY, 'utf-8');
+        } else {
+          throw new Error(`unstubbed run: ${cmd} ${args.join(' ')}`);
+        }
+        return { status: 0 };
+      },
+    };
+  }
+
+  function snapshot(dir) {
+    const out = {};
+    const walk = (p) => {
+      for (const entry of fs.readdirSync(p, { withFileTypes: true })) {
+        const full = path.join(p, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else out[path.relative(dir, full)] = fs.readFileSync(full, 'utf-8') + String(fs.statSync(full).mtimeMs);
+      }
+    };
+    walk(dir);
+    return out;
+  }
+
+  it('fails clearly when src-tauri does not exist, with zero calls', async () => {
+    const dir = makeTempDir();
+    fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"x"}\n', 'utf-8');
+    const calls = [];
+    await expect(androidNative(dir, {}, { ...stubs({ installed: [] }, calls), env: {}, platform: 'linux', homedir: dir })).rejects.toThrow(
+      /caper native init/,
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it('fails in plain English when NDK_HOME, JAVA_HOME or rustup cannot be found, before running anything', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    const calls = [];
+    await expect(
+      androidNative(dir, {}, { ...stubs({ installed: [] }, calls), env: { PATH: '/nowhere' }, platform: 'linux', homedir: path.join(dir, 'home'), exists: () => false }),
+    ).rejects.toThrow(/NDK_HOME[\s\S]*JAVA_HOME[\s\S]*rustup/);
+    expect(calls).toHaveLength(0);
+    expect(deps).toBeTruthy();
+  });
+
+  it('runs the full first-time flow with the resolved env passed to every child process', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    const calls = [];
+    const state = { installed: ['aarch64-apple-darwin', 'aarch64-linux-android'] };
+
+    const result = await androidNative(dir, {}, { ...stubs(state, calls), ...deps });
+
+    expect(result.status).toBe('ok');
+    expect(result.changed).toBe(true);
+    expect(result.addedTargets).toEqual(['armv7-linux-androideabi', 'i686-linux-android', 'x86_64-linux-android']);
+    expect(result.ranAndroidInit).toBe(true);
+    expect(result.buildRsPatched).toBe(true);
+    expect(result.mainActivityPatched).toBe(true);
+    expect(result.addedScripts).toEqual(['native:android:dev', 'native:android:build']);
+    expect(result.warnings).toEqual([]);
+    expect(result.env).toEqual({ ANDROID_HOME: deps.env.ANDROID_HOME, NDK_HOME: deps.env.NDK_HOME, JAVA_HOME: deps.env.JAVA_HOME });
+
+    const runs = calls.filter((c) => c.kind === 'run');
+    expect(runs.map((c) => `${c.cmd} ${c.args.join(' ')}`)).toEqual([
+      'rustup target add armv7-linux-androideabi i686-linux-android x86_64-linux-android',
+      'pnpm tauri android init --ci',
+    ]);
+    for (const call of calls) {
+      expect(call.opts.cwd).toBe(dir);
+      expect(call.opts.env.NDK_HOME).toBe(deps.env.NDK_HOME);
+      expect(call.opts.env.JAVA_HOME).toBe(deps.env.JAVA_HOME);
+      expect(call.opts.env.PATH).toBe(deps.env.PATH);
+    }
+
+    expect(fs.readFileSync(path.join(dir, 'src-tauri/build.rs'), 'utf-8')).toContain('max-page-size=16384');
+    const activity = fs.readFileSync(path.join(dir, 'src-tauri/gen/android/app/src/main/java/x/y/z/MainActivity.kt'), 'utf-8');
+    expect(activity.startsWith('package x.y.z\n')).toBe(true);
+    expect(activity).toContain('WindowInsetsCompat.Type.systemBars()');
+
+    const pkgRaw = fs.readFileSync(path.join(dir, 'package.json'), 'utf-8');
+    expect(pkgRaw).toContain('\n    "scripts"');
+    expect(JSON.parse(pkgRaw).scripts['native:android:dev']).toBe('tauri android dev');
+  });
+
+  it('is idempotent: a second run makes zero run calls and zero writes', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    const state = { installed: [] };
+    await androidNative(dir, {}, { ...stubs(state, []), ...deps });
+    const before = snapshot(dir);
+
+    const calls = [];
+    const result = await androidNative(dir, {}, { ...stubs(state, calls), ...deps });
+
+    expect(calls.filter((c) => c.kind === 'run')).toHaveLength(0);
+    expect(result.changed).toBe(false);
+    expect(result.warnings).toEqual([]);
+    expect(snapshot(dir)).toEqual(before);
+  });
+
+  it('writes the build.rs template when build.rs is missing', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    fs.rmSync(path.join(dir, 'src-tauri/build.rs'));
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [...ANDROID_RUST_TARGETS] }, []), ...deps });
+    expect(result.buildRsPatched).toBe(true);
+    expect(fs.readFileSync(path.join(dir, 'src-tauri/build.rs'), 'utf-8')).toContain('tauri_build::build()');
+  });
+
+  it('warns and leaves a customized build.rs and MainActivity untouched', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    const customRs = 'fn main() {\n    custom();\n    tauri_build::build()\n}\n';
+    fs.writeFileSync(path.join(dir, 'src-tauri/build.rs'), customRs, 'utf-8');
+    const activityDir = path.join(dir, 'src-tauri/gen/android/app/src/main/java/a/b');
+    fs.mkdirSync(activityDir, { recursive: true });
+    const customKt = 'package a.b\n\nclass MainActivity : TauriActivity() {\n  fun other() {}\n}\n';
+    fs.writeFileSync(path.join(activityDir, 'MainActivity.kt'), customKt, 'utf-8');
+    const calls = [];
+
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [...ANDROID_RUST_TARGETS] }, calls), ...deps });
+
+    expect(result.ranAndroidInit).toBe(false);
+    expect(result.buildRsPatched).toBe(false);
+    expect(result.mainActivityPatched).toBe(false);
+    expect(result.warnings).toHaveLength(2);
+    expect(result.warnings[0]).toMatch(/build\.rs[\s\S]*max-page-size=16384/);
+    expect(result.warnings[1]).toMatch(/MainActivity\.kt/);
+    expect(fs.readFileSync(path.join(dir, 'src-tauri/build.rs'), 'utf-8')).toBe(customRs);
+    expect(fs.readFileSync(path.join(activityDir, 'MainActivity.kt'), 'utf-8')).toBe(customKt);
+    expect(calls.filter((c) => c.kind === 'run')).toHaveLength(0);
+  });
+});
+
+describe('findMainActivity', () => {
+  it('finds MainActivity.kt anywhere under the java source root', () => {
+    const dir = makeTempDir();
+    const target = path.join(dir, 'gen/android/app/src/main/java/dev/caper/my_game/MainActivity.kt');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, '', 'utf-8');
+    expect(findMainActivity(path.join(dir, 'gen/android'))).toBe(target);
+  });
+
+  it('returns null when there is none', () => {
+    const dir = makeTempDir();
+    expect(findMainActivity(path.join(dir, 'gen/android'))).toBeNull();
   });
 });

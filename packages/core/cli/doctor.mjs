@@ -3,10 +3,11 @@ import { dim, green, red, yellow } from 'kleur/colors';
 import { execFile, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { TAURI_PLUGIN_PERMISSIONS } from './native.mjs';
+import { ANDROID_RUST_TARGETS, findMainActivity, missingRustTargets, resolveAndroidEnv, TAURI_PLUGIN_PERMISSIONS } from './native.mjs';
 
 /**
  * `caper doctor` — one-shot health report for a Caper app.
@@ -99,7 +100,7 @@ export function parseRustcVersion(output) {
 }
 
 /** The default injectable command runner for the native-toolchain checks. */
-const defaultDoctorRun = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf-8' });
+const defaultDoctorRun = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf-8', ...opts });
 
 /**
  * `@tauri-apps/cli`'s version, resolved by walking up from `cwd` looking for
@@ -200,7 +201,10 @@ const resolveEffectiveCompilerOptions = (configFile, ancestors = new Set(), dept
   return { ...inherited, ...(config.compilerOptions ?? {}) };
 };
 
-export async function runChecks(cwd, { online = true, run = defaultDoctorRun, platform = process.platform } = {}) {
+export async function runChecks(
+  cwd,
+  { online = true, run = defaultDoctorRun, platform = process.platform, env = process.env, homedir = os.homedir() } = {},
+) {
   const checks = [];
   const installedVersion = readInstalledVersion();
   const nodeModulesCaper = path.join(cwd, 'node_modules/@caperjs/core');
@@ -423,6 +427,75 @@ export async function runChecks(cwd, { online = true, run = defaultDoctorRun, pl
         push(checks, 'native-xcode-clt', 'ok', 'Xcode command line tools');
       } catch {
         push(checks, 'native-xcode-clt', 'fail', 'Xcode command line tools missing', 'xcode-select --install');
+      }
+    }
+
+    // Android: only once `tauri android init` (or `caper native android`) has run.
+    const genAndroidDir = path.join(srcTauriDir, 'gen/android');
+    if (fs.existsSync(genAndroidDir)) {
+      const listDir = (dir) => {
+        try {
+          return fs.readdirSync(dir);
+        } catch {
+          return [];
+        }
+      };
+      const android = resolveAndroidEnv({ env, platform, homedir, exists: fs.existsSync, listDir });
+
+      if (android.missing.includes('rustup')) {
+        push(checks, 'native-android-rust', 'fail', 'rustup not found', 'install Rust through rustup, then caper native android');
+      } else {
+        try {
+          const missingTargets = missingRustTargets(run('rustup', ['target', 'list', '--installed'], { env: android.env }));
+          if (missingTargets.length) {
+            push(checks, 'native-android-rust', 'fail', `missing rust targets: ${missingTargets.join(', ')}`, 'caper native android');
+          } else {
+            push(checks, 'native-android-rust', 'ok', `rust targets: ${ANDROID_RUST_TARGETS.length} Android targets`);
+          }
+        } catch {
+          push(checks, 'native-android-rust', 'fail', 'rustup target list failed', 'caper native android');
+        }
+      }
+
+      const isDir = (p) => {
+        try {
+          return fs.statSync(p).isDirectory();
+        } catch {
+          return false;
+        }
+      };
+      for (const [id, name, install] of [
+        ['native-android-ndk', 'NDK_HOME', 'install an NDK with Android Studio (SDK Manager > SDK Tools > NDK)'],
+        ['native-android-java', 'JAVA_HOME', 'install Android Studio (it bundles a JDK)'],
+      ]) {
+        if (env[name]) {
+          if (isDir(env[name])) push(checks, id, 'ok', `${name} ${env[name]}`);
+          else push(checks, id, 'fail', `${name} is not a directory: ${env[name]}`, install);
+        } else if (android.env[name]) {
+          push(checks, id, 'warn', `${name} not set (found ${android.env[name]})`, `export ${name}=${android.env[name]}`);
+        } else {
+          push(checks, id, 'fail', `${name} not set`, install);
+        }
+      }
+
+      let buildRs = '';
+      try {
+        buildRs = fs.readFileSync(path.join(srcTauriDir, 'build.rs'), 'utf-8');
+      } catch {
+        // fails below
+      }
+      if (buildRs.includes('max-page-size=16384')) {
+        push(checks, 'native-android-16kb', 'ok', 'build.rs 16 KB page alignment');
+      } else {
+        push(checks, 'native-android-16kb', 'fail', 'build.rs lacks 16 KB page alignment', 'caper native android');
+      }
+
+      const mainActivityPath = findMainActivity(genAndroidDir);
+      const mainActivity = mainActivityPath ? fs.readFileSync(mainActivityPath, 'utf-8') : '';
+      if (mainActivity.includes('WindowInsetsCompat.Type.systemBars()')) {
+        push(checks, 'native-android-bars', 'ok', 'MainActivity hides the system bars');
+      } else {
+        push(checks, 'native-android-bars', 'warn', 'MainActivity does not hide the system bars', 'caper native android');
       }
     }
   }

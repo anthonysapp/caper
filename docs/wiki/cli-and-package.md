@@ -73,9 +73,10 @@ banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 | `agent init [--dir <skillsDir>]` | `agent(args.slice(1))` (`cli/agent.mjs`) | copies the shipped `caper` agent skill into the app (default `.claude/skills/`) and upserts a marker-delimited pointer block into `AGENTS.md`/`CLAUDE.md` |
 | `native init [--identifier <id>] [--port <n>] [--icon <png>]` | `native(args.slice(1))` (`cli/native.mjs`) | one-shot Tauri v2 scaffolding — see [Native (Tauri)](#native-tauri) below |
 | `native plugin` | `native(args.slice(1))` (`cli/native.mjs`) | wires an already-`native init`'d app up for `@caperjs/plugin-tauri` — see [Native (Tauri)](#native-tauri) below |
+| `native android` | `native(args.slice(1))` (`cli/native.mjs`) | sets an already-`native init`'d app up for Android builds; see [Native (Tauri)](#native-tauri) below |
 | `agent probe <url> [opts]` | `probe(args)` (`cli/probe.mjs`, via `cli/agent.mjs`) | launches the app's own `playwright` Chromium, waits for `Caper.__readyApps`, sends `--action`s, optional `--until` predicate via `Caper.automation[id].waitFor`, returns context/state/log/errors (+ `--screenshot`); exit 1 on boot/until timeout or page errors, 2 if playwright is missing |
 | `types [--no-assets]` | `types(args)` (`cli/types.mjs`) | `vite.resolveConfig` on the app's own `vite.config`, then calls the `api` seams: `vite-plugin-assetpack.api.runOnce()` → `vite-plugin-caper-config.api.generateTypes()` → `vite-plugin-asset-types.api.generateTypes()`; same output as a dev-server start, no server |
-| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri`, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
+| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri` and five `native-android-*` rows once `src-tauri/gen/android/` exists, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
 | `create` | `create(projectPath, packageManager)` (`cli/create.mjs`) | parses `--use-yarn`/`--use-pnpm` and a positional path before delegating |
 | `update` | `update()` (`cli/update.mjs`) | installs `@caperjs/core@latest` |
 | `vo generate [inputDir] [csvDir]` | `generateVoiceoverCSV()` (`cli/voiceover/`) | |
@@ -149,6 +150,33 @@ already-`native init`'d app up for the runtime plugin `@caperjs/plugin-tauri`
 Idempotent: a second run makes zero `run` calls and zero writes, and reports
 that nothing was needed.
 
+**`caper native android`** (`androidNative` in `native.mjs`) automates the
+Android steps in [native-tauri.md](native-tauri.md#android). Fails with "run
+`caper native init` first" if `./src-tauri/tauri.conf.json` doesn't exist, and
+with a plain-English list if the NDK, a JDK or rustup can't be found
+(`resolveAndroidEnv`, pure, also used by `caper doctor`). Every child process
+gets the resolved env (`ANDROID_HOME`, `NDK_HOME`, `JAVA_HOME`, and a `PATH`
+with rustup's proxies first). Otherwise:
+
+1. Runs `rustup target add` for whichever of `ANDROID_RUST_TARGETS` (the four
+   Android triples) `rustup target list --installed` lacks.
+2. Runs `tauri android init --ci` if `src-tauri/gen/android/` doesn't exist.
+3. Writes the 16 KB page-alignment `build.rs` if the file is missing or still
+   Tauri's stock one (`planBuildRs`); skips it if `max-page-size=16384` is
+   already there; otherwise leaves it and returns a warning.
+4. Replaces `MainActivity.kt` (found by searching
+   `gen/android/app/src/main/java/`, since Tauri mangles the identifier into
+   the path) with the immersive version if it's still Tauri's stock template,
+   keeping its `package` line (`planMainActivity`, `renderMainActivity`);
+   skips it if it already hides `WindowInsetsCompat.Type.systemBars()`;
+   otherwise warns.
+5. Adds `native:android:dev` / `native:android:build` scripts
+   (`patchAndroidScripts`) without overwriting existing ones.
+
+Idempotent: a second run makes zero `run` calls and zero writes. The CLI
+wrapper prints what changed, warnings, the next commands, and the `NDK_HOME` /
+`JAVA_HOME` values to export for the `native:android:*` scripts.
+
 **Identifier rule**: defaults to `dev.caper.<slug>` (slug = the app's
 `package.json` name, scope stripped, lowercased, non-alnum runs collapsed to
 `-`). Must match a reverse-DNS shape
@@ -172,7 +200,14 @@ only — `native-xcode-clt` (`xcode-select -p`). A sixth row,
 `tauri-plugin-store` (hint: `caper native plugin`); else `warn` naming any of
 `TAURI_PLUGIN_PERMISSIONS` missing from `capabilities/default.json` (same
 hint); else `ok`. Unreadable `Cargo.toml`/`capabilities/default.json` ->
-`fail` naming the file.
+`fail` naming the file. Five `native-android-*` rows appear once
+`src-tauri/gen/android/` exists: `native-android-rust` (rustup reachable and
+all four Android targets installed), `native-android-ndk` and
+`native-android-java` (`ok` when `NDK_HOME` / `JAVA_HOME` is set to a
+directory, `warn` with an `export` hint when unset but found, else `fail`),
+`native-android-16kb` (`build.rs` has `max-page-size=16384`, else `fail`), and
+`native-android-bars` (`MainActivity.kt` hides the system bars, else `warn`).
+Failing rows hint `caper native android`.
 
 **`caper create [path] [--use-yarn|--use-pnpm]`**
 (`packages/core/cli/create.mjs`; `create-caper.mjs` is a thin wrapper around

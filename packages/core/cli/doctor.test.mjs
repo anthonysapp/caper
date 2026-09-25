@@ -689,3 +689,129 @@ describe('runChecks native-plugin row', () => {
     expect(find(checks, 'native-plugin').status).toBe('ok');
   });
 });
+
+describe('runChecks native-android rows', () => {
+  const STOCK_ACTIVITY = 'package x.y.z\n\nclass MainActivity : TauriActivity()\n';
+
+  function scaffoldAndroid(cwd, { buildRs = 'fn main() { tauri_build::build() }\n', activity = STOCK_ACTIVITY } = {}) {
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+    fs.writeFileSync(path.join(cwd, 'src-tauri/build.rs'), buildRs, 'utf-8');
+    const javaDir = path.join(cwd, 'src-tauri/gen/android/app/src/main/java/x/y/z');
+    fs.mkdirSync(javaDir, { recursive: true });
+    fs.writeFileSync(path.join(javaDir, 'MainActivity.kt'), activity, 'utf-8');
+    const bin = path.join(cwd, 'bin');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'rustup'), '', 'utf-8');
+    const ndk = path.join(cwd, 'ndk');
+    const java = path.join(cwd, 'java');
+    fs.mkdirSync(ndk);
+    fs.mkdirSync(java);
+    return { bin, ndk, java };
+  }
+
+  const allTargets = 'aarch64-linux-android\narmv7-linux-androideabi\ni686-linux-android\nx86_64-linux-android\n';
+
+  function check(cwd, env, responses = { 'rustup target list --installed': allTargets }) {
+    return runChecks(cwd, {
+      online: false,
+      platform: 'linux',
+      env,
+      homedir: path.join(cwd, 'home'),
+      run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()', ...responses }),
+    });
+  }
+
+  it('are absent when src-tauri/gen/android does not exist', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+
+    const checks = await check(cwd, {});
+
+    for (const id of ['native-android-rust', 'native-android-ndk', 'native-android-java', 'native-android-16kb', 'native-android-bars']) {
+      expect(find(checks, id)).toBeUndefined();
+    }
+  });
+
+  it('are all ok on a fully set-up app', async () => {
+    const cwd = makeTempDir();
+    const { bin, ndk, java } = scaffoldAndroid(cwd, {
+      buildRs: 'fn main() { println!("cargo:rustc-link-arg=-Wl,-z,max-page-size=16384"); }\n',
+      activity: 'controller.hide(WindowInsetsCompat.Type.systemBars())',
+    });
+
+    const checks = await check(cwd, { PATH: bin, NDK_HOME: ndk, JAVA_HOME: java });
+
+    for (const id of ['native-android-rust', 'native-android-ndk', 'native-android-java', 'native-android-16kb', 'native-android-bars']) {
+      expect(find(checks, id).status).toBe('ok');
+    }
+  });
+
+  it('fails native-android-rust when a target is missing', async () => {
+    const cwd = makeTempDir();
+    const { bin, ndk, java } = scaffoldAndroid(cwd);
+
+    const checks = await check(cwd, { PATH: bin, NDK_HOME: ndk, JAVA_HOME: java }, { 'rustup target list --installed': 'aarch64-linux-android\n' });
+
+    const row = find(checks, 'native-android-rust');
+    expect(row.status).toBe('fail');
+    expect(row.label).toMatch(/armv7-linux-androideabi/);
+    expect(row.hint).toMatch(/caper native android/);
+  });
+
+  it('fails native-android-rust when rustup cannot be found', async () => {
+    const cwd = makeTempDir();
+    const { ndk, java } = scaffoldAndroid(cwd);
+
+    const checks = await check(cwd, { PATH: path.join(cwd, 'nowhere'), NDK_HOME: ndk, JAVA_HOME: java }, {});
+
+    expect(find(checks, 'native-android-rust').status).toBe('fail');
+  });
+
+  it('warns native-android-ndk / -java when unset but resolvable, with an export hint', async () => {
+    const cwd = makeTempDir();
+    const { bin, java } = scaffoldAndroid(cwd);
+    const sdk = path.join(cwd, 'sdk');
+    fs.mkdirSync(path.join(sdk, 'ndk/27.0.12077973'), { recursive: true });
+    fs.mkdirSync(path.join(sdk, 'ndk/27.1.12297006'), { recursive: true });
+
+    const checks = await check(cwd, { PATH: bin, ANDROID_HOME: sdk, JAVA_HOME: java });
+
+    const ndk = find(checks, 'native-android-ndk');
+    expect(ndk.status).toBe('warn');
+    expect(ndk.hint).toBe(`export NDK_HOME=${path.join(sdk, 'ndk/27.1.12297006')}`);
+    expect(find(checks, 'native-android-java').status).toBe('ok');
+  });
+
+  it('fails native-android-ndk / -java when neither set nor resolvable', async () => {
+    const cwd = makeTempDir();
+    const { bin } = scaffoldAndroid(cwd);
+
+    const checks = await check(cwd, { PATH: bin });
+
+    expect(find(checks, 'native-android-ndk').status).toBe('fail');
+    expect(find(checks, 'native-android-java').status).toBe('fail');
+  });
+
+  it('fails native-android-java when JAVA_HOME points at a missing directory', async () => {
+    const cwd = makeTempDir();
+    const { bin, ndk } = scaffoldAndroid(cwd);
+
+    const checks = await check(cwd, { PATH: bin, NDK_HOME: ndk, JAVA_HOME: path.join(cwd, 'gone') });
+
+    expect(find(checks, 'native-android-java').status).toBe('fail');
+  });
+
+  it('fails native-android-16kb and warns native-android-bars on the stock files', async () => {
+    const cwd = makeTempDir();
+    const { bin, ndk, java } = scaffoldAndroid(cwd);
+
+    const checks = await check(cwd, { PATH: bin, NDK_HOME: ndk, JAVA_HOME: java });
+
+    const pageSize = find(checks, 'native-android-16kb');
+    expect(pageSize.status).toBe('fail');
+    expect(pageSize.hint).toMatch(/caper native android/);
+    expect(find(checks, 'native-android-bars').status).toBe('warn');
+  });
+});
