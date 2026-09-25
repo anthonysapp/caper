@@ -25,7 +25,9 @@
     "format:check": "prettier --check src",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/assets/static/caper.png",
     "native:dev": "tauri dev",
-    "native:build": "tauri build"
+    "native:build": "tauri build",
+    "native:android:dev": "tauri android dev",
+    "native:android:build": "tauri android build"
   },
   "author": "Anthony Sapp <anthony@anthonysapp.dev>",
   "license": "MIT",
