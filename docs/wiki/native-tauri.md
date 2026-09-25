@@ -132,8 +132,21 @@ makes the first two:
   production bundle in a 1280x720 window, which is simply a harsher test than a dev server in a tall
   browser tab. Reproduce in plain Chromium with the production bundle and a small window first.
 
+## Size
+
+Measured 2026-09-24 on kitchen-sink (`dist/` is 9.2 MB), arm64 only (`--target aarch64`):
+
+| Build | Size | Notes |
+| --- | --- | --- |
+| Debug APK | 148 MB | `libapp_lib.so` alone is 134 MB (unoptimized, debug info). Never ship it. |
+| Release APK | 19 MB | `pnpm native:android:build --apk --target aarch64`. Unsigned. `libapp_lib.so` is 15.6 MB. |
+| Release AAB | 12.5 MB | add `--aab`. What Google Play takes; Play then serves per-device APKs. |
+
+Tauri embeds the whole `dist/` inside `libapp_lib.so` (compressed), so there is no `assets/` folder in
+the APK: game size shows up as native-library size. The release APK still passes both 16 KB checks.
+
 ## Not done yet
 
-A measured release APK/AAB size (the debug APK is 141 MB, unoptimized), iOS
+iOS
 (needs `xcode-select` pointed at full Xcode), Steam (achievements via `steamworks-rs`, cloud saves via
 Steam Auto-Cloud over the plugin-store file, overlay via community workarounds), updater and signing.
