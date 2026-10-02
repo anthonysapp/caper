@@ -315,6 +315,29 @@ describe('initNative', () => {
     };
   }
 
+  it('keeps the @tauri-apps/cli devDependency the package manager just added', async () => {
+    const dir = makeTempDir();
+    scaffoldApp(dir);
+    const calls = [];
+    const tauriRun = stubbedRun(calls);
+    // Like a real `pnpm add -D`, write the devDependency into package.json.
+    const run = (cmd, args, opts) => {
+      if (args[0] === 'add') {
+        const pkgPath = path.join(opts.cwd, 'package.json');
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        pkg.devDependencies = { ...pkg.devDependencies, '@tauri-apps/cli': '^2.12.1' };
+        fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+      }
+      return tauriRun(cmd, args, opts);
+    };
+
+    await initNative(dir, {}, { run });
+
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+    expect(pkg.devDependencies['@tauri-apps/cli']).toBe('^2.12.1');
+    expect(pkg.scripts['native:build']).toBe('tauri build');
+  });
+
   it('does nothing and makes zero run calls when src-tauri already exists', async () => {
     const dir = makeTempDir();
     scaffoldApp(dir);

@@ -262,7 +262,10 @@ export async function initNative(cwd, opts = {}, { run = defaultRun } = {}) {
   const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf-8'));
   writeJson(tauriConfPath, patchTauriConfig(tauriConf, { identifier, title }), 2);
 
-  writeJson(pkgPath, patchPackageScripts(pkg), detectIndent(pkgRaw));
+  // Re-read: the package manager rewrote package.json when it added @tauri-apps/cli,
+  // and patching the copy read above would silently drop that devDependency.
+  const freshPkgRaw = fs.readFileSync(pkgPath, 'utf-8');
+  writeJson(pkgPath, patchPackageScripts(JSON.parse(freshPkgRaw)), detectIndent(freshPkgRaw));
 
   if (opts.icon) {
     run(EXEC_RUNNER[pm], ['tauri', 'icon', opts.icon], { cwd });
