@@ -216,6 +216,7 @@ export class Sensor<D extends EntityData = EntityData> extends Entity<D> {
       this._xRemainder -= move;
       const sign = Math.sign(move);
       let remaining = Math.abs(move);
+      const candidates = this.getOverlapCandidates(move, 0);
       while (remaining > 0) {
         const step = sign;
         const nextX = this.x + step;
@@ -233,7 +234,7 @@ export class Sensor<D extends EntityData = EntityData> extends Entity<D> {
           this._x = nextX;
           remaining--;
           this.updateView();
-          this.checkActorOverlaps();
+          this.checkActorOverlaps(candidates);
         } else {
           // Stop horizontal movement when hitting a solid
           this.velocity.x = 0;
@@ -261,6 +262,7 @@ export class Sensor<D extends EntityData = EntityData> extends Entity<D> {
       const sign = Math.sign(move);
 
       let remaining = Math.abs(move);
+      const candidates = this.getOverlapCandidates(0, move);
       while (remaining > 0) {
         const step = sign;
         const nextY = this.y + step;
@@ -281,7 +283,7 @@ export class Sensor<D extends EntityData = EntityData> extends Entity<D> {
           this._y = nextY;
           remaining--;
           this.updateView();
-          this.checkActorOverlaps();
+          this.checkActorOverlaps(candidates);
         } else {
           // Stop vertical movement when landing on a solid
           this.velocity.y = 0;
@@ -309,6 +311,13 @@ export class Sensor<D extends EntityData = EntityData> extends Entity<D> {
       this.velocity.y += this.system.gravity * deltaTime;
     }
 
+    // Clamp velocity, as Actor does. Without it a sensor with nothing beneath it
+    // accelerates forever, and every extra pixel per frame is another pass through
+    // the move loops below.
+    const maxVelocity = this.system.maxVelocity;
+    this.velocity.x = Math.min(Math.max(this.velocity.x, -maxVelocity), maxVelocity);
+    this.velocity.y = Math.min(Math.max(this.velocity.y, -maxVelocity), maxVelocity);
+
     // Move
     if (this.velocity.x !== 0) {
       this.moveX(this.velocity.x * deltaTime);
@@ -319,11 +328,34 @@ export class Sensor<D extends EntityData = EntityData> extends Entity<D> {
   }
 
   /**
+   * The only actors a move of (dx, dy) pixels can start or stop overlapping: those
+   * touching the area swept by the move, plus the ones overlapping right now (they
+   * may be left behind). Built once per move so the per-pixel loop scans a handful
+   * of actors instead of rebuilding and walking the whole list for every pixel.
+   */
+  private getOverlapCandidates(dx: number, dy: number): Set<Actor> {
+    const candidates = new Set<Actor>(this.overlappingActors);
+    const left = Math.min(this.x, this.x + dx);
+    const top = Math.min(this.y, this.y + dy);
+    const right = Math.max(this.x, this.x + dx) + this.width;
+    const bottom = Math.max(this.y, this.y + dy) + this.height;
+
+    for (const actor of this.system.getActorsByType(this.collidableTypes)) {
+      if (actor.x < right && actor.x + actor.width > left && actor.y < bottom && actor.y + actor.height > top) {
+        candidates.add(actor);
+      }
+    }
+    return candidates;
+  }
+
+  /**
    * Checks for overlapping actors and triggers callbacks.
    *
+   * @param candidates - Restrict the scan to these actors (see getOverlapCandidates).
+   *   Omit for a full scan of every actor of the collidable types.
    * @returns Set of current overlaps
    */
-  public checkActorOverlaps(): Set<SensorOverlap> {
+  public checkActorOverlaps(candidates?: Iterable<Actor>): Set<SensorOverlap> {
     // Skip if sensor has no collision mask or is inactive
     if (this.collisionMask === 0 || !this.active) {
       return new Set();
@@ -340,7 +372,7 @@ export class Sensor<D extends EntityData = EntityData> extends Entity<D> {
     const sensorMask = this.collisionMask;
 
     // Get actors by type, but only process those that could be nearby
-    const nearbyActors = this.system.getActorsByType(this.collidableTypes);
+    const nearbyActors = candidates ?? this.system.getActorsByType(this.collidableTypes);
 
     for (const actor of nearbyActors) {
       // Skip inactive actors

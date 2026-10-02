@@ -122,6 +122,11 @@ gsap.to(platform, {
 
 Trigger zones for detecting overlaps (collectibles, checkpoints, damage zones).
 
+A sensor is dynamic unless `isStatic` is set: it falls with gravity and rides solids, and like an
+actor its velocity is clamped to the system's `maxVelocity`. Set `isStatic: true` for a sensor that
+should simply stay where you put it. A dynamic sensor with no solid beneath it never lands: it keeps
+falling (at `maxVelocity`) until you remove it.
+
 ```typescript
 class Coin extends Sensor {
   onActorEnter(actor: Actor) {

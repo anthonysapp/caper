@@ -319,7 +319,9 @@ Esoteric Software's Spine runtime for PixiJS v8, vendored into the framework so 
 
 ### Interface
 
-`SpinePlugin` (`id: 'SpinePlugin'`) is fourteen lines: register the two asset loaders and the render pipe as Pixi extensions, then publish `window.Spine` (`SpinePlugin.ts:8`).
+`SpinePlugin` (`id: 'SpinePlugin'`) is about twenty lines: register the two asset loaders, the render pipe (`SpinePipe`) and the `DarkTintBatcher` as Pixi extensions, then publish `window.Spine` (`SpinePlugin.ts:9`).
+
+**Gotcha — register explicitly, never by module side effect.** `packages/core/package.json` declares `"sideEffects": false`, so a production bundler drops side-effect-only imports. The vendored runtime's module-scope `extensions.add(SpinePipe)` / `extensions.add(DarkTintBatcher)` (`pixi-spine/SpinePipe.ts:197`, `darktint/DarkTintBatcher.ts:186`) therefore vanished from every production bundle, including the published `lib/` (0.5.2 through 0.7.1 shipped no Spine pipe at all), while dev builds worked. Symptom: the first `Spine` on stage throws `validateRenderable` of undefined inside `renderer.render()`; the throw escapes Pixi's ticker, which never schedules another frame, so the picture freezes while the page stays alive. Fixed 2026-09-18 by adding both in `SpinePlugin.initialize()` (`extensions.add` de-dupes by name). Anything new the runtime needs registered goes there too; `SpinePlugin.test.ts` guards it.
 
 Consumers use `Spine`, a `ViewContainer` subclass:
 

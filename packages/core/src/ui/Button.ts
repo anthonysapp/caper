@@ -431,6 +431,13 @@ export class Button extends _Button implements IButton {
       return;
     }
     this._lastClickEvent = e;
+    // Only the same-task duplicate is a duplicate. Pixi pools its events
+    // (EventBoundary: clonePointerEvent -> dispatch -> freeEvent), so the NEXT real
+    // click arrives as this very object; remembering it any longer swallowed every
+    // click after the first and left isDown stuck true.
+    queueMicrotask(() => {
+      this._lastClickEvent = undefined;
+    });
     this.isDown = false;
     this.onClick.emit();
     if (this.config.sounds?.click) {

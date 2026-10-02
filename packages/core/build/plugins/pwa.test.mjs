@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { caper } from '../index.mjs';
+import { logger } from '../internal/util.mjs';
 import { defaultPwaOptions, pwaRuntimeSnippet, resolvePwaOptions } from './pwa.mjs';
 
 const names = (options) =>
@@ -161,5 +162,51 @@ describe('pwaRuntimeSnippet', () => {
     // autoRegister is caper's, not the plugin's — passing it through would warn.
     const plugins = caper({ pwa: { autoRegister: false } }).flat();
     expect(plugins.map((p) => p.name)).toContain('vite-plugin-pwa');
+  });
+});
+
+describe('pwa disabled under the Tauri CLI', () => {
+  /** Service workers can't register on `tauri://localhost`, so the plugin must not load. */
+  const withTauriEnv = (fn) => {
+    const saved = process.env.TAURI_ENV_PLATFORM;
+    process.env.TAURI_ENV_PLATFORM = 'macos';
+    try {
+      return fn();
+    } finally {
+      if (saved === undefined) delete process.env.TAURI_ENV_PLATFORM;
+      else process.env.TAURI_ENV_PLATFORM = saved;
+    }
+  };
+
+  it('omits vite-plugin-pwa under Tauri', () => {
+    withTauriEnv(() => {
+      expect(names({ pwa: {} })).not.toContain('vite-plugin-pwa');
+    });
+  });
+
+  it('keeps vite-plugin-pwa outside Tauri (regression guard)', () => {
+    expect(names({ pwa: {} })).toContain('vite-plugin-pwa');
+  });
+
+  it('drops the virtual:pwa-register import from the runtime snippet under Tauri', () => {
+    withTauriEnv(() => {
+      const plugins = caper({ pwa: {} }).flat();
+      const runtime = plugins.find((p) => p.name === 'vite-plugin-caper-runtime');
+      const code = runtime.load('\0caper-runtime');
+      expect(code).not.toContain('virtual:pwa-register');
+    });
+  });
+
+  it('logs exactly one info line explaining why', () => {
+    withTauriEnv(() => {
+      const spy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+      try {
+        caper({ pwa: {} });
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(expect.stringContaining('PWA disabled'));
+      } finally {
+        spy.mockRestore();
+      }
+    });
   });
 });

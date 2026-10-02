@@ -52,6 +52,43 @@ export function readAppIdentity(root = process.cwd()) {
 const isPlainObject = (value) =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
+/** Deep-merge `overrides` onto `base`; plain objects recurse, everything else replaces. */
+function overlay(base, overrides) {
+  const out = { ...base };
+  for (const [key, value] of Object.entries(overrides)) {
+    out[key] = isPlainObject(value) && isPlainObject(base[key]) ? overlay(base[key], value) : value;
+  }
+  return out;
+}
+
+/**
+ * Vite config the Tauri CLI needs, keyed off the env vars it sets on `vite` /
+ * `vite build` child processes: `TAURI_ENV_PLATFORM` (always set), `TAURI_DEV_HOST`
+ * (LAN IP, only set for mobile dev on a device). Returns `{}` outside Tauri.
+ *
+ * These override caper's own server defaults (`open`/`host`) rather than merely
+ * filling gaps in them — Tauri owns the window chrome, so a browser tab popping
+ * open alongside it, or the dev server refusing a LAN connection, are both wrong.
+ * They still lose to the project's own `vite.config`, via the `fillMissing` call
+ * in `caperDefaults` below.
+ */
+export function tauriDefaults(env = process.env) {
+  if (!env.TAURI_ENV_PLATFORM) return {};
+
+  const host = env.TAURI_DEV_HOST;
+  return {
+    clearScreen: false,
+    envPrefix: ['VITE_', 'TAURI_ENV_'],
+    server: {
+      open: false,
+      strictPort: true,
+      host: host || false,
+      ...(host ? { hmr: { protocol: 'ws', host, port: 1421 } } : {}),
+      watch: { ignored: ['**/src-tauri/**'] },
+    },
+  };
+}
+
 /**
  * The subset of `defaults` that `target` does not already specify. Returns
  * `undefined` when there is nothing to contribute, so callers can omit the key
@@ -176,5 +213,6 @@ export function caperDefaultValues(env, userConfig = {}) {
 
 /** The partial config caper contributes for this project and command. */
 export function caperDefaults(userConfig, env) {
-  return fillMissing(userConfig, caperDefaultValues(env, userConfig)) ?? {};
+  const values = overlay(caperDefaultValues(env, userConfig), tauriDefaults());
+  return fillMissing(userConfig, values) ?? {};
 }

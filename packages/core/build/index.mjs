@@ -18,6 +18,7 @@ import wasm from 'vite-plugin-wasm';
 import { assetpackPlugin } from './assetpack.mjs';
 import { caperDefaults } from './defaults.mjs';
 import { readCaperBuildFlags } from './internal/buildFlags.mjs';
+import { logger } from './internal/util.mjs';
 import { assetTypesPlugin } from './plugins/assetTypes.mjs';
 import { caperConfigPlugin } from './plugins/caperConfig.mjs';
 import { caperDevHelperPlugin } from './plugins/devHelper.mjs';
@@ -44,6 +45,16 @@ function caperPluginList({ assets = {}, pwa } = {}) {
           ...(pngFallback ? [] : [pngFallbackPrunePlugin({ manifestUrl })]),
         ];
 
+  // Service workers can't register on Tauri's `tauri://localhost` origin, and
+  // the PWA defaults force `base: '/'` — so under the Tauri CLI, skip the
+  // plugin (and its runtime registration snippet) entirely rather than ship a
+  // dead one.
+  const disablePwaForTauri = Boolean(pwa) && Boolean(process.env.TAURI_ENV_PLATFORM);
+  if (disablePwaForTauri) {
+    logger.info('caper: PWA disabled for this native (Tauri) build; service workers do not work on the tauri:// origin');
+  }
+  const effectivePwa = disablePwaForTauri ? undefined : pwa;
+
   return [
     {
       // These must be singletons. A second copy — e.g. a @caperjs plugin
@@ -56,7 +67,7 @@ function caperPluginList({ assets = {}, pwa } = {}) {
       }),
     },
     ...(buildFlags.useWasm ? [wasm()] : []),
-    createCaperRuntimePlugin({ pwa }),
+    createCaperRuntimePlugin({ pwa: effectivePwa }),
     createCaperViewportPlugin(),
     viteStaticCopy({
       // The captions plugin's bitmap font. `silent` matters: without it,
@@ -81,7 +92,7 @@ function caperPluginList({ assets = {}, pwa } = {}) {
     // place that knows a project overrode it.
     caperConfigPlugin(true, manifestUrl),
     caperDevHelperPlugin(),
-    ...(pwa ? caperPwaPlugins(pwa) : []),
+    ...(effectivePwa ? caperPwaPlugins(effectivePwa) : []),
   ];
 }
 

@@ -20,6 +20,7 @@ Start with [Architecture Overview](architecture-overview.md) if you're new. Term
 | [Utils & Public Barrel](utils.md) | `define*` markers, `bindAllMethods`, helper reference, `src/index.ts` exports | `src/utils/`, `src/index.ts` |
 | [Build: Vite Preset & Asset Pipeline](build-pipeline.md) | `caper()` preset, discovery/virtual modules, SSR stub, assetpack, PWA | `build/` |
 | [CLI, Templates & Package Surface](cli-and-package.md) | `create-caper`, `caper add`, templates, exports map, peer deps | `cli/`, `templates/`, `package.json` |
+| [Native builds (Tauri): desktop & Android](native-tauri.md) | preset awareness, `caper native init`/`plugin`, `@caperjs/plugin-tauri`, the Android steps, gotchas | `build/`, `cli/native.mjs`, `packages/plugin-tauri` |
 
 ## Maintaining this wiki
 

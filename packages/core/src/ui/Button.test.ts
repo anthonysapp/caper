@@ -208,6 +208,28 @@ describe('Button press-state machine', () => {
     expect(onClick).toHaveBeenCalledTimes(2);
   });
 
+  it('fires onClick for every real press even though Pixi recycles one pooled event object for all clicks', async () => {
+    const button = makeButton();
+    const onClick = vi.fn();
+    button.onClick.connect(onClick);
+    (button as any).isOver = true;
+
+    // EventBoundary.mapPointerUp takes its 'click' event from a pool
+    // (clonePointerEvent -> dispatch -> freeEvent), so consecutive clicks arrive as
+    // the SAME object. Identity alone must not make the second press look like the
+    // accessibility click+tap duplicate.
+    const pooledClick = { type: 'click', pointerId: 1 };
+    for (let press = 0; press < 3; press++) {
+      (button as any).handlePointerDown({ type: 'pointerdown', pointerId: 1 });
+      (button as any).handlePointerUp({ type: 'pointerup', pointerId: 1 });
+      (button as any).handleClick(pooledClick);
+      await Promise.resolve(); // each real press is its own task
+    }
+
+    expect(onClick).toHaveBeenCalledTimes(3);
+    expect(button.isDown).toBe(false);
+  });
+
   it('toggles the ticker listener on for the first isDown callback and off when the last is removed', () => {
     const button = makeButton();
     const add = vi.fn();

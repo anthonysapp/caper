@@ -757,7 +757,11 @@ export default class CrunchPhysicsScene extends BaseScene {
     this.physics.system.addSensor(this.portal1);
 
     this.portal2 = new Portal({
-      position: [700, 800],
+      // Keep it above the ground (top edge at height - 32) on short windows. Spawned at a
+      // fixed y of 800 it started below the floor whenever the app was under ~900px tall
+      // (e.g. a 1280x720 native window), fell forever, and its runaway speed made the
+      // sensor's per-pixel overlap scan eat the whole frame.
+      position: [700, Math.min(800, this.app.size.height - 32 - 72 - 8)],
       id: 'portal2',
       // text: '2',
       collisionLayer: CollisionLayer.TRIGGER,

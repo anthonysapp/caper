@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { caperDefaults, caperDefaultValues, fillMissing } from './defaults.mjs';
+import { caper } from './index.mjs';
+import { caperDefaults, caperDefaultValues, fillMissing, tauriDefaults } from './defaults.mjs';
 
 const build = { command: 'build', mode: 'production' };
 const serve = { command: 'serve', mode: 'development' };
@@ -116,5 +117,71 @@ describe('caperDefaults', () => {
       if (saved[0] !== undefined) process.env.npm_package_name = saved[0];
       if (saved[1] !== undefined) process.env.npm_package_version = saved[1];
     }
+  });
+});
+
+describe('tauriDefaults', () => {
+  it('is empty outside the Tauri CLI', () => {
+    expect(tauriDefaults({})).toEqual({});
+  });
+
+  it('configures the dev server for Tauri without a device HMR host', () => {
+    const out = tauriDefaults({ TAURI_ENV_PLATFORM: 'macos' });
+    expect(out.clearScreen).toBe(false);
+    expect(out.envPrefix).toEqual(['VITE_', 'TAURI_ENV_']);
+    expect(out.server).toEqual({
+      open: false,
+      strictPort: true,
+      host: false,
+      watch: { ignored: ['**/src-tauri/**'] },
+    });
+    expect(out.server.hmr).toBeUndefined();
+  });
+
+  it('adds hmr over the LAN host for mobile device dev', () => {
+    const out = tauriDefaults({ TAURI_ENV_PLATFORM: 'android', TAURI_DEV_HOST: '192.168.1.5' });
+    expect(out.server.host).toBe('192.168.1.5');
+    expect(out.server.hmr).toEqual({ protocol: 'ws', host: '192.168.1.5', port: 1421 });
+  });
+});
+
+describe('caperDefaults under the Tauri CLI', () => {
+  /** The `caper:defaults` plugin's own `config` hook — the real merge path. */
+  const resolveDefaults = (userConfig, env) => caper().find((p) => p.name === 'caper:defaults').config(userConfig, env);
+
+  const withTauriEnv = (vars, fn) => {
+    const saved = { ...process.env };
+    Object.assign(process.env, vars);
+    try {
+      return fn();
+    } finally {
+      delete process.env.TAURI_ENV_PLATFORM;
+      delete process.env.TAURI_DEV_HOST;
+      Object.assign(process.env, saved);
+    }
+  };
+
+  it('overrides open/host but keeps the default port', () => {
+    withTauriEnv({ TAURI_ENV_PLATFORM: 'macos' }, () => {
+      const out = resolveDefaults({}, build);
+      expect(out.server.open).toBe(false);
+      expect(out.server.strictPort).toBe(true);
+      expect(out.server.port).toBe(3000);
+    });
+  });
+
+  it("still loses to the project's own server config", () => {
+    withTauriEnv({ TAURI_ENV_PLATFORM: 'macos' }, () => {
+      const out = resolveDefaults({ server: { port: 4000, open: true } }, build);
+      expect(out.server.port).toBeUndefined();
+      expect(out.server.open).toBeUndefined();
+      // ...while still contributing the sibling caper/Tauri wants to add.
+      expect(out.server.strictPort).toBe(true);
+    });
+  });
+
+  it('leaves the browser defaults untouched without the env var', () => {
+    const out = resolveDefaults({}, build);
+    expect(out.server).toEqual({ port: 3000, host: true, open: true });
   });
 });

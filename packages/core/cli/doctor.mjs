@@ -1,10 +1,13 @@
 import { dim, green, red, yellow } from 'kleur/colors';
 
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { ANDROID_RUST_TARGETS, findMainActivity, missingRustTargets, resolveAndroidEnv, TAURI_PLUGIN_PERMISSIONS } from './native.mjs';
 
 /**
  * `caper doctor` — one-shot health report for a Caper app.
@@ -90,6 +93,38 @@ const push = (checks, id, status, label, hint) => {
   checks.push({ id, status, label, ...(hint ? { hint } : {}) });
 };
 
+/** `rustc --version` output -> `"1.98.1"`, or `null` when unparseable. */
+export function parseRustcVersion(output) {
+  const match = /rustc (\d+\.\d+\.\d+)/.exec(String(output ?? ''));
+  return match ? match[1] : null;
+}
+
+/** The default injectable command runner for the native-toolchain checks. */
+const defaultDoctorRun = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf-8', ...opts });
+
+/**
+ * `@tauri-apps/cli`'s version, resolved by walking up from `cwd` looking for
+ * `node_modules/@tauri-apps/cli/package.json` (monorepo: it may live several
+ * levels above the app). A manual walk rather than `require.resolve`, which
+ * also considers global/module-loader search paths we don't want here.
+ */
+function resolveTauriCliVersion(cwd) {
+  let current = path.resolve(cwd);
+  for (;;) {
+    const candidate = path.join(current, 'node_modules/@tauri-apps/cli/package.json');
+    if (fs.existsSync(candidate)) {
+      try {
+        return JSON.parse(fs.readFileSync(candidate, 'utf-8')).version;
+      } catch {
+        return null;
+      }
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
 /**
  * Resolve a tsconfig `extends` entry to an absolute config file path,
  * TypeScript-style: relative specs resolve against the extending config's
@@ -166,7 +201,10 @@ const resolveEffectiveCompilerOptions = (configFile, ancestors = new Set(), dept
   return { ...inherited, ...(config.compilerOptions ?? {}) };
 };
 
-export async function runChecks(cwd, { online = true } = {}) {
+export async function runChecks(
+  cwd,
+  { online = true, run = defaultDoctorRun, platform = process.platform, env = process.env, homedir = os.homedir() } = {},
+) {
   const checks = [];
   const installedVersion = readInstalledVersion();
   const nodeModulesCaper = path.join(cwd, 'node_modules/@caperjs/core');
@@ -294,6 +332,171 @@ export async function runChecks(cwd, { online = true } = {}) {
         missing.length ? 'solid tsconfig incomplete' : 'solid tsconfig',
         missing.length ? `add ${missing.join(', ')} to tsconfig.json compilerOptions` : undefined,
       );
+    }
+  }
+
+  // Native (Tauri) toolchain — only relevant to apps that ran `caper native init`.
+  const srcTauriDir = path.join(cwd, 'src-tauri');
+  if (fs.existsSync(srcTauriDir)) {
+    try {
+      const version = parseRustcVersion(run('rustc', ['--version']));
+      if (!version) {
+        push(checks, 'native-rust', 'fail', 'rustc version unreadable', 'install via rustup.rs');
+      } else if (compareVersions(version, '1.88.0') < 0) {
+        push(checks, 'native-rust', 'fail', `rustc ${version}`, 'rustup update (or brew upgrade rust)');
+      } else {
+        push(checks, 'native-rust', 'ok', `rustc ${version}`);
+      }
+    } catch {
+      push(checks, 'native-rust', 'fail', 'rustc not found', 'install via rustup.rs');
+    }
+
+    const tauriCliVersion = resolveTauriCliVersion(cwd);
+    if (!tauriCliVersion) {
+      push(checks, 'native-tauri-cli', 'fail', '@tauri-apps/cli not found', 'caper native init (or add @tauri-apps/cli@^2)');
+    } else {
+      const major = parseInt(tauriCliVersion.split('.')[0], 10);
+      push(
+        checks,
+        'native-tauri-cli',
+        major === 2 ? 'ok' : 'warn',
+        `@tauri-apps/cli ${tauriCliVersion}`,
+        major === 2 ? undefined : 'expected @tauri-apps/cli major version 2',
+      );
+    }
+
+    // Only relevant once the app actually depends on @caperjs/plugin-tauri —
+    // `caper native init` alone doesn't need the store crate or its permissions.
+    if (appDeps['@caperjs/plugin-tauri']) {
+      let cargoToml = null;
+      try {
+        cargoToml = fs.readFileSync(path.join(cwd, 'src-tauri/Cargo.toml'), 'utf-8');
+      } catch {
+        // fails below
+      }
+      if (cargoToml === null) {
+        push(checks, 'native-plugin', 'fail', 'src-tauri/Cargo.toml unreadable', 'caper native plugin');
+      } else if (!cargoToml.includes('tauri-plugin-store')) {
+        push(checks, 'native-plugin', 'fail', 'src-tauri/Cargo.toml is missing tauri-plugin-store', 'caper native plugin');
+      } else {
+        const capabilities = readJson(path.join(cwd, 'src-tauri/capabilities/default.json'));
+        if (!capabilities) {
+          push(checks, 'native-plugin', 'fail', 'src-tauri/capabilities/default.json unreadable', 'caper native plugin');
+        } else {
+          const permissions = Array.isArray(capabilities.permissions) ? capabilities.permissions : [];
+          const missing = TAURI_PLUGIN_PERMISSIONS.filter((p) => !permissions.includes(p));
+          if (missing.length) {
+            push(checks, 'native-plugin', 'warn', `missing capability permissions: ${missing.join(', ')}`, 'caper native plugin');
+          } else {
+            push(checks, 'native-plugin', 'ok', 'native plugin wiring');
+          }
+        }
+      }
+    }
+
+    const tauriConf = readJson(path.join(cwd, 'src-tauri/tauri.conf.json'));
+    if (!tauriConf || typeof tauriConf.identifier !== 'string') {
+      push(checks, 'native-identifier', 'fail', 'tauri.conf.json identifier unreadable', 'src-tauri/tauri.conf.json is missing or not parseable');
+    } else if (tauriConf.identifier === 'com.tauri.dev') {
+      push(checks, 'native-identifier', 'fail', 'identifier is the tauri placeholder com.tauri.dev', 'set a real reverse-DNS identifier before shipping');
+    } else if (tauriConf.identifier.startsWith('dev.caper.')) {
+      push(checks, 'native-identifier', 'warn', `identifier ${tauriConf.identifier}`, 'placeholder, change before shipping');
+    } else {
+      push(checks, 'native-identifier', 'ok', `identifier ${tauriConf.identifier}`);
+    }
+
+    if (tauriConf?.build) {
+      const { devUrl, beforeDevCommand } = tauriConf.build;
+      const devUrlPort = typeof devUrl === 'string' ? Number(devUrl.match(/:(\d+)(?:\/|$)/)?.[1]) : NaN;
+      const beforeDevPort = typeof beforeDevCommand === 'string' ? Number(beforeDevCommand.match(/--port[= ](\d+)/)?.[1]) : NaN;
+
+      if (Number.isNaN(devUrlPort)) {
+        push(checks, 'native-dev-port', 'warn', 'devUrl port unknown', 'check src-tauri/tauri.conf.json build.devUrl');
+      } else if (!Number.isNaN(beforeDevPort) && beforeDevPort !== devUrlPort) {
+        push(checks, 'native-dev-port', 'warn', `devUrl port ${devUrlPort} differs from beforeDevCommand port ${beforeDevPort}`, 'keep both in sync');
+      } else if (devUrlPort === 3000) {
+        push(checks, 'native-dev-port', 'warn', `devUrl port ${devUrlPort}`, "collides with other Caper apps' default dev port");
+      } else {
+        push(checks, 'native-dev-port', 'ok', `devUrl port ${devUrlPort}`);
+      }
+    }
+
+    if (platform === 'darwin') {
+      try {
+        run('xcode-select', ['-p']);
+        push(checks, 'native-xcode-clt', 'ok', 'Xcode command line tools');
+      } catch {
+        push(checks, 'native-xcode-clt', 'fail', 'Xcode command line tools missing', 'xcode-select --install');
+      }
+    }
+
+    // Android: only once `tauri android init` (or `caper native android`) has run.
+    const genAndroidDir = path.join(srcTauriDir, 'gen/android');
+    if (fs.existsSync(genAndroidDir)) {
+      const listDir = (dir) => {
+        try {
+          return fs.readdirSync(dir);
+        } catch {
+          return [];
+        }
+      };
+      const android = resolveAndroidEnv({ env, platform, homedir, exists: fs.existsSync, listDir });
+
+      if (android.missing.includes('rustup')) {
+        push(checks, 'native-android-rust', 'fail', 'rustup not found', 'install Rust through rustup, then caper native android');
+      } else {
+        try {
+          const missingTargets = missingRustTargets(run('rustup', ['target', 'list', '--installed'], { env: android.env }));
+          if (missingTargets.length) {
+            push(checks, 'native-android-rust', 'fail', `missing rust targets: ${missingTargets.join(', ')}`, 'caper native android');
+          } else {
+            push(checks, 'native-android-rust', 'ok', `rust targets: ${ANDROID_RUST_TARGETS.length} Android targets`);
+          }
+        } catch {
+          push(checks, 'native-android-rust', 'fail', 'rustup target list failed', 'caper native android');
+        }
+      }
+
+      const isDir = (p) => {
+        try {
+          return fs.statSync(p).isDirectory();
+        } catch {
+          return false;
+        }
+      };
+      for (const [id, name, install] of [
+        ['native-android-ndk', 'NDK_HOME', 'install an NDK with Android Studio (SDK Manager > SDK Tools > NDK)'],
+        ['native-android-java', 'JAVA_HOME', 'install Android Studio (it bundles a JDK)'],
+      ]) {
+        if (env[name]) {
+          if (isDir(env[name])) push(checks, id, 'ok', `${name} ${env[name]}`);
+          else push(checks, id, 'fail', `${name} is not a directory: ${env[name]}`, install);
+        } else if (android.env[name]) {
+          push(checks, id, 'warn', `${name} not set (found ${android.env[name]})`, `export ${name}=${android.env[name]}`);
+        } else {
+          push(checks, id, 'fail', `${name} not set`, install);
+        }
+      }
+
+      let buildRs = '';
+      try {
+        buildRs = fs.readFileSync(path.join(srcTauriDir, 'build.rs'), 'utf-8');
+      } catch {
+        // fails below
+      }
+      if (buildRs.includes('max-page-size=16384')) {
+        push(checks, 'native-android-16kb', 'ok', 'build.rs 16 KB page alignment');
+      } else {
+        push(checks, 'native-android-16kb', 'fail', 'build.rs lacks 16 KB page alignment', 'caper native android');
+      }
+
+      const mainActivityPath = findMainActivity(genAndroidDir);
+      const mainActivity = mainActivityPath ? fs.readFileSync(mainActivityPath, 'utf-8') : '';
+      if (mainActivity.includes('WindowInsetsCompat.Type.systemBars()')) {
+        push(checks, 'native-android-bars', 'ok', 'MainActivity hides the system bars');
+      } else {
+        push(checks, 'native-android-bars', 'warn', 'MainActivity does not hide the system bars', 'caper native android');
+      }
     }
   }
 
