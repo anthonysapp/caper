@@ -834,6 +834,15 @@ then push toasts to it. Also available as `app.popups.toast(...)`.
 
 A FlexContainer preset for app-size-bound HUDs. Use as the root of in-game UI.
 
+It pads by the device safe-area insets (notch, camera hole, gesture bar) by
+default. `useSafeArea: false` turns that off; `{ top: false }` turns off one
+edge, e.g. to let corner buttons sit in a punch-hole phone's camera strip:
+
+```ts
+import { isAndroid, isTauri } from '@caperjs/core';
+const hud = this.add.uiCanvas({ useAppSize: true, useSafeArea: isTauri && isAndroid ? { top: false } : true });
+```
+
 ### 7.6 `Joystick` — virtual stick
 
 For touch input. Wires into the `controls.touch.joystick` bindings set via

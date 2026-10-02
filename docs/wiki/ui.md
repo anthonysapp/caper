@@ -29,7 +29,8 @@ for `this.add`/`this.make`, `WithSignals` for signal-connection lifecycle,
 (`UICanvasProps`, `UICanvas.ts:90-98`): `size`/`useAppSize` (bind to
 `app.size` and re-center every resize), `padding` (`Padding` or
 `PointLike`), `useSafeArea` (default `true` — folds device safe-area
-insets into padding), `layout` (raw `@pixi/layout` passthrough, defaults
+insets into padding; `false` for none, or per edge like `{ top: false }`,
+where edges left out stay on), `layout` (raw `@pixi/layout` passthrough, defaults
 to `flexGrow:0, flexShrink:0, autoLayoutChildren:true`), `debug` (draws a
 region/padding overlay). Callers never call `addChild`/`addChildAt`
 directly (both throw — see Invariants); instead:
@@ -195,7 +196,7 @@ both resolve to `topCenter`; `'left'`, `'left center'` both resolve to
 the target container and calls `container.add.existing(child)`.
 
 **Effective padding** is `computeEffectivePadding(config.padding,
-useSafeArea ? app.safeArea : zeroPadding)` (`UICanvas.ts:107-114`,
+resolveSafeArea(app.safeArea, useSafeArea))` (`UICanvas.ts:107-114`,
 pure function, covered by `UICanvas.test.ts`) — recomputed on every
 `resize()` and every `padding` setter call rather than cached, specifically
 so it never compounds (adding the safe area to an already-safe-area-adjusted

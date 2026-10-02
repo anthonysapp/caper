@@ -23,7 +23,7 @@ vi.mock('../core/Application', async () => {
 // constructed. See importOrder.containerFirst.test.ts.
 import '../mixins/factory/const';
 import { Signal } from '../signals';
-import { computeEffectivePadding, UICanvas } from './UICanvas';
+import { computeEffectivePadding, resolveSafeArea, UICanvas } from './UICanvas';
 
 const zero = { top: 0, right: 0, bottom: 0, left: 0 };
 
@@ -48,6 +48,28 @@ describe('computeEffectivePadding', () => {
     const safeArea = { ...zero, top: 44 };
     computeEffectivePadding(base, safeArea);
     expect(computeEffectivePadding(base, safeArea).top).toBe(54);
+  });
+});
+
+describe('resolveSafeArea', () => {
+  const insets = { top: 51, right: 4, bottom: 34, left: 4 };
+
+  it('keeps every inset when useSafeArea is true', () => {
+    expect(resolveSafeArea(insets, true)).toEqual(insets);
+  });
+
+  it('drops every inset when useSafeArea is false', () => {
+    expect(resolveSafeArea(insets, false)).toEqual(zero);
+  });
+
+  it('drops only the edges set to false, keeping the ones left out', () => {
+    expect(resolveSafeArea(insets, { top: false })).toEqual({ top: 0, right: 4, bottom: 34, left: 4 });
+    expect(resolveSafeArea(insets, { top: false, bottom: true, left: false })).toEqual({
+      top: 0,
+      right: 4,
+      bottom: 34,
+      left: 0,
+    });
   });
 });
 
