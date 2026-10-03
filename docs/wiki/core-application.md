@@ -25,11 +25,11 @@
 
 ### Config shape
 
-`IApplicationOptions` (`core/interfaces/IApplicationOptions.ts:29`) extends Pixi's `ApplicationOptions` and adds framework fields: `id`, `application` (constructor override), `container`, `resizeToContainer`, `plugins`, `scenes` / `defaultScene` / `sceneTransition` / `defaultSceneLoadMethod`, `assets`, `actions`, `input`, `focus`, `splash`, `i18n`, `resizer`, `breakpoints`, `captions`, `data`, `gsap`, and feature switches `useStore` / `useSpine` / `useLayout` / `useVoiceover` / `useHash` / `useWasm` / `showStats` / `showSceneDebugMenu` / `automation`.
+`IApplicationOptions` (`core/interfaces/IApplicationOptions.ts:29`) extends Pixi's `ApplicationOptions` and adds framework fields: `id`, `application` (constructor override), `container`, `resizeToContainer`, `plugins`, `scenes` / `defaultScene` / `sceneTransition` / `defaultSceneLoadMethod`, `assets`, `actions`, `input`, `focus`, `splash`, `i18n`, `resizer`, `breakpoints`, `captions`, `data`, `gsap`, `orientation`, and feature switches `useStore` / `useSpine` / `useLayout` / `useVoiceover` / `useHash` / `useWasm` / `showStats` / `showSceneDebugMenu` / `automation`.
 
 Defaults live in one place: `defaultApplicationOptions` at `core/Application.ts:80`. User config is folded in with `deepMerge(defaults, config)` at `core/Application.ts:693`.
 
-Two config fields are **build-time only** and never reach the running app: `useWasm` (AST-parsed out of `caper.config.ts` by the Vite preset) and, in practice, anything the preset reads before `virtual:caper-config` is evaluated.
+`orientation` (`'portrait' | 'landscape' | { lock, overlay? }`, the string being shorthand for `{ lock }`, normalized by `resolveOrientation` in `utils/orientation.js`) is read both ways: its lock is AST-parsed by the preset for the PWA manifest default and by `caper native init|android` / `caper doctor` (see [native-tauri.md](native-tauri.md)), and at runtime the whole value reaches the `orientation` plugin as its options; it shows the web "rotate your device" overlay styled by `overlay` (see [plugins-catalog.md](plugins-catalog.md#orientationplugin-orientation)). Config fields that are **build-time only** and never reach the running app: `useWasm` (AST-parsed out of `caper.config.ts` by the Vite preset) and, in practice, anything the preset reads before `virtual:caper-config` is evaluated.
 
 ### Invariants and ordering constraints
 

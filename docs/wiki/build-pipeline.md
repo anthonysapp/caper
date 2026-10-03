@@ -48,14 +48,17 @@ Then plain `vite` / `vite build`. There is no `caper build` command.
 | `assets: false` | Drops the whole asset pipeline: no AssetPack run, no `caper-assets.d.ts`, no png prune. |
 | `assets.manifestUrl` | Manifest filename, default `assets.json`. Threaded into the manifest pipe too (`assetpack.mjs:177`). |
 | `assets.pngFallback` | `true` keeps the png twins a production build otherwise prunes. |
-| `pwa` | `vite-plugin-pwa` options merged over Caper's PWA defaults. Absent means no service worker. Two sub-keys are Caper's own, stripped before the plugin sees them: `autoRegister` (default `true`) and `update` — `'prompt'` (default, DOM banner), `'auto'` (reload immediately), `'manual'` (no UI; the game listens to `app.onPwaUpdateAvailable`). |
+| `pwa` | `vite-plugin-pwa` options merged over Caper's PWA defaults. Absent means no service worker. Two sub-keys are Caper's own, stripped before the plugin sees them: `autoRegister` (default `true`) and `update` — `'prompt'` (default, DOM banner), `'auto'` (reload immediately), `'manual'` (no UI; the game listens to `app.onPwaUpdateAvailable`). The web manifest's `orientation` defaults to `caper.config.ts`'s `orientation` (else `'any'`); `pwa.manifest.orientation` still wins. |
 | `solid` | `true` compiles `.tsx` with `@caperjs/solid`'s Solid JSX plugin. Absent or `false` imports nothing. An object forwards `include` (default `['**/*.tsx']`). See [Solid JSX](#solid-jsx). |
 
 **`caper.config.ts`** is the app's runtime config, validated by a Zod schema
 (`internal/schema.mjs:20` — `.loose()` at the top level, so unknown keys pass, but
 known keys are typed). It is read **three different ways** and each matters:
 AST-parsed at `caper()` construction time for boolean build flags
-(`internal/buildFlags.mjs:10`, currently only `useWasm`); AST-parsed on every dts
+(`internal/buildFlags.mjs:12`: `useWasm`, plus the `orientation` lock, read from
+`orientation: 'portrait'` or `orientation: { lock: 'portrait', ... }`, which becomes
+the PWA manifest's default `orientation`; the native CLI reads the same key through
+`readConfigOrientation`); AST-parsed on every dts
 regeneration to find `defineConfig` / `defineData` / `defineBreakpoints` / `actions`
 / `contexts` / the `application` class (`plugins/caperConfig.mjs:142`); and actually
 *evaluated* via `server.ssrLoadModule` in dev only (`caperConfig.mjs:62`, see

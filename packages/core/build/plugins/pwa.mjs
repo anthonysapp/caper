@@ -129,8 +129,12 @@ function defaultWorkbox() {
   };
 }
 
-/** Caper's vite-plugin-pwa defaults. */
-export function defaultPwaOptions() {
+/**
+ * Caper's vite-plugin-pwa defaults.
+ *
+ * @param {{ orientation?: 'portrait' | 'landscape' }} [caperConfig] `orientation` from caper.config.ts, if set
+ */
+export function defaultPwaOptions({ orientation } = {}) {
   const app = readAppIdentity();
 
   return {
@@ -162,7 +166,7 @@ export function defaultPwaOptions() {
       background_color: '#000000',
       display: 'fullscreen',
       display_override: ['fullscreen', 'standalone', 'minimal-ui'],
-      orientation: 'any',
+      orientation: orientation ?? 'any',
       categories: ['games', 'entertainment'],
     },
     workbox: defaultWorkbox(),
@@ -204,10 +208,11 @@ function caperPwaDefaultsPlugin(options, projectSetIcons) {
  * defaults, producing the options vite-plugin-pwa is given.
  *
  * @param {object} pwa Project options, merged over `defaultPwaOptions()`.
+ * @param {{ orientation?: 'portrait' | 'landscape' }} [caperConfig] build flags read out of caper.config.ts
  */
-export function resolvePwaOptions(pwa) {
+export function resolvePwaOptions(pwa, caperConfig = {}) {
   const { autoRegister: _autoRegister, update = 'prompt', ...projectOptions } = pwa;
-  const options = deepMerge(defaultPwaOptions(), projectOptions);
+  const options = deepMerge(defaultPwaOptions(caperConfig), projectOptions);
 
   // `update` is caper's plain-language spelling of registerType. 'prompt' and
   // 'manual' both wait for the user — they differ only in who draws the UI, which
@@ -222,10 +227,11 @@ export function resolvePwaOptions(pwa) {
 
 /**
  * @param {object} pwa Project options, merged over `defaultPwaOptions()`.
+ * @param {{ orientation?: 'portrait' | 'landscape' }} [caperConfig] build flags read out of caper.config.ts
  * @returns {import('vite').PluginOption[]}
  */
-export function caperPwaPlugins(pwa) {
-  const { options, projectSetIcons } = resolvePwaOptions(pwa);
+export function caperPwaPlugins(pwa, caperConfig = {}) {
+  const { options, projectSetIcons } = resolvePwaOptions(pwa, caperConfig);
 
   return [caperPwaDefaultsPlugin(options, projectSetIcons), VitePWA(options)];
 }

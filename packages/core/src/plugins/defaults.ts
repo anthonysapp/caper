@@ -3,6 +3,7 @@ import { AssetsPlugin } from './AssetsPlugin';
 import { FullScreenPlugin } from './FullScreenPlugin';
 import { KeyboardPlugin } from './KeyboardPlugin';
 import { LookupPlugin } from './LookupPlugin';
+import { OrientationPlugin } from './OrientationPlugin';
 import type { IPlugin } from './Plugin';
 import { PopupManagerPlugin } from './PopupManagerPlugin';
 import { ResizerPlugin } from './ResizerPlugin';
@@ -97,5 +98,10 @@ export const defaultPlugins: ImportList<IPlugin> = [
     id: 'timers',
     module: TimerPlugin,
     namedExport: 'TimerPlugin',
+  },
+  {
+    id: 'orientation',
+    module: OrientationPlugin,
+    namedExport: 'OrientationPlugin',
   },
 ] as const;

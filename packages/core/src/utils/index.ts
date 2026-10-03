@@ -13,6 +13,7 @@ export * from './math';
 export * from './misc';
 export * from './number';
 export * from './object';
+export * from './orientation';
 export * from './padding';
 export * from './pixi';
 export * from './platform';

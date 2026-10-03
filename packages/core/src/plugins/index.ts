@@ -10,6 +10,7 @@ export * from './i18nPlugin';
 export * from './input';
 export * from './KeyboardPlugin';
 export * from './LookupPlugin';
+export * from './OrientationPlugin';
 export * from './Plugin';
 export * from './PopupManagerPlugin';
 export * from './ResizerPlugin';

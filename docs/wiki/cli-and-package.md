@@ -76,7 +76,7 @@ banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 | `native android` | `native(args.slice(1))` (`cli/native.mjs`) | sets an already-`native init`'d app up for Android builds; see [Native (Tauri)](#native-tauri) below |
 | `agent probe <url> [opts]` | `probe(args)` (`cli/probe.mjs`, via `cli/agent.mjs`) | launches the app's own `playwright` Chromium, waits for `Caper.__readyApps`, sends `--action`s, optional `--until` predicate via `Caper.automation[id].waitFor`, returns context/state/log/errors (+ `--screenshot`); exit 1 on boot/until timeout or page errors, 2 if playwright is missing |
 | `types [--no-assets]` | `types(args)` (`cli/types.mjs`) | `vite.resolveConfig` on the app's own `vite.config`, then calls the `api` seams: `vite-plugin-assetpack.api.runOnce()` → `vite-plugin-caper-config.api.generateTypes()` → `vite-plugin-asset-types.api.generateTypes()`; same output as a dev-server start, no server |
-| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri` and five `native-android-*` rows once `src-tauri/gen/android/` exists, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
+| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri` and six `native-android-*` rows once `src-tauri/gen/android/` exists, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
 | `create` | `create(projectPath, packageManager)` (`cli/create.mjs`) | parses `--use-yarn`/`--use-pnpm` and a positional path before delegating |
 | `update` | `update()` (`cli/update.mjs`) | installs `@caperjs/core@latest` |
 | `vo generate [inputDir] [csvDir]` | `generateVoiceoverCSV()` (`cli/voiceover/`) | |
@@ -119,7 +119,8 @@ detects and configures for Tauri. `native init`:
    a dev server running out of the same folder. Apps with extra build steps
    edit `build.beforeBuildCommand` in `src-tauri/tauri.conf.json`.
 4. Patches the generated `src-tauri/tauri.conf.json` (sets `identifier` and
-   window 0's `title`/`width: 1280`/`height: 720`; leaves everything else,
+   window 0's `title`/`width: 1280`/`height: 720`, or `450`x`800` when
+   `caper.config.ts` sets `orientation: 'portrait'`; leaves everything else,
    including `app.security.csp`, untouched) and adds `native:dev: "tauri
    dev"` / `native:build: "tauri build"` scripts to `package.json` without
    overwriting either if already present.
@@ -171,12 +172,33 @@ with rustup's proxies first). Otherwise:
    keeping its `package` line (`planMainActivity`, `renderMainActivity`);
    skips it if it already hides `WindowInsetsCompat.Type.systemBars()`;
    otherwise warns.
-5. Adds `native:android:dev` / `native:android:build` scripts
+5. When `caper.config.ts` sets `orientation`, sets `android:screenOrientation`
+   on the `.MainActivity` element of `gen/android/app/src/main/AndroidManifest.xml`
+   (`patchManifestOrientation`: `portrait`, or `sensorLandscape` for landscape;
+   replaces a different value, so a re-run applies a changed config). Unset
+   leaves the manifest alone. A missing manifest or MainActivity element is a
+   warning. Returns `orientation` and `orientationPatched`.
+6. Adds `native:android:dev` / `native:android:build` scripts
    (`patchAndroidScripts`) without overwriting existing ones.
 
 Idempotent: a second run makes zero `run` calls and zero writes. The CLI
 wrapper prints what changed, warnings, the next commands, and the `NDK_HOME` /
 `JAVA_HOME` values to export for the `native:android:*` scripts.
+
+**Reading `caper.config.ts` from the CLI.** `native init`, `native android` and
+`doctor` need only `orientation`, so they read it with
+`readConfigOrientation(root)` (`build/internal/buildFlags.mjs`): the same oxc AST
+parse as the preset's build flags, so nothing executes and no DOM stub is
+needed. It reads the lock from either form, `orientation: 'portrait'` or the
+`lock` property of `orientation: { lock: 'portrait', overlay }` (`overlay` is
+never read; it may hold a function). It throws on a parse error, a missing
+`defineConfig({...})` literal, or a lock that is not `'portrait'` /
+`'landscape'` as a string literal; `readOrientation` (`native.mjs`) turns that
+into a "could not read caper.config.ts orientation" warning and the step is
+skipped. Each command takes an injectable `loadConfig(cwd)` returning the config
+object, which is what the tests pass. Both paths normalize through
+`resolveOrientation` (`src/utils/orientation.js`), the same helper the runtime
+plugin uses.
 
 **Identifier rule**: defaults to `dev.caper.<slug>` (slug = the app's
 `package.json` name, scope stripped, lowercased, non-alnum runs collapsed to
@@ -207,7 +229,12 @@ all four Android targets installed), `native-android-ndk` and
 `native-android-java` (`ok` when `NDK_HOME` / `JAVA_HOME` is set to a
 directory, `warn` with an `export` hint when unset but found, else `fail`),
 `native-android-16kb` (`build.rs` has `max-page-size=16384`, else `fail`), and
-`native-android-bars` (`MainActivity.kt` hides the system bars, else `warn`).
+`native-android-bars` (`MainActivity.kt` hides the system bars, else `warn`),
+and `native-android-orientation` (`ok` when the manifest's
+`android:screenOrientation` matches `caper.config.ts`'s `orientation`, or neither
+sets one; `warn` hinting `caper native android` when config is set and the
+manifest disagrees; `warn` hinting to set the config or remove the attribute
+when only the manifest has a lock; `warn` when the config can't be read).
 Failing rows hint `caper native android`.
 
 **`caper create [path] [--use-yarn|--use-pnpm]`**

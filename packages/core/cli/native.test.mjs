@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
@@ -24,14 +25,22 @@ import {
   parsePort,
   patchAndroidScripts,
   patchCapabilities,
+  patchManifestOrientation,
   patchPackageScripts,
   patchTauriConfig,
   planBuildRs,
   planMainActivity,
+  readManifestOrientation,
   renderMainActivity,
   resolveAndroidEnv,
   TAURI_PLUGIN_PERMISSIONS,
 } from './native.mjs';
+
+// A copy of the manifest `tauri android init` generated for kitchen-sink.
+const MANIFEST_FIXTURE = fs.readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../test/fixtures/android/AndroidManifest.xml'),
+  'utf-8',
+);
 
 let tempDir = null;
 
@@ -253,6 +262,16 @@ describe('patchTauriConfig', () => {
     expect(patched.app.windows[0].resizable).toBe(true);
   });
 
+  it('uses a 450x800 window for a portrait game', () => {
+    const patched = patchTauriConfig(conf, { identifier: 'dev.caper.my-game', title: 'My Game', orientation: 'portrait' });
+    expect(patched.app.windows[0]).toMatchObject({ width: 450, height: 800 });
+  });
+
+  it('keeps 1280x720 for a landscape game', () => {
+    const patched = patchTauriConfig(conf, { identifier: 'dev.caper.my-game', title: 'My Game', orientation: 'landscape' });
+    expect(patched.app.windows[0]).toMatchObject({ width: 1280, height: 720 });
+  });
+
   it('does not mutate the original object', () => {
     patchTauriConfig(conf, { identifier: 'dev.caper.my-game', title: 'My Game' });
     expect(conf.identifier).toBe('com.tauri.dev');
@@ -345,6 +364,33 @@ describe('initNative', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
     expect(pkg.devDependencies['@tauri-apps/cli']).toBe('^2.12.1');
     expect(pkg.scripts['native:build']).toBe('tauri build');
+  });
+
+  it('sizes the window from caper.config orientation', async () => {
+    const dir = makeTempDir();
+    scaffoldApp(dir);
+
+    const result = await initNative(dir, {}, { run: stubbedRun([]), loadConfig: () => ({ orientation: 'portrait' }) });
+
+    expect(result.warnings).toEqual([]);
+    const conf = JSON.parse(fs.readFileSync(path.join(dir, 'src-tauri/tauri.conf.json'), 'utf-8'));
+    expect(conf.app.windows[0]).toMatchObject({ width: 450, height: 800 });
+  });
+
+  it('warns and keeps 1280x720 when caper.config orientation cannot be read', async () => {
+    const dir = makeTempDir();
+    scaffoldApp(dir);
+    const loadConfig = () => {
+      throw new Error('boom');
+    };
+
+    const result = await initNative(dir, {}, { run: stubbedRun([]), loadConfig });
+
+    expect(result.status).toBe('ok');
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/could not read caper\.config\.ts orientation/);
+    const conf = JSON.parse(fs.readFileSync(path.join(dir, 'src-tauri/tauri.conf.json'), 'utf-8'));
+    expect(conf.app.windows[0]).toMatchObject({ width: 1280, height: 720 });
   });
 
   it('does nothing and makes zero run calls when src-tauri already exists', async () => {
@@ -923,6 +969,7 @@ describe('androidNative', () => {
           const dir = path.join(opts.cwd, 'src-tauri/gen/android/app/src/main/java/x/y/z');
           fs.mkdirSync(dir, { recursive: true });
           fs.writeFileSync(path.join(dir, 'MainActivity.kt'), STOCK_MAIN_ACTIVITY, 'utf-8');
+          fs.writeFileSync(path.join(opts.cwd, 'src-tauri/gen/android/app/src/main/AndroidManifest.xml'), MANIFEST_FIXTURE, 'utf-8');
         } else {
           throw new Error(`unstubbed run: ${cmd} ${args.join(' ')}`);
         }
@@ -1021,6 +1068,103 @@ describe('androidNative', () => {
     expect(snapshot(dir)).toEqual(before);
   });
 
+  const manifestPath = (dir) => path.join(dir, 'src-tauri/gen/android/app/src/main/AndroidManifest.xml');
+
+  it('leaves AndroidManifest.xml alone when caper.config sets no orientation', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [] }, []), ...deps, loadConfig: () => ({}) });
+
+    expect(result.orientation).toBeUndefined();
+    expect(result.orientationPatched).toBe(false);
+    expect(result.warnings).toEqual([]);
+    expect(fs.readFileSync(manifestPath(dir), 'utf-8')).toBe(MANIFEST_FIXTURE);
+  });
+
+  it('locks MainActivity to caper.config orientation', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [] }, []), ...deps, loadConfig: () => ({ orientation: 'portrait' }) });
+
+    expect(result.orientation).toBe('portrait');
+    expect(result.orientationPatched).toBe(true);
+    expect(readManifestOrientation(fs.readFileSync(manifestPath(dir), 'utf-8'))).toBe('portrait');
+  });
+
+  it('applies a changed orientation on the next run, then makes zero writes', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    const state = { installed: [] };
+    await androidNative(dir, {}, { ...stubs(state, []), ...deps, loadConfig: () => ({ orientation: 'portrait' }) });
+
+    const landscape = { ...deps, loadConfig: () => ({ orientation: 'landscape' }) };
+    const changed = await androidNative(dir, {}, { ...stubs(state, []), ...landscape });
+    expect(changed.changed).toBe(true);
+    expect(changed.orientationPatched).toBe(true);
+    expect(readManifestOrientation(fs.readFileSync(manifestPath(dir), 'utf-8'))).toBe('sensorLandscape');
+
+    const before = snapshot(dir);
+    const calls = [];
+    const again = await androidNative(dir, {}, { ...stubs(state, calls), ...landscape });
+    expect(calls.filter((c) => c.kind === 'run')).toHaveLength(0);
+    expect(again.changed).toBe(false);
+    expect(again.orientationPatched).toBe(false);
+    expect(snapshot(dir)).toEqual(before);
+  });
+
+  it('reads the lock from the object form of orientation', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    const loadConfig = () => ({ orientation: { lock: 'landscape', overlay: false } });
+
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [] }, []), ...deps, loadConfig });
+
+    expect(result.orientation).toBe('landscape');
+    expect(readManifestOrientation(fs.readFileSync(manifestPath(dir), 'utf-8'))).toBe('sensorLandscape');
+  });
+
+  it('warns and skips orientation when caper.config orientation is invalid', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [] }, []), ...deps, loadConfig: () => ({ orientation: { lock: 'any' } }) });
+
+    expect(result.orientationPatched).toBe(false);
+    expect(result.warnings[0]).toMatch(/could not read caper\.config\.ts orientation/);
+    expect(fs.readFileSync(manifestPath(dir), 'utf-8')).toBe(MANIFEST_FIXTURE);
+  });
+
+  it('warns and skips orientation when caper.config cannot be read', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    const loadConfig = () => {
+      throw new Error('boom');
+    };
+
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [] }, []), ...deps, loadConfig });
+
+    expect(result.status).toBe('ok');
+    expect(result.orientationPatched).toBe(false);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/could not read caper\.config\.ts orientation/);
+    expect(fs.readFileSync(manifestPath(dir), 'utf-8')).toBe(MANIFEST_FIXTURE);
+  });
+
+  it('warns when orientation is set but AndroidManifest.xml is missing', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    await androidNative(dir, {}, { ...stubs({ installed: [] }, []), ...deps, loadConfig: () => ({}) });
+    fs.rmSync(manifestPath(dir));
+
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [...ANDROID_RUST_TARGETS] }, []), ...deps, loadConfig: () => ({ orientation: 'portrait' }) });
+
+    expect(result.orientationPatched).toBe(false);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/AndroidManifest\.xml/);
+  });
+
   it('writes the build.rs template when build.rs is missing', async () => {
     const dir = makeTempDir();
     const deps = scaffoldAndroidApp(dir);
@@ -1052,6 +1196,46 @@ describe('androidNative', () => {
     expect(fs.readFileSync(path.join(dir, 'src-tauri/build.rs'), 'utf-8')).toBe(customRs);
     expect(fs.readFileSync(path.join(activityDir, 'MainActivity.kt'), 'utf-8')).toBe(customKt);
     expect(calls.filter((c) => c.kind === 'run')).toHaveLength(0);
+  });
+});
+
+describe('patchManifestOrientation', () => {
+  const withAttr = (value) => MANIFEST_FIXTURE.replace('android:name=".MainActivity"', `android:name=".MainActivity"\n            android:screenOrientation="${value}"`);
+
+  it('reads no orientation from the stock manifest', () => {
+    expect(readManifestOrientation(MANIFEST_FIXTURE)).toBeUndefined();
+  });
+
+  it('adds android:screenOrientation under android:name, matching its indentation', () => {
+    const patched = patchManifestOrientation(MANIFEST_FIXTURE, 'portrait');
+    expect(patched).toBe(withAttr('portrait'));
+    expect(readManifestOrientation(patched)).toBe('portrait');
+  });
+
+  it('maps landscape to sensorLandscape', () => {
+    expect(patchManifestOrientation(MANIFEST_FIXTURE, 'landscape')).toBe(withAttr('sensorLandscape'));
+  });
+
+  it('returns the same string when the value already matches', () => {
+    const xml = withAttr('portrait');
+    expect(patchManifestOrientation(xml, 'portrait')).toBe(xml);
+  });
+
+  it('replaces a different existing value', () => {
+    expect(patchManifestOrientation(withAttr('landscape'), 'portrait')).toBe(withAttr('portrait'));
+    expect(patchManifestOrientation(withAttr('portrait'), 'landscape')).toBe(withAttr('sensorLandscape'));
+  });
+
+  it('returns the same string when orientation is unset', () => {
+    const xml = withAttr('portrait');
+    expect(patchManifestOrientation(xml, undefined)).toBe(xml);
+  });
+
+  it('only touches the MainActivity element', () => {
+    const xml = MANIFEST_FIXTURE.replace('<provider', '<activity android:name=".Other" />\n\n        <provider');
+    const patched = patchManifestOrientation(xml, 'portrait');
+    expect(patched).toContain('<activity android:name=".Other" />');
+    expect(patched.match(/screenOrientation/g)).toHaveLength(1);
   });
 });
 

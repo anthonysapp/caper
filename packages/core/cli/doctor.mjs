@@ -7,7 +7,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ANDROID_RUST_TARGETS, findMainActivity, missingRustTargets, resolveAndroidEnv, TAURI_PLUGIN_PERMISSIONS } from './native.mjs';
+import {
+  ANDROID_MANIFEST,
+  ANDROID_RUST_TARGETS,
+  ANDROID_SCREEN_ORIENTATION,
+  findMainActivity,
+  missingRustTargets,
+  readManifestOrientation,
+  readOrientation,
+  resolveAndroidEnv,
+  TAURI_PLUGIN_PERMISSIONS,
+} from './native.mjs';
 
 /**
  * `caper doctor` — one-shot health report for a Caper app.
@@ -203,7 +213,14 @@ const resolveEffectiveCompilerOptions = (configFile, ancestors = new Set(), dept
 
 export async function runChecks(
   cwd,
-  { online = true, run = defaultDoctorRun, platform = process.platform, env = process.env, homedir = os.homedir() } = {},
+  {
+    online = true,
+    run = defaultDoctorRun,
+    platform = process.platform,
+    env = process.env,
+    homedir = os.homedir(),
+    loadConfig = undefined,
+  } = {},
 ) {
   const checks = [];
   const installedVersion = readInstalledVersion();
@@ -496,6 +513,40 @@ export async function runChecks(
         push(checks, 'native-android-bars', 'ok', 'MainActivity hides the system bars');
       } else {
         push(checks, 'native-android-bars', 'warn', 'MainActivity does not hide the system bars', 'caper native android');
+      }
+
+      const { orientation, warning: orientationWarning } = await readOrientation(cwd, loadConfig);
+      let manifest = '';
+      try {
+        manifest = fs.readFileSync(path.join(srcTauriDir, ANDROID_MANIFEST), 'utf-8');
+      } catch {
+        // no lock found; compared below
+      }
+      const locked = readManifestOrientation(manifest);
+      const expected = ANDROID_SCREEN_ORIENTATION[orientation];
+      if (orientationWarning) {
+        push(checks, 'native-android-orientation', 'warn', 'could not read caper.config.ts orientation', "write it as orientation: 'portrait' or 'landscape'");
+      } else if (!expected && !locked) {
+        push(checks, 'native-android-orientation', 'ok', 'no orientation lock');
+      } else if (expected === locked) {
+        push(checks, 'native-android-orientation', 'ok', `orientation ${orientation} (AndroidManifest ${locked})`);
+      } else if (!expected) {
+        // `caper native android` leaves the manifest alone when orientation is unset, so it is not the fix here.
+        push(
+          checks,
+          'native-android-orientation',
+          'warn',
+          `AndroidManifest locks orientation to ${locked}, caper.config.ts sets none`,
+          'set orientation in caper.config.ts, or remove android:screenOrientation from AndroidManifest.xml',
+        );
+      } else {
+        push(
+          checks,
+          'native-android-orientation',
+          'warn',
+          `caper.config.ts orientation ${orientation}, AndroidManifest ${locked ? `locks ${locked}` : 'has no lock'}`,
+          'caper native android',
+        );
       }
     }
   }
