@@ -18,6 +18,16 @@ const IDENTIFIER_RE = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/;
 const PLACEHOLDER_IDENTIFIER = 'com.tauri.dev';
 const DEFAULT_IDENTIFIER_PREFIX = 'dev.caper.';
 
+/** A window/app title from a package name: strip an npm scope, split on `-`/`_`/`.`, capitalize each word. */
+export function displayTitle(packageName) {
+  return String(packageName ?? '')
+    .replace(/^@[^/]+\//, '')
+    .split(/[-_.\s]+/)
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 /** Strip an npm scope, lowercase, collapse non `[a-z0-9]` runs to `-`, trim `-`. */
 export function appSlug(packageName) {
   return String(packageName ?? '')
@@ -219,7 +229,7 @@ export async function initNative(cwd, opts = {}, { run = defaultRun } = {}) {
   // vars can instead reflect an unrelated ancestor process (e.g. a monorepo
   // task runner). Read the name straight from the package.json we already have.
   const name = pkg.name ?? 'app';
-  const title = opts.title ?? name;
+  const title = opts.title ?? displayTitle(name);
   const slug = appSlug(pkg.name ?? name);
 
   const identifier = opts.identifier ?? defaultIdentifier(slug);
@@ -244,7 +254,7 @@ export async function initNative(cwd, opts = {}, { run = defaultRun } = {}) {
     'init',
     '--ci',
     '--app-name',
-    name,
+    title,
     '--window-title',
     title,
     '--frontend-dist',
@@ -262,7 +272,10 @@ export async function initNative(cwd, opts = {}, { run = defaultRun } = {}) {
   const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf-8'));
   writeJson(tauriConfPath, patchTauriConfig(tauriConf, { identifier, title }), 2);
 
-  writeJson(pkgPath, patchPackageScripts(pkg), detectIndent(pkgRaw));
+  // Re-read: the package manager rewrote package.json when it added @tauri-apps/cli,
+  // and patching the copy read above would silently drop that devDependency.
+  const freshPkgRaw = fs.readFileSync(pkgPath, 'utf-8');
+  writeJson(pkgPath, patchPackageScripts(JSON.parse(freshPkgRaw)), detectIndent(freshPkgRaw));
 
   if (opts.icon) {
     run(EXEC_RUNNER[pm], ['tauri', 'icon', opts.icon], { cwd });
@@ -666,7 +679,7 @@ export async function androidNative(
 }
 
 function printUsage() {
-  console.error(red('Usage: caper native init [--identifier <id>] [--port <n>] [--icon <png>]'));
+  console.error(red('Usage: caper native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]'));
   console.error(red('       caper native plugin'));
   console.error(red('       caper native android'));
 }
@@ -687,6 +700,10 @@ function parseInitArgs(args) {
       const next = args[++i];
       if (!next) throw new Error('Missing value for --icon');
       opts.icon = next;
+    } else if (arg === '--title') {
+      const next = args[++i];
+      if (!next) throw new Error('Missing value for --title');
+      opts.title = next;
     } else {
       throw new Error(`Unknown option: ${arg}`);
     }

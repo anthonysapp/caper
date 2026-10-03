@@ -14,6 +14,7 @@ import {
   commandsFor,
   defaultIdentifier,
   defaultPort,
+  displayTitle,
   findMainActivity,
   initNative,
   isValidIdentifier,
@@ -45,6 +46,14 @@ function makeTempDir() {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'caper-native-'));
   return tempDir;
 }
+
+describe('displayTitle', () => {
+  it('title-cases a package name into a window title', () => {
+    expect(displayTitle('rhodora')).toBe('Rhodora');
+    expect(displayTitle('my-game')).toBe('My Game');
+    expect(displayTitle('@studio/space_rocks')).toBe('Space Rocks');
+  });
+});
 
 describe('appSlug', () => {
   it('strips a scope, lowercases, and collapses non-alnum runs to a hyphen', () => {
@@ -315,6 +324,29 @@ describe('initNative', () => {
     };
   }
 
+  it('keeps the @tauri-apps/cli devDependency the package manager just added', async () => {
+    const dir = makeTempDir();
+    scaffoldApp(dir);
+    const calls = [];
+    const tauriRun = stubbedRun(calls);
+    // Like a real `pnpm add -D`, write the devDependency into package.json.
+    const run = (cmd, args, opts) => {
+      if (args[0] === 'add') {
+        const pkgPath = path.join(opts.cwd, 'package.json');
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        pkg.devDependencies = { ...pkg.devDependencies, '@tauri-apps/cli': '^2.12.1' };
+        fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+      }
+      return tauriRun(cmd, args, opts);
+    };
+
+    await initNative(dir, {}, { run });
+
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+    expect(pkg.devDependencies['@tauri-apps/cli']).toBe('^2.12.1');
+    expect(pkg.scripts['native:build']).toBe('tauri build');
+  });
+
   it('does nothing and makes zero run calls when src-tauri already exists', async () => {
     const dir = makeTempDir();
     scaffoldApp(dir);
@@ -360,9 +392,9 @@ describe('initNative', () => {
       'init',
       '--ci',
       '--app-name',
-      'my-game',
+      'My Game',
       '--window-title',
-      'my-game',
+      'My Game',
       '--frontend-dist',
       '../dist',
       '--dev-url',
@@ -375,7 +407,7 @@ describe('initNative', () => {
 
     const conf = JSON.parse(fs.readFileSync(path.join(dir, 'src-tauri/tauri.conf.json'), 'utf-8'));
     expect(conf.identifier).toBe('dev.caper.mygame');
-    expect(conf.app.windows[0]).toMatchObject({ title: 'my-game', width: 1280, height: 720 });
+    expect(conf.app.windows[0]).toMatchObject({ title: 'My Game', width: 1280, height: 720 });
     expect(conf.app.security.csp).toBeNull();
     expect(conf.bundle).toEqual({ active: true, targets: ['app'] });
 

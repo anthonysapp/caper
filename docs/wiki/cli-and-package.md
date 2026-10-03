@@ -71,7 +71,7 @@ banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 | `dev`/`start`/`build`/`preview` | rejected, exit 1 (`cli.mjs:57-67`) | removed in 0.2.0; kept as named cases purely to print "run vite directly" instead of "unknown subcommand" |
 | `add` | `add(args.slice(1))` (`cli/add.mjs`) | scaffold one scene/plugin/entity/popup file |
 | `agent init [--dir <skillsDir>]` | `agent(args.slice(1))` (`cli/agent.mjs`) | copies the shipped `caper` agent skill into the app (default `.claude/skills/`) and upserts a marker-delimited pointer block into `AGENTS.md`/`CLAUDE.md` |
-| `native init [--identifier <id>] [--port <n>] [--icon <png>]` | `native(args.slice(1))` (`cli/native.mjs`) | one-shot Tauri v2 scaffolding — see [Native (Tauri)](#native-tauri) below |
+| `native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]` | `native(args.slice(1))` (`cli/native.mjs`) | one-shot Tauri v2 scaffolding — see [Native (Tauri)](#native-tauri) below |
 | `native plugin` | `native(args.slice(1))` (`cli/native.mjs`) | wires an already-`native init`'d app up for `@caperjs/plugin-tauri` — see [Native (Tauri)](#native-tauri) below |
 | `native android` | `native(args.slice(1))` (`cli/native.mjs`) | sets an already-`native init`'d app up for Android builds; see [Native (Tauri)](#native-tauri) below |
 | `agent probe <url> [opts]` | `probe(args)` (`cli/probe.mjs`, via `cli/agent.mjs`) | launches the app's own `playwright` Chromium, waits for `Caper.__readyApps`, sends `--action`s, optional `--until` predicate via `Caper.automation[id].waitFor`, returns context/state/log/errors (+ `--screenshot`); exit 1 on boot/until timeout or page errors, 2 if playwright is missing |
@@ -100,7 +100,7 @@ plugin, until it's also added to `caper.config.ts`'s `plugins` array.
 
 ### Native (Tauri)
 
-**`caper native init [--identifier <id>] [--port <n>] [--icon <png>]`**
+**`caper native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]`**
 (`packages/core/cli/native.mjs`) is the one-shot setup for packaging an app
 with Tauri v2 — see the wiki's [build-pipeline Native (Tauri)
 section](build-pipeline.md#native-tauri) for how the Vite preset itself
@@ -110,7 +110,8 @@ detects and configures for Tauri. `native init`:
    already exists.
 2. Adds `@tauri-apps/cli@^2` as a devDependency if it isn't one already.
 3. Runs `tauri init --ci` with a generated `--app-name`/`--window-title`
-   (from `package.json`), `--frontend-dist ../dist`, a pinned `--dev-url`,
+   (the `package.json` name title-cased by `displayTitle`, `my-game` → "My Game",
+   or `--title`), `--frontend-dist ../dist`, a pinned `--dev-url`,
    and `--before-dev-command`/`--before-build-command`: `vite --port N`
    (pins the dev server's port) and a bare `vite build`. Deliberately not the
    app's own `build` script: those often clean first, and cleaning Vite's

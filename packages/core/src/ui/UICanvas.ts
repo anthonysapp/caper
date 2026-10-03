@@ -73,10 +73,17 @@ export type UICanvasConfig = {
   padding: Padding;
   size: Size;
   useAppSize: boolean;
-  useSafeArea: boolean;
+  useSafeArea: UICanvasSafeArea;
   layout?: Omit<LayoutOptions, 'target'> | null | boolean;
   autoLayoutChildren?: boolean;
 };
+
+/**
+ * Which device safe-area insets the canvas pads by: `true` (all four, the default), `false`
+ * (none), or per edge, where an edge left out stays on. `{ top: false }` lets top-row UI sit
+ * in the camera strip of a punch-hole phone while the bottom still clears the gesture bar.
+ */
+export type UICanvasSafeArea = boolean | Partial<Record<keyof Padding, boolean>>;
 
 export const UICanvasConfigKeys: (keyof UICanvasConfig)[] = [
   'debug',
@@ -92,7 +99,7 @@ export type UICanvasProps = {
   padding: Partial<Padding> | PointLike;
   size?: SizeLike;
   useAppSize?: boolean;
-  useSafeArea?: boolean;
+  useSafeArea?: UICanvasSafeArea;
   layout?: Omit<LayoutOptions, 'target'> | null | boolean;
   autoLayoutChildren?: boolean;
 };
@@ -110,6 +117,18 @@ export function computeEffectivePadding(padding: Padding, safeArea: Padding): Pa
     right: padding.right + safeArea.right,
     bottom: padding.bottom + safeArea.bottom,
     left: padding.left + safeArea.left,
+  };
+}
+
+/** The safe-area insets `useSafeArea` keeps: all, none, or the edges not set to `false`. */
+export function resolveSafeArea(safeArea: Padding, useSafeArea: UICanvasSafeArea): Padding {
+  if (useSafeArea === true) return { ...safeArea };
+  if (useSafeArea === false) return { ...zeroPadding };
+  return {
+    top: useSafeArea.top === false ? 0 : safeArea.top,
+    right: useSafeArea.right === false ? 0 : safeArea.right,
+    bottom: useSafeArea.bottom === false ? 0 : safeArea.bottom,
+    left: useSafeArea.left === false ? 0 : safeArea.left,
   };
 }
 
@@ -449,7 +468,7 @@ export class UICanvas extends _UICanvas {
   private _applyPadding() {
     const padding = computeEffectivePadding(
       this.config.padding,
-      this.config.useSafeArea ? this.app.safeArea : zeroPadding,
+      resolveSafeArea(this.app.safeArea, this.config.useSafeArea),
     );
     this.layout = {
       paddingLeft: padding.left,
