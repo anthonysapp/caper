@@ -121,6 +121,14 @@ makes the first two:
   `src-tauri/tauri.conf.json`.
 - **`rustflags` in `src-tauri/.cargo/config.toml` have no effect** under the Tauri CLI (it drives
   cargo with its own `RUSTFLAGS`, which replace config rustflags). Use `build.rs` link args.
+- **The macOS title bar takes the page's background colour** (seen on macOS 27): a light `body`
+  background (a loading colour, say) shows as a strip above the game. Set the window's
+  `"titleBarStyle": "Transparent"`, `"backgroundColor"` to the game's edge colour, and `"theme": "Dark"`
+  so the title stays readable, in `src-tauri/tauri.conf.json`.
+- **Android reports the camera hole as a top safe-area strip** even with the status bar hidden (51 CSS px
+  on a Pixel 8), so a `UICanvas` pads its top row below it. Corner UI clears a centred punch hole; to
+  use the strip, pass `useSafeArea: isTauri && isAndroid ? { top: false } : true`. The webview cannot
+  tell a centred hole from a corner one.
 - **Bundled assets get no HTTP range responses** (a `Range` request returns 200 with the whole file).
   Fine for WebAudio decode; matters for streamed `<audio>`/video.
 - **CSP:** ship `csp: null` (Tauri's default). Strict CSP needs `import 'pixi.js/unsafe-eval'`
