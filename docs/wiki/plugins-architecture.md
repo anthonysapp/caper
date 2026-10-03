@@ -198,7 +198,7 @@ sequential and awaited, so this array **is** the initialization order:
 | 14 | `audio` | `AudioManagerPlugin` | |
 | 15 | `i18n` | `i18nPlugin` | |
 | 16 | `timers` | `TimerPlugin` | |
-| 17 | `orientation` | `OrientationPlugin` | Inert unless `orientation` is set, on a touch/mobile browser outside Tauri. Pauses through `app.pause()` in `postInitialize`. |
+| 17 | `orientation` | `OrientationPlugin` | Inert unless `orientation` is set (its value arrives as the options), on a mobile browser outside Tauri. Pauses through `app.pause()` in `postInitialize`. |
 
 Registered outside that array:
 

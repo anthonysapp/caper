@@ -1,34 +1,19 @@
 import type { IApplication } from '../core/interfaces/IApplication';
 import { Signal } from '../signals';
 import { isMobile, isTauri } from '../utils/platform';
-import type { Orientation } from '../utils/web';
+import type { OrientationConfig, OrientationLock as Orientation, OrientationOverlayOptions } from '../utils/orientation';
+import { resolveOrientation } from '../utils/orientation';
 import type { IPlugin } from './Plugin';
 import { Plugin } from './Plugin';
 
-/** `orientationOverlay` in `caper.config.ts`. `false` turns the overlay (and the pause) off. */
-export interface OrientationOverlayOptions {
-  /** Default: "Rotate your device" (portrait) / "Turn your device sideways" (landscape). */
-  text?: string;
-  /** CSS background. Default `#000`. */
-  background?: string;
-  /** CSS text color. Default `#fff`. */
-  color?: string;
-  /** CSS font family. Default: the system font. */
-  fontFamily?: string;
-  /** Class(es) added to the overlay so a game can style it with its own CSS. */
-  className?: string;
-  /** Build the whole overlay yourself; replaces the default element. Called once, when first shown. */
-  element?: () => HTMLElement;
-}
-
 export interface IOrientationPlugin extends IPlugin {
-  /** `caper.config.ts`'s `orientation`, or `undefined` when unset. */
+  /** The lock from `caper.config.ts`'s `orientation`, or `undefined` when unset. */
   readonly orientation: Orientation | undefined;
   /** Whether the plugin is watching at all: orientation set, a touch/mobile device, not Tauri. */
   readonly active: boolean;
   /** Whether the device is currently held the wrong way. */
   readonly mismatched: boolean;
-  /** Fires when `mismatched` changes. Still fires with `orientationOverlay: false`. */
+  /** Fires when `mismatched` changes. Still fires with `orientation: { lock, overlay: false }`. */
   onMismatchChanged: Signal<(mismatched: boolean) => void>;
 }
 
@@ -57,6 +42,7 @@ export class OrientationPlugin extends Plugin implements IOrientationPlugin {
   public onMismatchChanged: Signal<(mismatched: boolean) => void> = new Signal<(mismatched: boolean) => void>();
 
   private _orientation: Orientation | undefined;
+  private _overlayOptions: OrientationOverlayOptions | false = {};
   private _active = false;
   private _mismatched = false;
   /** Whether *this* plugin is the one that paused the app. */
@@ -76,14 +62,20 @@ export class OrientationPlugin extends Plugin implements IOrientationPlugin {
     return this._mismatched;
   }
 
+  /**
+   * `options` is `caper.config.ts`'s `orientation` itself: the config key is
+   * this plugin's id, so `loadPlugin` hands the value over as the options.
+   */
+  public initialize(options?: OrientationConfig | unknown): void {
+    const resolved = resolveOrientation(options);
+    this._orientation = resolved?.lock;
+    this._overlayOptions = resolved?.overlay ?? {};
+  }
+
   // The work happens in postInitialize: pausing reaches into the audio and timer
   // plugins, which register after this one.
-  public initialize(): void {}
-
   public postInitialize(_app?: IApplication): void {
-    const orientation = this.app.config?.orientation;
-    if (orientation !== 'portrait' && orientation !== 'landscape') return;
-    this._orientation = orientation;
+    if (!this._orientation) return;
 
     if (!isMobile || isTauri) return;
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
@@ -99,11 +91,6 @@ export class OrientationPlugin extends Plugin implements IOrientationPlugin {
     }
 
     this._check();
-  }
-
-  private get _overlayOptions(): OrientationOverlayOptions | false {
-    const options = this.app.config?.orientationOverlay;
-    return options === false ? false : (options ?? {});
   }
 
   private _check(): void {

@@ -15,19 +15,31 @@ describe('caperConfigSchema orientation', () => {
     expect(result.success).toBe(false);
     const issue = result.error.issues[0];
     expect(issue.path).toEqual(['orientation']);
-    expect(issue.message).toBe("orientation must be 'portrait' or 'landscape'");
+    expect(issue.message).toBe("orientation must be 'portrait', 'landscape', or { lock: 'portrait' | 'landscape', overlay? }");
   });
 });
 
-describe('caperConfigSchema orientationOverlay', () => {
-  it.each([false, {}, { text: 'Turn it', background: '#123', color: '#fff', fontFamily: 'serif', className: 'rotate' }, { element: () => ({}) }])(
-    'accepts %o',
-    (orientationOverlay) => {
-      expect(caperConfigSchema.safeParse({ orientation: 'portrait', orientationOverlay }).success).toBe(true);
+describe('caperConfigSchema orientation object form', () => {
+  it.each([
+    { lock: 'portrait' },
+    { lock: 'landscape', overlay: false },
+    { lock: 'portrait', overlay: {} },
+    { lock: 'portrait', overlay: { text: 'Turn it', background: '#123', color: '#fff', fontFamily: 'serif', className: 'rotate' } },
+    { lock: 'portrait', overlay: { element: () => ({}) } },
+  ])('accepts %o', (orientation) => {
+    expect(caperConfigSchema.safeParse({ orientation }).success).toBe(true);
+  });
+
+  it('requires lock', () => {
+    const result = caperConfigSchema.safeParse({ orientation: { overlay: false } });
+    expect(result.success).toBe(false);
+    expect(result.error.issues.map((i) => i.message).join(' ')).toMatch(/lock/);
+  });
+
+  it.each([{ lock: 'any' }, { lock: 'portrait', overlay: true }, { lock: 'portrait', overlay: { text: 1 } }, { lock: 'portrait', overlay: { colour: '#fff' } }, { lock: 'portrait', overlay: { element: 'div' } }, { lock: 'portrait', extra: 1 }])(
+    'rejects %o',
+    (orientation) => {
+      expect(caperConfigSchema.safeParse({ orientation }).success).toBe(false);
     },
   );
-
-  it.each([true, 'off', { text: 1 }, { colour: '#fff' }, { element: 'div' }])('rejects %o', (orientationOverlay) => {
-    expect(caperConfigSchema.safeParse({ orientationOverlay }).success).toBe(false);
-  });
 });

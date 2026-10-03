@@ -17,6 +17,55 @@ export const pluginConfigSchema = z.union([
   ]),
 ]);
 
+const ORIENTATION_LOCK_MESSAGE = "orientation must be 'portrait', 'landscape', or { lock: 'portrait' | 'landscape', overlay? }";
+
+const orientationLockSchema = z.enum(['portrait', 'landscape'], { error: ORIENTATION_LOCK_MESSAGE });
+
+const orientationObjectSchema = z.strictObject(
+  {
+    lock: z.enum(['portrait', 'landscape'], {
+      error: (issue) =>
+        issue.input === undefined
+          ? "orientation.lock is required: 'portrait' or 'landscape'"
+          : "orientation.lock must be 'portrait' or 'landscape'",
+    }),
+    overlay: z
+      .union(
+        [
+          z.literal(false),
+          z.strictObject({
+            text: z.string().optional(),
+            background: z.string().optional(),
+            color: z.string().optional(),
+            fontFamily: z.string().optional(),
+            className: z.string().optional(),
+            element: z.function().optional(),
+          }),
+        ],
+        {
+          error:
+            'orientation.overlay must be false or an object of text, background, color, fontFamily, className (strings) and element (a function)',
+        },
+      )
+      .optional(),
+  },
+  { error: (issue) => (issue.code === 'unrecognized_keys' ? `orientation only takes lock and overlay (got ${issue.keys.join(', ')})` : undefined) },
+);
+
+/**
+ * `orientation` is a string shorthand or `{ lock, overlay? }`. Validated by
+ * picking the branch from the value's type rather than with a `z.union`, whose
+ * single "Invalid input" would hide the object branch's precise messages.
+ */
+const orientationSchema = z.any().superRefine((value, ctx) => {
+  const schema = value !== null && typeof value === 'object' ? orientationObjectSchema : orientationLockSchema;
+  const result = schema.safeParse(value);
+  if (result.success) return;
+  for (const issue of result.error.issues) {
+    ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+  }
+});
+
 export const caperConfigSchema = z
   .object({
     id: z.string().min(1).optional(),
@@ -50,22 +99,10 @@ export const caperConfigSchema = z
     useHash: z.boolean().optional(),
     // Build-time only — read by readCaperBuildFlags(), no runtime effect.
     useWasm: z.boolean().optional(),
-    // Read by the native CLI (`caper native init|android`), the PWA manifest
-    // default, and at runtime by the `orientation` plugin.
-    orientation: z.enum(['portrait', 'landscape'], { error: "orientation must be 'portrait' or 'landscape'" }).optional(),
-    orientationOverlay: z
-      .union([
-        z.literal(false),
-        z.strictObject({
-          text: z.string().optional(),
-          background: z.string().optional(),
-          color: z.string().optional(),
-          fontFamily: z.string().optional(),
-          className: z.string().optional(),
-          element: z.function().optional(),
-        }),
-      ])
-      .optional(),
+    // `'portrait' | 'landscape' | { lock, overlay? }`. Read by the native CLI
+    // (`caper native init|android`), the PWA manifest default, and at runtime by
+    // the `orientation` plugin.
+    orientation: orientationSchema.optional(),
     showStats: z.boolean().optional(),
     showSceneDebugMenu: z.boolean().optional(),
     resizeToContainer: z.boolean().optional(),

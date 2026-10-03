@@ -68,7 +68,8 @@ describe('OrientationPlugin', () => {
   async function start(config: Record<string, unknown>) {
     h.app = makeApp(config);
     plugin = new OrientationPlugin();
-    plugin.initialize();
+    // The config key `orientation` is the plugin id, so its value arrives as the options.
+    plugin.initialize(config.orientation as any);
     await plugin.postInitialize(h.app);
     return h.app;
   }
@@ -94,7 +95,8 @@ describe('OrientationPlugin', () => {
 
   it('hides the overlay and resumes when the device turns the right way', async () => {
     const media = mockMatchMedia(true);
-    const app = await start({ orientation: 'landscape' });
+    const app = await start({ orientation: { lock: 'landscape' } });
+    expect(plugin.orientation).toBe('landscape');
     expect(overlay()?.textContent).toBe('Turn your device sideways');
     const changes: boolean[] = [];
     plugin.onMismatchChanged.connect((mismatched) => changes.push(mismatched));
@@ -125,6 +127,7 @@ describe('OrientationPlugin', () => {
     h.app = makeApp({ orientation: 'portrait' });
     h.app.paused = true;
     plugin = new OrientationPlugin();
+    plugin.initialize('portrait');
     await plugin.postInitialize(h.app);
 
     media.rotate(false);
@@ -137,9 +140,9 @@ describe('OrientationPlugin', () => {
     expect(h.app.paused).toBe(true);
   });
 
-  it('with orientationOverlay: false shows no overlay and does not pause, but still signals', async () => {
+  it('with overlay: false shows no overlay and does not pause, but still signals', async () => {
     const media = mockMatchMedia(true);
-    const app = await start({ orientation: 'portrait', orientationOverlay: false });
+    const app = await start({ orientation: { lock: 'portrait', overlay: false } });
     const changes: boolean[] = [];
     plugin.onMismatchChanged.connect((mismatched) => changes.push(mismatched));
 
@@ -190,8 +193,10 @@ describe('OrientationPlugin', () => {
   it('applies custom text, colors, font and className to the default element', async () => {
     mockMatchMedia(false);
     await start({
-      orientation: 'portrait',
-      orientationOverlay: { text: 'Hold it upright', background: 'rgb(10, 20, 30)', color: 'rgb(1, 2, 3)', fontFamily: 'Parlour', className: 'my-rotate' },
+      orientation: {
+        lock: 'portrait',
+        overlay: { text: 'Hold it upright', background: 'rgb(10, 20, 30)', color: 'rgb(1, 2, 3)', fontFamily: 'Parlour', className: 'my-rotate' },
+      },
     });
 
     const el = overlay()!;
@@ -208,7 +213,7 @@ describe('OrientationPlugin', () => {
     const custom = document.createElement('section');
     custom.textContent = 'custom';
     const element = vi.fn(() => custom);
-    await start({ orientation: 'portrait', orientationOverlay: { element } });
+    await start({ orientation: { lock: 'portrait', overlay: { element } } });
 
     expect(custom.isConnected).toBe(true);
     expect(custom.dataset.caperOrientationOverlay).toBeDefined();

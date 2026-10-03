@@ -37,6 +37,19 @@ describe('readConfigOrientation', () => {
     expect(readConfigOrientation(dir)).toBe('landscape');
   });
 
+  it.each(['portrait', 'landscape'])('reads lock %s from the object form, ignoring overlay', (lock) => {
+    const dir = appWithConfig(config(`  orientation: { lock: '${lock}', overlay: { element: () => document.createElement('div') } },`));
+    expect(readConfigOrientation(dir)).toBe(lock);
+  });
+
+  it('throws when the object form has a non-literal lock', () => {
+    expect(() => readConfigOrientation(appWithConfig(`const o = 'portrait';\n${config('  orientation: { lock: o },')}`))).toThrow(/string literal/);
+  });
+
+  it('throws when the object form has no lock', () => {
+    expect(() => readConfigOrientation(appWithConfig(config('  orientation: { overlay: false },')))).toThrow(/lock/);
+  });
+
   it('throws on a value it cannot use', () => {
     expect(() => readConfigOrientation(appWithConfig(config(`  orientation: 'any',`)))).toThrow(/portrait.*landscape/);
   });

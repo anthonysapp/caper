@@ -76,11 +76,12 @@ needs `NDK_HOME` and `JAVA_HOME` exported; the command prints the values it foun
   `src-tauri/gen/android/app/src/main/AndroidManifest.xml`: `portrait` stays `portrait`, `landscape`
   becomes `sensorLandscape` (either landscape side, following the sensor). Change the config and
   run the command again to apply a new value. With `orientation` unset the manifest is left
-  alone. Do not edit the attribute by hand; `caper doctor` warns when the two disagree. The config
-  is read with an AST parse, so write the value as a string literal. If it cannot be read, the
-  command warns and skips this step.
+  alone. Do not edit the attribute by hand; `caper doctor` warns when the two disagree. Either
+  form works, `orientation: 'portrait'` or `orientation: { lock: 'portrait', overlay: ... }`; the
+  config is read with an AST parse, so write the lock as a string literal. If it cannot be read,
+  the command warns and skips this step.
 - **Web versus native.** In a mobile browser the same `orientation` shows Caper's "rotate your
-  device" overlay (`OrientationPlugin`); inside Tauri that plugin stays off and the native
+  device" overlay (`OrientationPlugin`, styled by `orientation.overlay`); inside Tauri that plugin stays off and the native
   app relies on this manifest lock instead.
 - **Adds scripts** `native:android:dev` (`tauri android dev`) and `native:android:build`
   (`tauri android build`) to `package.json`, never overwriting existing ones.

@@ -1114,6 +1114,28 @@ describe('androidNative', () => {
     expect(snapshot(dir)).toEqual(before);
   });
 
+  it('reads the lock from the object form of orientation', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    const loadConfig = () => ({ orientation: { lock: 'landscape', overlay: false } });
+
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [] }, []), ...deps, loadConfig });
+
+    expect(result.orientation).toBe('landscape');
+    expect(readManifestOrientation(fs.readFileSync(manifestPath(dir), 'utf-8'))).toBe('sensorLandscape');
+  });
+
+  it('warns and skips orientation when caper.config orientation is invalid', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+
+    const result = await androidNative(dir, {}, { ...stubs({ installed: [] }, []), ...deps, loadConfig: () => ({ orientation: { lock: 'any' } }) });
+
+    expect(result.orientationPatched).toBe(false);
+    expect(result.warnings[0]).toMatch(/could not read caper\.config\.ts orientation/);
+    expect(fs.readFileSync(manifestPath(dir), 'utf-8')).toBe(MANIFEST_FIXTURE);
+  });
+
   it('warns and skips orientation when caper.config cannot be read', async () => {
     const dir = makeTempDir();
     const deps = scaffoldAndroidApp(dir);

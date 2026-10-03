@@ -483,24 +483,26 @@ Every allowed key in `caper.config.ts`. Defer shape details to
 | `resolution?: number` | DPI scale factor. |
 | `splash?: SplashOptions` | Splash screen config. |
 | `logger?: LoggerMode` | Verbosity. |
-| `orientation?: 'portrait' \| 'landscape'` | Lock the game to one orientation on every target. Unset means no lock. Write it as a string literal (the build and CLI read it by parsing the file). `caper native android` writes it into `AndroidManifest.xml`, `caper native init` opens a 450x800 window for portrait, the PWA manifest's `orientation` defaults to it, and in a mobile browser (not desktop, not Tauri) a "rotate your device" overlay covers and pauses the game while the device is held the wrong way. |
-| `orientationOverlay?: false \| { text?, background?, color?, fontFamily?, className?, element? }` | Restyle that overlay; `element: () => HTMLElement` replaces it, `false` turns off the overlay and its pause (`app.orientation.onMismatchChanged` / `app.orientation.mismatched` still report). |
+| `orientation?: 'portrait' \| 'landscape' \| { lock, overlay? }` | Lock the game to one orientation on every target. Unset means no lock. The string is shorthand for `{ lock: '...' }`. Write the lock as a string literal (the build and CLI read it by parsing the file). `caper native android` writes it into `AndroidManifest.xml`, `caper native init` opens a 450x800 window for portrait, the PWA manifest's `orientation` defaults to it, and in a mobile browser (not desktop, not Tauri) a "rotate your device" overlay covers and pauses the game while the device is held the wrong way. |
+| `orientation.overlay?: false \| { text?, background?, color?, fontFamily?, className?, element? }` | Restyle that overlay; `element: () => HTMLElement` replaces it, `false` turns off the overlay and its pause (`app.orientation.onMismatchChanged` / `app.orientation.mismatched` still report). |
 
 Plus all standard PixiJS `ApplicationOptions` (`antialias`, `width`, `height`, etc.).
 
 Orientation overlay, customized or replaced:
 
 ```ts
+// shorthand: lock to portrait with the default overlay
+export default defineConfig({ id: 'my-game', orientation: 'portrait' });
+
+// object form: same lock, custom overlay
 export default defineConfig({
   id: 'my-game',
-  orientation: 'portrait',
-  // restyle the default overlay (or add className and style it in your CSS)
-  orientationOverlay: { text: 'Turn your phone upright', background: '#1b1020', fontFamily: 'Parlour' },
-  // or draw nothing and react yourself:
-  // orientationOverlay: false,
+  orientation: { lock: 'portrait', overlay: { text: 'Hold your phone upright to play' } },
+  // also: background, color, fontFamily, className (style it in your CSS),
+  // element: () => myOwnElement, or overlay: false to draw nothing and react yourself
 });
 
-// with orientationOverlay: false
+// with overlay: false
 app.orientation.onMismatchChanged.connect((mismatched) => (mismatched ? app.pause() : app.resume()));
 ```
 

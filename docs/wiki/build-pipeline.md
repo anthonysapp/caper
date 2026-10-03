@@ -55,8 +55,9 @@ Then plain `vite` / `vite build`. There is no `caper build` command.
 (`internal/schema.mjs:20` — `.loose()` at the top level, so unknown keys pass, but
 known keys are typed). It is read **three different ways** and each matters:
 AST-parsed at `caper()` construction time for boolean build flags
-(`internal/buildFlags.mjs:12`: `useWasm`, plus `orientation`, which becomes the
-PWA manifest's default `orientation`; the native CLI reads the same key through
+(`internal/buildFlags.mjs:12`: `useWasm`, plus the `orientation` lock, read from
+`orientation: 'portrait'` or `orientation: { lock: 'portrait', ... }`, which becomes
+the PWA manifest's default `orientation`; the native CLI reads the same key through
 `readConfigOrientation`); AST-parsed on every dts
 regeneration to find `defineConfig` / `defineData` / `defineBreakpoints` / `actions`
 / `contexts` / the `application` class (`plugins/caperConfig.mjs:142`); and actually

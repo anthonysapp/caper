@@ -6,6 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
+import { resolveOrientation } from '../src/utils/orientation.js';
+
 /**
  * `caper native init` — one-shot Tauri v2 scaffolding for a Caper app: adds
  * `@tauri-apps/cli`, runs `tauri init --ci` with a pinned identifier/port,
@@ -141,18 +143,15 @@ async function defaultLoadConfig(cwd) {
 }
 
 /**
- * `caper.config.ts`'s `orientation` through `loadConfig`, or a warning when it
+ * The orientation lock from `caper.config.ts` through `loadConfig` (either form
+ * of `orientation`, normalized by `resolveOrientation`), or a warning when it
  * can't be read: a broken or unusual config must never stop a native command.
  *
  * @returns {Promise<{ orientation?: 'portrait' | 'landscape', warning?: string }>}
  */
 export async function readOrientation(cwd, loadConfig = defaultLoadConfig) {
   try {
-    const orientation = (await loadConfig(cwd))?.orientation;
-    if (orientation !== undefined && !(orientation in ANDROID_SCREEN_ORIENTATION)) {
-      throw new Error(`orientation must be 'portrait' or 'landscape' (got ${JSON.stringify(orientation)})`);
-    }
-    return { orientation };
+    return { orientation: resolveOrientation((await loadConfig(cwd))?.orientation)?.lock };
   } catch (err) {
     return { warning: `could not read caper.config.ts orientation (${err.message}), so orientation was skipped.` };
   }

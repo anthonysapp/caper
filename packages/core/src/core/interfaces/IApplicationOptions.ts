@@ -23,7 +23,7 @@ import type { TextStyle } from '../../mixins/factory/props';
 import type { CaptionsOptions } from '../../plugins/captions';
 import { GSAPPluginOptions } from '../../plugins/GSAPPlugin';
 import type { IDataAdapterOptions } from '../../plugins/DataAdapter';
-import type { OrientationOverlayOptions } from '../../plugins/OrientationPlugin';
+import type { OrientationConfig } from '../../utils/orientation';
 import type { PluginConfig } from '../config';
 import { IApplication } from './IApplication';
 
@@ -52,28 +52,24 @@ export interface IApplicationOptions extends ApplicationOptions {
   useWasm?: boolean;
   /**
    * Lock the game to one orientation on every target. Unset means no lock.
+   * `'portrait'` / `'landscape'` is shorthand for `{ lock: 'portrait' }` etc.
    *
    * - `caper native android` sets `android:screenOrientation` on the
    *   MainActivity (`portrait`, or `sensorLandscape` for landscape).
    * - `caper native init` opens a 450x800 desktop window for portrait
    *   (1280x720 otherwise).
-   * - The PWA web manifest's `orientation` defaults to it.
-   * - At runtime, on a touch/mobile browser (never desktop, never Tauri), the
+   * - The PWA web manifest's `orientation` defaults to the lock.
+   * - At runtime, on a mobile browser (never desktop, never Tauri), the
    *   `orientation` plugin shows a "rotate your device" overlay and pauses the
-   *   game while the device is held the wrong way. See `orientationOverlay`.
+   *   game while the device is held the wrong way. `overlay` restyles it
+   *   (`text` / `background` / `color` / `fontFamily`), adds a `className`, or
+   *   replaces it (`element`); `overlay: false` turns off the overlay and its
+   *   pause, and `app.orientation.onMismatchChanged` still fires.
    *
-   * The build and the CLI read it with an AST parse, so write it as a string
-   * literal.
+   * The build and the CLI read the lock with an AST parse, so write the lock
+   * (the string, or `lock` in the object) as a string literal.
    */
-  orientation?: 'portrait' | 'landscape';
-  /**
-   * The web "rotate your device" overlay shown while `orientation` is set and
-   * the device is held the wrong way. On by default. `false` turns off the
-   * overlay and its pause; `app.orientation.onMismatchChanged` still fires.
-   * `text` / `background` / `color` / `fontFamily` restyle the default
-   * element, `className` is added to it, and `element` replaces it entirely.
-   */
-  orientationOverlay?: false | OrientationOverlayOptions;
+  orientation?: OrientationConfig;
   /**
    * Enable the `window.Caper.automation[id]` facade for this app regardless of
    * environment. Automation is also auto-enabled in dev or when

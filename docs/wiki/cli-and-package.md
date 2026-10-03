@@ -189,12 +189,16 @@ wrapper prints what changed, warnings, the next commands, and the `NDK_HOME` /
 `doctor` need only `orientation`, so they read it with
 `readConfigOrientation(root)` (`build/internal/buildFlags.mjs`): the same oxc AST
 parse as the preset's build flags, so nothing executes and no DOM stub is
-needed. It throws on a parse error, a missing `defineConfig({...})` literal, or a
-value that is not `'portrait'` / `'landscape'` as a string literal;
-`readOrientation` (`native.mjs`) turns that into a "could not read
-caper.config.ts orientation" warning and the step is skipped. Each command takes
-an injectable `loadConfig(cwd)` returning the config object, which is what the
-tests pass.
+needed. It reads the lock from either form, `orientation: 'portrait'` or the
+`lock` property of `orientation: { lock: 'portrait', overlay }` (`overlay` is
+never read; it may hold a function). It throws on a parse error, a missing
+`defineConfig({...})` literal, or a lock that is not `'portrait'` /
+`'landscape'` as a string literal; `readOrientation` (`native.mjs`) turns that
+into a "could not read caper.config.ts orientation" warning and the step is
+skipped. Each command takes an injectable `loadConfig(cwd)` returning the config
+object, which is what the tests pass. Both paths normalize through
+`resolveOrientation` (`src/utils/orientation.js`), the same helper the runtime
+plugin uses.
 
 **Identifier rule**: defaults to `dev.caper.<slug>` (slug = the app's
 `package.json` name, scope stripped, lowercased, non-alnum runs collapsed to
