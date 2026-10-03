@@ -92,7 +92,7 @@ function caperPluginList({ assets = {}, pwa } = {}) {
     // place that knows a project overrode it.
     caperConfigPlugin(true, manifestUrl),
     caperDevHelperPlugin(),
-    ...(effectivePwa ? caperPwaPlugins(effectivePwa) : []),
+    ...(effectivePwa ? caperPwaPlugins(effectivePwa, { orientation: buildFlags.orientation }) : []),
   ];
 }
 

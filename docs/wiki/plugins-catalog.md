@@ -310,6 +310,37 @@ are dead code — the worker never posts that message.
 
 ---
 
+## OrientationPlugin (`orientation`)
+
+`packages/core/src/plugins/OrientationPlugin.ts`: the web "rotate your device" guard for
+`orientation` in `caper.config.ts`. Last in `defaultPlugins`. Reached as `app.orientation`.
+
+**Interface.** Getters `orientation` (the config value or `undefined`), `active`,
+`mismatched`; signal `onMismatchChanged(mismatched)` (not a core signal). Config
+`orientationOverlay?: false | { text, background, color, fontFamily, className, element }`
+(`OrientationOverlayOptions`): the text/colors/font restyle the default element (black,
+white centered system-font text, "Rotate your device" / "Turn your device sideways"),
+`className` is added to it, `element()` replaces it (called once, on first show). `false`
+turns off the overlay and the pause; the signal still fires so the game can react itself.
+
+**Behavior.** All work happens in `postInitialize`, because `app.pause()` reaches into the
+audio and timer plugins. Inert unless `orientation` is set, the device is a phone or tablet
+(`isMobile`; a touchscreen laptop does not count), and it is not Tauri (`isTauri`; native apps are locked by their
+manifests). Then it watches `matchMedia('(orientation: portrait)')` (`change`, plus a check
+at start). On a mismatch it appends a fixed `inset:0` overlay at the top z-index, which
+blocks input, and calls `app.pause()`; when the device turns back it removes the overlay
+and calls `app.resume()`, but only if it made the pause (same ownership rule as
+`@caperjs/plugin-tauri`: an app already paused is left paused). On
+`app.fullScreen.onFullScreenChange(true)` it calls `screen.orientation.lock(...)` and
+ignores a rejection (Android Chrome honors it in fullscreen; iOS has no lock).
+
+**Gotchas.** `destroy()` removes the overlay and the media listener and resumes a pause it
+owns. The config key `orientation` is also what `loadPlugin` hands the plugin as
+`options` (the key is the id), so the plugin ignores its options and reads `app.config`.
+No browser globals at module load.
+
+---
+
 ## GSAPPlugin (`GSAPPlugin`)
 
 `packages/core/src/plugins/GSAPPlugin.ts:328` — registers GSAP's `PixiPlugin`, custom

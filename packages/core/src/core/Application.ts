@@ -65,6 +65,7 @@ import { type IDevToolsPlugin } from '../plugins/DevToolsPlugin';
 import { IFullScreenPlugin } from '../plugins/FullScreenPlugin';
 import { type IGSAPPlugin } from '../plugins/GSAPPlugin';
 import { ILookupPlugin } from '../plugins/LookupPlugin';
+import type { IOrientationPlugin } from '../plugins/OrientationPlugin';
 import { ITimerPlugin } from '../plugins/TimerPlugin';
 import { shouldEnableScreenDebug } from '../plugins/screenDebugFlag';
 import { Signal } from '../signals';
@@ -210,6 +211,7 @@ export class Application extends PIXIPApplication implements IApplication {
   protected _focusManager: IFocusManagerPlugin;
   protected _popupManager: IPopupManagerPlugin;
   protected _timerPlugin: ITimerPlugin;
+  protected _orientationPlugin: IOrientationPlugin;
   protected _audioManager: IAudioManagerPlugin;
   protected _voiceoverPlugin: IVoiceOverPlugin;
   protected _captionsPlugin: ICaptionsPlugin;
@@ -558,6 +560,14 @@ export class Application extends PIXIPApplication implements IApplication {
       this._timerPlugin = this.getPlugin<ITimerPlugin>('timers');
     }
     return this._timerPlugin;
+  }
+
+  /** The "rotate your device" guard for `orientation` in caper.config.ts: `mismatched`, `onMismatchChanged`. */
+  public get orientation(): IOrientationPlugin {
+    if (!this._orientationPlugin) {
+      this._orientationPlugin = this.getPlugin<IOrientationPlugin>('orientation');
+    }
+    return this._orientationPlugin;
   }
 
   public get audio(): IAudioManagerPlugin {

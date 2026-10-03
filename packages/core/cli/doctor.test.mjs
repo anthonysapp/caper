@@ -712,8 +712,9 @@ describe('runChecks native-android rows', () => {
 
   const allTargets = 'aarch64-linux-android\narmv7-linux-androideabi\ni686-linux-android\nx86_64-linux-android\n';
 
-  function check(cwd, env, responses = { 'rustup target list --installed': allTargets }) {
+  function check(cwd, env, responses = { 'rustup target list --installed': allTargets }, loadConfig = () => ({})) {
     return runChecks(cwd, {
+      loadConfig,
       online: false,
       platform: 'linux',
       env,
@@ -813,5 +814,83 @@ describe('runChecks native-android rows', () => {
     expect(pageSize.status).toBe('fail');
     expect(pageSize.hint).toMatch(/caper native android/);
     expect(find(checks, 'native-android-bars').status).toBe('warn');
+  });
+
+  describe('native-android-orientation', () => {
+    const MANIFEST = '<manifest>\n  <application>\n    <activity\n      android:name=".MainActivity"\n      android:exported="true">\n    </activity>\n  </application>\n</manifest>\n';
+    const manifestPath = (cwd) => path.join(cwd, 'src-tauri/gen/android/app/src/main/AndroidManifest.xml');
+    const writeManifest = (cwd, value) =>
+      fs.writeFileSync(
+        manifestPath(cwd),
+        value ? MANIFEST.replace('android:name=".MainActivity"', `android:name=".MainActivity"\n      android:screenOrientation="${value}"`) : MANIFEST,
+        'utf-8',
+      );
+
+    async function orientationRow(cwd, loadConfig) {
+      const { bin, ndk, java } = fs.existsSync(path.join(cwd, 'bin')) ? { bin: path.join(cwd, 'bin'), ndk: path.join(cwd, 'ndk'), java: path.join(cwd, 'java') } : scaffoldAndroid(cwd);
+      return find(await check(cwd, { PATH: bin, NDK_HOME: ndk, JAVA_HOME: java }, undefined, loadConfig), 'native-android-orientation');
+    }
+
+    it('is absent when src-tauri/gen/android does not exist', async () => {
+      const cwd = makeTempDir();
+      writeTauriConf(cwd);
+      writeTauriCli(cwd, '2.11.4');
+      const checks = await check(cwd, {}, undefined, () => ({ orientation: 'portrait' }));
+      expect(find(checks, 'native-android-orientation')).toBeUndefined();
+    });
+
+    it('is ok with no orientation lock when neither side sets one', async () => {
+      const cwd = makeTempDir();
+      scaffoldAndroid(cwd);
+      writeManifest(cwd);
+      const row = await orientationRow(cwd, () => ({}));
+      expect(row.status).toBe('ok');
+      expect(row.label).toMatch(/no orientation lock/);
+    });
+
+    it('is ok when the manifest matches caper.config', async () => {
+      const cwd = makeTempDir();
+      scaffoldAndroid(cwd);
+      writeManifest(cwd, 'sensorLandscape');
+      expect((await orientationRow(cwd, () => ({ orientation: 'landscape' }))).status).toBe('ok');
+    });
+
+    it('warns with the caper native android hint on a mismatch', async () => {
+      const cwd = makeTempDir();
+      scaffoldAndroid(cwd);
+      writeManifest(cwd, 'portrait');
+      const row = await orientationRow(cwd, () => ({ orientation: 'landscape' }));
+      expect(row.status).toBe('warn');
+      expect(row.hint).toBe('caper native android');
+    });
+
+    it('warns when caper.config sets an orientation the manifest lacks', async () => {
+      const cwd = makeTempDir();
+      scaffoldAndroid(cwd);
+      writeManifest(cwd);
+      const row = await orientationRow(cwd, () => ({ orientation: 'portrait' }));
+      expect(row.status).toBe('warn');
+      expect(row.hint).toBe('caper native android');
+    });
+
+    it('warns when the manifest has a lock but caper.config sets none', async () => {
+      const cwd = makeTempDir();
+      scaffoldAndroid(cwd);
+      writeManifest(cwd, 'portrait');
+      const row = await orientationRow(cwd, () => ({}));
+      expect(row.status).toBe('warn');
+      expect(row.hint).toMatch(/caper\.config\.ts/);
+    });
+
+    it('warns when caper.config orientation cannot be read', async () => {
+      const cwd = makeTempDir();
+      scaffoldAndroid(cwd);
+      writeManifest(cwd);
+      const row = await orientationRow(cwd, () => {
+        throw new Error('boom');
+      });
+      expect(row.status).toBe('warn');
+      expect(row.label).toMatch(/could not read caper\.config\.ts orientation/);
+    });
   });
 });

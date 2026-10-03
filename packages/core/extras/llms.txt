@@ -219,9 +219,9 @@ subcommands run from the app root.
 | `caper doctor [--offline] [--json]` | One-screen health check: installed vs latest caper, npm vs linked engine (and whether the linked build is stale), generated types present/fresh, asset manifest, agent pointers, peer deps, caches. Exit 1 on any ✗. |
 | `caper agent init [--dir <skillsDir>]` | Install the shipped `caper` agent skill (default `.claude/skills/caper/SKILL.md`) and upsert a pointer block into `AGENTS.md`/`CLAUDE.md`. Re-run after upgrading caper. |
 | `caper agent probe <url> [--action n[=json]]… [--until "<js predicate>"] [--wait ms] [--screenshot p] [--headed] [--json]` | Drive a **running** app headlessly through the automation bridge (§17) in a Chromium you own: boots, sends actions, waits on state, returns context/state/log/errors (+ screenshot). Needs `playwright` in the app's devDependencies. |
-| `caper native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]` | One-shot Tauri v2 scaffolding: adds `@tauri-apps/cli`, runs `tauri init --ci`, names the app and window after the package (title-cased: `my-game` → "My Game"; `--title` overrides), pins a `dev.caper.*`-style identifier + a stable non-3000 dev port, adds `native:dev`/`native:build` scripts. No-ops with "already initialized" if `src-tauri/` exists. |
+| `caper native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]` | One-shot Tauri v2 scaffolding: adds `@tauri-apps/cli`, runs `tauri init --ci`, names the app and window after the package (title-cased: `my-game` → "My Game"; `--title` overrides), pins a `dev.caper.*`-style identifier + a stable non-3000 dev port, opens a 1280x720 window (450x800 when `caper.config.ts` sets `orientation: 'portrait'`), adds `native:dev`/`native:build` scripts. No-ops with "already initialized" if `src-tauri/` exists. |
 | `caper native plugin` | Wires an already-`native init`'d app up for `@caperjs/plugin-tauri`: adds its JS deps, runs `tauri add store`, and patches the window permissions it needs into `capabilities/default.json`. Fails with "run `caper native init` first" if `src-tauri/` is missing; idempotent otherwise. |
-| `caper native android` | Sets an already-`native init`'d app up for Android: finds the SDK/NDK/JDK/rustup, adds the four Android Rust targets, runs `tauri android init --ci`, adds 16 KB page alignment to `build.rs`, hides the system bars in `MainActivity.kt`, adds `native:android:dev`/`native:android:build` scripts. Idempotent; warns instead of overwriting files you changed. |
+| `caper native android` | Sets an already-`native init`'d app up for Android: finds the SDK/NDK/JDK/rustup, adds the four Android Rust targets, runs `tauri android init --ci`, adds 16 KB page alignment to `build.rs`, hides the system bars in `MainActivity.kt`, locks the activity to `caper.config.ts`'s `orientation` (if set; re-run after changing it), adds `native:android:dev`/`native:android:build` scripts. Idempotent; warns instead of overwriting files you changed. |
 | `caper update` | Update Caper to latest. |
 | `caper install` | Install peer deps (rarely needed; normally automatic). |
 | `caper vo generate [inputDir] [outputDir]` | Voiceover CSV generation from locales. Defaults: `./src/locales` → `./src/assets/audio/vo/csv`. |
@@ -236,7 +236,10 @@ exists. For Android, run `caper native android` once, then
 `pnpm native:android:dev` (device or emulator) or
 `pnpm native:android:build --debug --apk --target aarch64`, with `NDK_HOME` and
 `JAVA_HOME` exported; doctor adds `native-android-*` rows (Rust targets, NDK,
-JDK, 16 KB alignment, hidden system bars) once `src-tauri/gen/android/` exists. Under the Tauri CLI (detected via `TAURI_ENV_PLATFORM`), the preset
+JDK, 16 KB alignment, hidden system bars, and orientation matching `caper.config.ts`) once `src-tauri/gen/android/` exists.
+Set `orientation: 'portrait' | 'landscape'` in `caper.config.ts` rather than editing
+`AndroidManifest.xml` by hand: `caper native android` writes it there (`portrait` or
+`sensorLandscape`) and doctor flags a mismatch. Under the Tauri CLI (detected via `TAURI_ENV_PLATFORM`), the preset
 configures the dev server for you — no extra `vite.config.ts` needed — and
 disables the PWA plugin, since service workers don't work on the `tauri://`
 origin. Check `isTauri` (exported from `@caperjs/core`, alongside
@@ -480,8 +483,26 @@ Every allowed key in `caper.config.ts`. Defer shape details to
 | `resolution?: number` | DPI scale factor. |
 | `splash?: SplashOptions` | Splash screen config. |
 | `logger?: LoggerMode` | Verbosity. |
+| `orientation?: 'portrait' \| 'landscape'` | Lock the game to one orientation on every target. Unset means no lock. Write it as a string literal (the build and CLI read it by parsing the file). `caper native android` writes it into `AndroidManifest.xml`, `caper native init` opens a 450x800 window for portrait, the PWA manifest's `orientation` defaults to it, and in a mobile browser (not desktop, not Tauri) a "rotate your device" overlay covers and pauses the game while the device is held the wrong way. |
+| `orientationOverlay?: false \| { text?, background?, color?, fontFamily?, className?, element? }` | Restyle that overlay; `element: () => HTMLElement` replaces it, `false` turns off the overlay and its pause (`app.orientation.onMismatchChanged` / `app.orientation.mismatched` still report). |
 
 Plus all standard PixiJS `ApplicationOptions` (`antialias`, `width`, `height`, etc.).
+
+Orientation overlay, customized or replaced:
+
+```ts
+export default defineConfig({
+  id: 'my-game',
+  orientation: 'portrait',
+  // restyle the default overlay (or add className and style it in your CSS)
+  orientationOverlay: { text: 'Turn your phone upright', background: '#1b1020', fontFamily: 'Parlour' },
+  // or draw nothing and react yourself:
+  // orientationOverlay: false,
+});
+
+// with orientationOverlay: false
+app.orientation.onMismatchChanged.connect((mismatched) => (mismatched ? app.pause() : app.resume()));
+```
 
 Screen viewport debugging is available through the built-in `screenDebug` overlay.
 Open the game URL in a normal browser tab with `?caper-screen-debug=1` to enable it.

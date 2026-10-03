@@ -50,6 +50,22 @@ export const caperConfigSchema = z
     useHash: z.boolean().optional(),
     // Build-time only — read by readCaperBuildFlags(), no runtime effect.
     useWasm: z.boolean().optional(),
+    // Read by the native CLI (`caper native init|android`), the PWA manifest
+    // default, and at runtime by the `orientation` plugin.
+    orientation: z.enum(['portrait', 'landscape'], { error: "orientation must be 'portrait' or 'landscape'" }).optional(),
+    orientationOverlay: z
+      .union([
+        z.literal(false),
+        z.strictObject({
+          text: z.string().optional(),
+          background: z.string().optional(),
+          color: z.string().optional(),
+          fontFamily: z.string().optional(),
+          className: z.string().optional(),
+          element: z.function().optional(),
+        }),
+      ])
+      .optional(),
     showStats: z.boolean().optional(),
     showSceneDebugMenu: z.boolean().optional(),
     resizeToContainer: z.boolean().optional(),

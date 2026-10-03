@@ -130,10 +130,40 @@ function renderCommand({ cmd, args }) {
   return [cmd, ...args].join(' ');
 }
 
+/** The `caper.config.ts` orientation values, and the `android:screenOrientation` each one becomes. */
+export const ANDROID_SCREEN_ORIENTATION = Object.freeze({ portrait: 'portrait', landscape: 'sensorLandscape' });
+
+/** The default injectable `loadConfig`: the subset of `caper.config.ts` the native commands read. */
+async function defaultLoadConfig(cwd) {
+  // Imported lazily: build/ pulls in the oxc parser and vite, which only these commands need.
+  const { readConfigOrientation } = await import('../build/internal/buildFlags.mjs');
+  return { orientation: readConfigOrientation(cwd) };
+}
+
+/**
+ * `caper.config.ts`'s `orientation` through `loadConfig`, or a warning when it
+ * can't be read: a broken or unusual config must never stop a native command.
+ *
+ * @returns {Promise<{ orientation?: 'portrait' | 'landscape', warning?: string }>}
+ */
+export async function readOrientation(cwd, loadConfig = defaultLoadConfig) {
+  try {
+    const orientation = (await loadConfig(cwd))?.orientation;
+    if (orientation !== undefined && !(orientation in ANDROID_SCREEN_ORIENTATION)) {
+      throw new Error(`orientation must be 'portrait' or 'landscape' (got ${JSON.stringify(orientation)})`);
+    }
+    return { orientation };
+  } catch (err) {
+    return { warning: `could not read caper.config.ts orientation (${err.message}), so orientation was skipped.` };
+  }
+}
+
 /** Returns a new tauri.conf.json: sets `identifier` and window 0's title/size; leaves the rest untouched. */
-export function patchTauriConfig(conf, { identifier, title }) {
+export function patchTauriConfig(conf, { identifier, title, orientation }) {
   const windows = Array.isArray(conf.app?.windows) ? [...conf.app.windows] : [];
-  windows[0] = { ...(windows[0] ?? {}), title, width: 1280, height: 720 };
+  // 450x800 keeps a portrait window, title bar included, on a 13" laptop screen.
+  const size = orientation === 'portrait' ? { width: 450, height: 800 } : { width: 1280, height: 720 };
+  windows[0] = { ...(windows[0] ?? {}), title, ...size };
 
   return {
     ...conf,
@@ -208,9 +238,9 @@ function writeJson(file, data, indent) {
  *
  * @param {string} cwd
  * @param {{ identifier?: string, port?: number, icon?: string }} [opts]
- * @param {{ run?: typeof defaultRun }} [deps]
+ * @param {{ run?: typeof defaultRun, loadConfig?: typeof defaultLoadConfig }} [deps]
  */
-export async function initNative(cwd, opts = {}, { run = defaultRun } = {}) {
+export async function initNative(cwd, opts = {}, { run = defaultRun, loadConfig = defaultLoadConfig } = {}) {
   const pkgPath = path.join(cwd, 'package.json');
   if (!fs.existsSync(pkgPath)) {
     throw new Error('no package.json found in this directory.');
@@ -268,9 +298,13 @@ export async function initNative(cwd, opts = {}, { run = defaultRun } = {}) {
   ];
   run(EXEC_RUNNER[pm], initArgs, { cwd });
 
+  const warnings = [];
+  const { orientation, warning } = await readOrientation(cwd, loadConfig);
+  if (warning) warnings.push(warning);
+
   const tauriConfPath = path.join(srcTauriDir, 'tauri.conf.json');
   const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf-8'));
-  writeJson(tauriConfPath, patchTauriConfig(tauriConf, { identifier, title }), 2);
+  writeJson(tauriConfPath, patchTauriConfig(tauriConf, { identifier, title, orientation }), 2);
 
   // Re-read: the package manager rewrote package.json when it added @tauri-apps/cli,
   // and patching the copy read above would silently drop that devDependency.
@@ -281,7 +315,7 @@ export async function initNative(cwd, opts = {}, { run = defaultRun } = {}) {
     run(EXEC_RUNNER[pm], ['tauri', 'icon', opts.icon], { cwd });
   }
 
-  return { status: 'ok', name, title, identifier, port, pm };
+  return { status: 'ok', name, title, identifier, port, pm, orientation, warnings };
 }
 
 /**
@@ -541,6 +575,38 @@ export function findMainActivity(genAndroidDir) {
   return walk(path.join(genAndroidDir, 'app/src/main/java'));
 }
 
+/** Where `tauri android init` writes the app manifest, relative to `src-tauri/`. */
+export const ANDROID_MANIFEST = 'gen/android/app/src/main/AndroidManifest.xml';
+
+const MAIN_ACTIVITY_TAG_RE = /<activity\b[^>]*\bandroid:name="\.MainActivity"[^>]*>/;
+const SCREEN_ORIENTATION_RE = /(\bandroid:screenOrientation=")([^"]*)(")/;
+
+/** The MainActivity's `android:screenOrientation` in an AndroidManifest.xml, or `undefined`. */
+export function readManifestOrientation(xml) {
+  return String(xml ?? '').match(MAIN_ACTIVITY_TAG_RE)?.[0].match(SCREEN_ORIENTATION_RE)?.[2];
+}
+
+/**
+ * Sets `android:screenOrientation` on the `.MainActivity` element for a
+ * `caper.config.ts` orientation (see `ANDROID_SCREEN_ORIENTATION`), replacing a
+ * different value or adding the attribute under `android:name` with its
+ * indentation. Returns `xml` itself when nothing changes, including when
+ * `orientation` is unset or there is no MainActivity element.
+ */
+export function patchManifestOrientation(xml, orientation) {
+  const value = ANDROID_SCREEN_ORIENTATION[orientation];
+  const tag = value ? xml.match(MAIN_ACTIVITY_TAG_RE)?.[0] : undefined;
+  if (!tag) return xml;
+
+  let patched;
+  if (SCREEN_ORIENTATION_RE.test(tag)) {
+    patched = tag.replace(SCREEN_ORIENTATION_RE, `$1${value}$3`);
+  } else {
+    patched = tag.replace(/(\s+)(android:name="\.MainActivity")/, `$1$2$1android:screenOrientation="${value}"`);
+  }
+  return patched === tag ? xml : xml.replace(tag, patched);
+}
+
 /** Returns a new package.json: adds `native:android:dev`/`native:android:build` scripts only where absent. */
 export function patchAndroidScripts(pkg) {
   const scripts = { ...(pkg.scripts ?? {}) };
@@ -572,13 +638,15 @@ const ANDROID_MISSING_HELP = {
  * The I/O core of `caper native android`: the Android steps from
  * docs/wiki/native-tauri.md: installs the Rust targets, runs
  * `tauri android init --ci`, adds the 16 KB page-alignment link arg to
- * `build.rs`, hides the system bars in `MainActivity.kt`, and adds
- * `native:android:*` scripts. No console output; the CLI wrapper below owns
- * presentation. Idempotent: a second run makes zero `run` calls and zero writes.
+ * `build.rs`, hides the system bars in `MainActivity.kt`, locks the
+ * MainActivity to `caper.config.ts`'s `orientation` in `AndroidManifest.xml`
+ * (only when it is set), and adds `native:android:*` scripts. No console
+ * output; the CLI wrapper below owns presentation. Idempotent: a second run
+ * makes zero `run` calls and zero writes.
  *
  * @param {string} cwd
  * @param {object} [opts] unused today; kept for symmetry with `initNative`
- * @param {{ run?: typeof defaultRun, exec?: typeof defaultExec, env?: Record<string, string>, platform?: string, homedir?: string, exists?: (p: string) => boolean, listDir?: (p: string) => string[] }} [deps]
+ * @param {{ run?: typeof defaultRun, exec?: typeof defaultExec, env?: Record<string, string>, platform?: string, homedir?: string, exists?: (p: string) => boolean, listDir?: (p: string) => string[], loadConfig?: typeof defaultLoadConfig }} [deps]
  */
 export async function androidNative(
   cwd,
@@ -591,6 +659,7 @@ export async function androidNative(
     homedir = os.homedir(),
     exists = fs.existsSync,
     listDir = defaultListDir,
+    loadConfig = defaultLoadConfig,
   } = {},
 ) {
   const pkgPath = path.join(cwd, 'package.json');
@@ -650,6 +719,24 @@ export async function androidNative(
     }
   }
 
+  // Unset means no lock: the manifest is left alone, never rewritten to "unspecified".
+  let orientationPatched = false;
+  const { orientation, warning: orientationWarning } = await readOrientation(cwd, loadConfig);
+  if (orientationWarning) warnings.push(orientationWarning);
+  if (orientation) {
+    const manifestPath = path.join(srcTauriDir, ANDROID_MANIFEST);
+    const xml = fs.existsSync(manifestPath) ? fs.readFileSync(manifestPath, 'utf-8') : null;
+    const patched = xml === null ? null : patchManifestOrientation(xml, orientation);
+    if (patched === null || readManifestOrientation(patched) !== ANDROID_SCREEN_ORIENTATION[orientation]) {
+      warnings.push(
+        `could not find the MainActivity in src-tauri/${ANDROID_MANIFEST}, so the ${orientation} orientation was not applied. Set android:screenOrientation="${ANDROID_SCREEN_ORIENTATION[orientation]}" on it by hand.`,
+      );
+    } else if (patched !== xml) {
+      fs.writeFileSync(manifestPath, patched, 'utf-8');
+      orientationPatched = true;
+    }
+  }
+
   const pkgRaw = fs.readFileSync(pkgPath, 'utf-8');
   const pkg = JSON.parse(pkgRaw);
   const patchedPkg = patchAndroidScripts(pkg);
@@ -661,11 +748,14 @@ export async function androidNative(
   const buildRsPatched = buildRsPlan === 'write';
   return {
     status: 'ok',
-    changed: addedTargets.length > 0 || ranAndroidInit || buildRsPatched || mainActivityPatched || addedScripts.length > 0,
+    changed:
+      addedTargets.length > 0 || ranAndroidInit || buildRsPatched || mainActivityPatched || orientationPatched || addedScripts.length > 0,
     addedTargets,
     ranAndroidInit,
     buildRsPatched,
     mainActivityPatched,
+    orientation,
+    orientationPatched,
     addedScripts,
     env: {
       ANDROID_HOME: resolved.env.ANDROID_HOME,
@@ -739,6 +829,8 @@ async function runInit(args) {
   console.log(`  ${yellow('identifier:')} ${result.identifier}${result.identifier.startsWith(DEFAULT_IDENTIFIER_PREFIX) ? dim(' (placeholder — change before shipping)') : ''}`);
   console.log(`  ${yellow('dev port:')}   ${result.port}`);
   console.log(`  ${yellow('scripts:')}    native:dev, native:build`);
+  if (result.orientation) console.log(`  ${yellow('window:')}     ${result.orientation === 'portrait' ? '450x800' : '1280x720'} (${result.orientation}, from caper.config.ts)`);
+  for (const warning of result.warnings) console.log(yellow(`  ⚠ ${warning}`));
   console.log(`\n  Run ${cyan('npx caper doctor')} to check your native toolchain.`);
   console.log(`  The first ${cyan('native:build')} compiles Rust — expect a few minutes.`);
 }
@@ -783,6 +875,9 @@ async function runAndroid() {
     if (result.ranAndroidInit) console.log(`  ${yellow('ran:')} tauri android init --ci`);
     if (result.buildRsPatched) console.log(`  ${yellow('build.rs:')} 16 KB page alignment added to src-tauri/build.rs`);
     if (result.mainActivityPatched) console.log(`  ${yellow('MainActivity.kt:')} system bars hidden`);
+    if (result.orientationPatched) {
+      console.log(`  ${yellow('AndroidManifest.xml:')} ${result.orientation} orientation (android:screenOrientation="${ANDROID_SCREEN_ORIENTATION[result.orientation]}")`);
+    }
     if (result.addedScripts.length) console.log(`  ${yellow('scripts:')} ${result.addedScripts.join(', ')}`);
   }
   for (const warning of result.warnings) console.log(yellow(`  ⚠ ${warning}`));

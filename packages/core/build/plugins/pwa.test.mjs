@@ -59,6 +59,21 @@ describe('update option', () => {
   });
 });
 
+describe('manifest orientation', () => {
+  it("is 'any' when caper.config sets no orientation", () => {
+    expect(resolvePwaOptions({}).options.manifest.orientation).toBe('any');
+  });
+
+  it.each(['portrait', 'landscape'])('defaults to caper.config orientation %s', (orientation) => {
+    expect(resolvePwaOptions({}, { orientation }).options.manifest.orientation).toBe(orientation);
+  });
+
+  it("lets the project's own pwa.manifest.orientation win", () => {
+    const { options } = resolvePwaOptions({ manifest: { orientation: 'landscape-primary' } }, { orientation: 'portrait' });
+    expect(options.manifest.orientation).toBe('landscape-primary');
+  });
+});
+
 /**
  * Workbox's RegExpRoute, verbatim: it execs the pattern against `url.href` (not
  * the pathname), and drops cross-origin hits that do not start at character 0.

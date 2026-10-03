@@ -149,7 +149,7 @@ public get assets(): IAssetsPlugin {
 Current set (`Application.ts:355-615`): `i18n`, `resizer`, `breakpoints`,
 `actionsPlugin`, `input`, `animation` (GSAP), `lookup`, `assets`, `scenes`,
 `webEvents`, `keyboard`, `focus`, `popups`, `timers`, `audio`, `voiceover`,
-`captions`, `fullScreen`, `data`. A third-party plugin gets **no** accessor —
+`captions`, `fullScreen`, `orientation`, `data`. A third-party plugin gets **no** accessor —
 callers use `app.getPlugin<T>('id')` (and augment `AppTypeOverrides['Plugins']` for
 the id to typecheck).
 
@@ -198,6 +198,7 @@ sequential and awaited, so this array **is** the initialization order:
 | 14 | `audio` | `AudioManagerPlugin` | |
 | 15 | `i18n` | `i18nPlugin` | |
 | 16 | `timers` | `TimerPlugin` | |
+| 17 | `orientation` | `OrientationPlugin` | Inert unless `orientation` is set, on a touch/mobile browser outside Tauri. Pauses through `app.pause()` in `postInitialize`. |
 
 Registered outside that array:
 
