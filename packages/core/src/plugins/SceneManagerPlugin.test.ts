@@ -47,6 +47,13 @@ describe('SceneManagerPlugin destroy', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores pause/resume before the first scene exists', async () => {
+    await plugin.initialize({}, mockApp as never);
+    expect(plugin.currentScene).toBeUndefined();
+    expect(() => mockApp.onPause.emit({})).not.toThrow();
+    expect(() => mockApp.onResume.emit({})).not.toThrow();
+  });
+
   it('stops forwarding pause/resume to the current scene after destroy', async () => {
     await plugin.initialize({}, mockApp as never);
     const onPause = vi.fn();
