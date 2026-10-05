@@ -633,6 +633,19 @@ export function patchAndroidScripts(pkg) {
   return { ...pkg, scripts };
 }
 
+/** Tauri's generated Gradle wrapper jar, relative to the app root. */
+export const GRADLE_WRAPPER_JAR = 'src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar';
+
+/** Whether git ignores `rel` in `cwd` (`git check-ignore -q` exits 0 when it does). False outside a repo. */
+function isGitIgnored(cwd, rel, exec) {
+  try {
+    exec('git', ['check-ignore', '-q', rel], { cwd, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** The default injectable `exec`: a synchronous child process whose stdout is returned as a string. */
 function defaultExec(cmd, args, opts = {}) {
   return execFileSync(cmd, args, { encoding: 'utf-8', ...opts });
@@ -763,11 +776,35 @@ export async function androidNative(
     writeJson(pkgPath, patchedPkg, detectIndent(pkgRaw));
   }
 
+  // Tauri generates a Gradle wrapper jar that must be committed, or a fresh clone cannot build the APK.
+  // Many .gitignore templates ignore *.jar, so add an exception for this one file.
+  let gitignorePatched = false;
+  if (fs.existsSync(path.join(cwd, GRADLE_WRAPPER_JAR)) && isGitIgnored(cwd, GRADLE_WRAPPER_JAR, exec)) {
+    const gitignorePath = path.join(cwd, '.gitignore');
+    const current = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, 'utf-8') : '';
+    const separator = current === '' || current.endsWith('\n') ? '' : '\n';
+    fs.writeFileSync(
+      gitignorePath,
+      `${current}${separator}\n# Tauri Android: the Gradle wrapper jar must be committed, or fresh clones cannot build.\n!${GRADLE_WRAPPER_JAR}\n`,
+      'utf-8',
+    );
+    gitignorePatched = true;
+    if (isGitIgnored(cwd, GRADLE_WRAPPER_JAR, exec)) {
+      warnings.push(`${GRADLE_WRAPPER_JAR} is still ignored by git (a parent folder is ignored?); add it with \`git add -f\`.`);
+    }
+  }
+
   const buildRsPatched = buildRsPlan === 'write';
   return {
     status: 'ok',
     changed:
-      addedTargets.length > 0 || ranAndroidInit || buildRsPatched || mainActivityPatched || orientationPatched || addedScripts.length > 0,
+      addedTargets.length > 0 ||
+      ranAndroidInit ||
+      buildRsPatched ||
+      mainActivityPatched ||
+      orientationPatched ||
+      addedScripts.length > 0 ||
+      gitignorePatched,
     addedTargets,
     ranAndroidInit,
     buildRsPatched,
@@ -775,6 +812,7 @@ export async function androidNative(
     orientation,
     orientationPatched,
     addedScripts,
+    gitignorePatched,
     env: {
       ANDROID_HOME: resolved.env.ANDROID_HOME,
       NDK_HOME: resolved.env.NDK_HOME,
@@ -925,6 +963,7 @@ async function runAndroid() {
       console.log(`  ${yellow('AndroidManifest.xml:')} ${result.orientation} orientation (android:screenOrientation="${ANDROID_SCREEN_ORIENTATION[result.orientation]}")`);
     }
     if (result.addedScripts.length) console.log(`  ${yellow('scripts:')} ${result.addedScripts.join(', ')}`);
+    if (result.gitignorePatched) console.log(`  ${yellow('.gitignore:')} the Gradle wrapper jar is no longer ignored, commit it`);
   }
   for (const warning of result.warnings) console.log(yellow(`  ⚠ ${warning}`));
 
