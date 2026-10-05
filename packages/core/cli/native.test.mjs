@@ -1081,6 +1081,40 @@ describe('androidNative', () => {
     return out;
   }
 
+  it('un-ignores the Gradle wrapper jar when the app ignores *.jar, once', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\n*.jar\n', 'utf-8');
+    const calls = [];
+    const base = stubs({ installed: [...ANDROID_RUST_TARGETS] }, calls);
+    const jar = 'src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar';
+    // Like `git check-ignore -q`: exit 0 (return) when ignored, non-zero (throw) when not.
+    const exec = (cmd, args, opts) => {
+      if (cmd === 'git' && args[0] === 'check-ignore') {
+        const ignore = fs.readFileSync(path.join(opts.cwd, '.gitignore'), 'utf-8');
+        if (ignore.includes(`!${jar}`)) throw Object.assign(new Error('not ignored'), { status: 1 });
+        return '';
+      }
+      return base.exec(cmd, args, opts);
+    };
+    const run = (cmd, args, opts) => {
+      const result = base.run(cmd, args, opts);
+      if (args.join(' ') === 'tauri android init --ci') {
+        fs.mkdirSync(path.join(opts.cwd, 'src-tauri/gen/android/gradle/wrapper'), { recursive: true });
+        fs.writeFileSync(path.join(opts.cwd, jar), 'jar', 'utf-8');
+      }
+      return result;
+    };
+
+    const first = await androidNative(dir, {}, { ...deps, run, exec, loadConfig: () => ({}) });
+    expect(first.gitignorePatched).toBe(true);
+    expect(fs.readFileSync(path.join(dir, '.gitignore'), 'utf-8')).toContain(`!${jar}`);
+
+    const second = await androidNative(dir, {}, { ...deps, run, exec, loadConfig: () => ({}) });
+    expect(second.gitignorePatched).toBe(false);
+    expect(fs.readFileSync(path.join(dir, '.gitignore'), 'utf-8').split(`!${jar}`)).toHaveLength(2);
+  });
+
   it('fails clearly when src-tauri does not exist, with zero calls', async () => {
     const dir = makeTempDir();
     fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"x"}\n', 'utf-8');

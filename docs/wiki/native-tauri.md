@@ -145,6 +145,9 @@ makes the first two:
   on a Pixel 8), so a `UICanvas` pads its top row below it. Corner UI clears a centred punch hole; to
   use the strip, pass `useSafeArea: isTauri && isAndroid ? { top: false } : true`. The webview cannot
   tell a centred hole from a corner one.
+- **Commit `src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar`.** Without it a fresh clone fails at
+  the Gradle step ("Unable to access jarfile ... gradle-wrapper.jar"). A `*.jar` line in `.gitignore` hides it;
+  `caper native android` adds a `!` exception for this one file when git ignores it.
 - **Bundled assets get no HTTP range responses** (a `Range` request returns 200 with the whole file).
   Fine for WebAudio decode; matters for streamed `<audio>`/video.
 - **CSP:** ship `csp: null` (Tauri's default). Strict CSP needs `import 'pixi.js/unsafe-eval'`
