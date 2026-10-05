@@ -19,7 +19,7 @@ no custom Rust is needed. The game still runs at the speed of that webview.
 | `isTauri` | `packages/core/src/utils/platform.ts` | `true` inside a Tauri webview. SSR-safe. |
 | `caper native init` | `packages/core/cli/native.mjs` | Scaffolds `src-tauri/` (`tauri init --ci`), sets a real identifier, a per-app dev port (3100-3999, never 3000), a 1280x720 window (450x800 when `caper.config.ts` sets `orientation: 'portrait'`), and `native:dev` / `native:build` scripts. `beforeBuildCommand` is a bare `vite build` on purpose (see Gotchas). See [cli-and-package.md](cli-and-package.md). |
 | `caper native plugin` | same file | Idempotent. Adds `@caperjs/plugin-tauri` + `@tauri-apps/api`, runs `tauri add store`, grants `core:window:allow-set-fullscreen`, `allow-is-fullscreen`, `allow-close`. |
-| `caper native android` | same file (`androidNative`) | Idempotent. Runs every Android step below: adds the Rust targets, runs `tauri android init --ci`, adds the 16 KB link arg to `build.rs`, hides the system bars in `MainActivity.kt`, locks the MainActivity to `caper.config.ts`'s `orientation` in `AndroidManifest.xml`, adds `native:android:dev` / `native:android:build` scripts. Finds the Android SDK, NDK, JDK and rustup on its own and passes them to every child process. |
+| `caper native android` | same file (`androidNative`) | Idempotent. Runs every Android step below: adds the Rust targets, runs `tauri android init --ci`, adds the 16 KB link arg to `build.rs`, hides the system bars in `MainActivity.kt`, locks the MainActivity to `caper.config.ts`'s `orientation` in `AndroidManifest.xml`, adds `native:android:dev` / `native:android:build` scripts. Finds the Android SDK, NDK, JDK and rustup on its own and passes them to every child process. `caper native android dev` / `build [...tauri args]` run `tauri android dev` / `build` with that same env (they need `src-tauri/gen/android/`). |
 | `caper doctor` rows | `packages/core/cli/doctor.mjs` | Only when `src-tauri/` exists: `rustc` >= 1.88, `@tauri-apps/cli` v2, identifier not a placeholder, dev port sane, Xcode CLT (macOS), plugin wiring. Once `src-tauri/gen/android/` exists, six more: the four Rust targets, `NDK_HOME`, `JAVA_HOME` (warn with an `export` hint when unset but found), 16 KB alignment in `build.rs`, hidden system bars in `MainActivity.kt`, and the manifest orientation matching `caper.config.ts`. |
 | `@caperjs/plugin-tauri` | `packages/plugin-tauri` | Runtime plugin, id `tauri`; inert on the web. Pause on hide (only resumes what it paused), native window fullscreen on desktop through `FullScreenPlugin.setFullscreenDriver` ([plugins-catalog.md](plugins-catalog.md)), durable saves (`app.store` adapter id `tauri`, a real file via `@tauri-apps/plugin-store`, `localStorage` fallback off-Tauri), `quit()`, context-menu suppression, Android back button as a key. Tauri packages are imported dynamically behind `isTauri`. |
 
@@ -49,8 +49,11 @@ adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-u
 
 Prerequisites: Android Studio (SDK, an NDK, its bundled JBR), and Rust installed through **rustup**
 (Homebrew's `rust` cannot add targets). The command stops with a plain-English list if the NDK, a JDK
-or rustup cannot be found. The `native:android:*` scripts run the Tauri CLI directly, so your shell
-needs `NDK_HOME` and `JAVA_HOME` exported; the command prints the values it found.
+or rustup cannot be found. The `native:android:*` scripts route through caper
+(`caper native android dev|build`, `runAndroidTauri`): they resolve `NDK_HOME`, `JAVA_HOME` and a
+rustup-first `PATH` themselves, then run `tauri android <dev|build>` with every other argument passed
+through, so your shell needs no exports. To run `tauri android` directly instead, export the values the
+setup command prints (and put rustup's bin ahead of Homebrew's `/opt/homebrew/bin` on `PATH`).
 
 **What it does** (`androidNative` in `packages/core/cli/native.mjs`), and how to do it by hand:
 
@@ -83,8 +86,9 @@ needs `NDK_HOME` and `JAVA_HOME` exported; the command prints the values it foun
 - **Web versus native.** In a mobile browser the same `orientation` shows Caper's "rotate your
   device" overlay (`OrientationPlugin`, styled by `orientation.overlay`); inside Tauri that plugin stays off and the native
   app relies on this manifest lock instead.
-- **Adds scripts** `native:android:dev` (`tauri android dev`) and `native:android:build`
-  (`tauri android build`) to `package.json`, never overwriting existing ones.
+- **Adds scripts** `native:android:dev` (`caper native android dev`) and `native:android:build`
+  (`caper native android build`) to `package.json`. The old bare values (`tauri android dev` /
+  `tauri android build`) are upgraded; any other value is left alone.
 
 `src-tauri/gen/android/` is an Android Studio project and is meant to be committed (its own
 `.gitignore` excludes build output). Three edits every Caper game needs; `caper native android`

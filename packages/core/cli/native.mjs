@@ -12,8 +12,10 @@ import { resolveOrientation } from '../src/utils/orientation.js';
  * `caper native init` — one-shot Tauri v2 scaffolding for a Caper app: adds
  * `@tauri-apps/cli`, runs `tauri init --ci` with a pinned identifier/port,
  * then patches the generated `tauri.conf.json` and the app's own
- * `package.json` scripts. `caper` deliberately does NOT wrap `tauri dev` /
- * `tauri build` — same rule as `dev`/`build` in `cli.mjs`.
+ * `package.json` scripts. `caper` does not wrap `tauri dev` / `tauri build`
+ * (same rule as `dev`/`build` in `cli.mjs`); it wraps only the Android ones
+ * (`caper native android dev|build`), because their environment (NDK_HOME,
+ * JAVA_HOME, rustup-first PATH) is the hard part.
  */
 
 const IDENTIFIER_RE = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/;
@@ -215,7 +217,7 @@ function defaultRun(cmd, args, opts = {}) {
   const result = spawnSync(cmd, args, { stdio: 'inherit', ...opts });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`${cmd} ${args.join(' ')} exited with code ${result.status}`);
+    throw Object.assign(new Error(`${cmd} ${args.join(' ')} exited with code ${result.status}`), { status: result.status });
   }
   return result;
 }
@@ -409,6 +411,17 @@ function compareDottedVersions(a, b) {
 }
 
 /**
+ * Where `rustup` is on `pathDirs`, and whether Homebrew's plain `rust` formula wins `rustc`.
+ * A rustc in /opt/homebrew/bin is always that formula: rustup's formula is keg-only, so its
+ * proxies never land there (though `rustup` itself may).
+ */
+export function rustToolchainOnPath(pathDirs, exists) {
+  const rustupDir = pathDirs.find((dir) => exists(path.join(dir, 'rustup')));
+  const rustcDir = pathDirs.find((dir) => exists(path.join(dir, 'rustc')));
+  return { rustupDir, shadowed: Boolean(rustupDir && rustcDir === HOMEBREW_BIN) };
+}
+
+/**
  * The env every Android child process needs: `ANDROID_HOME`, `NDK_HOME`,
  * `JAVA_HOME`, and a `PATH` whose rustup toolchain proxies win (Homebrew's
  * plain `rustc` can't add targets; keg-only rustup isn't on PATH). Pure: all
@@ -441,11 +454,7 @@ export function resolveAndroidEnv({ env = {}, platform, homedir, exists, listDir
 
   const delimiter = platform === 'win32' ? ';' : ':';
   const pathDirs = (env.PATH ?? '').split(delimiter).filter(Boolean);
-  const rustupDir = pathDirs.find((dir) => exists(path.join(dir, 'rustup')));
-  const rustcDir = pathDirs.find((dir) => exists(path.join(dir, 'rustc')));
-  // A rustc in /opt/homebrew/bin is always Homebrew's plain `rust` formula: rustup's
-  // formula is keg-only, so its proxies never land there (though `rustup` itself may).
-  const shadowed = rustupDir && rustcDir === HOMEBREW_BIN;
+  const { rustupDir, shadowed } = rustToolchainOnPath(pathDirs, exists);
   let PATH = env.PATH;
   if (!rustupDir || shadowed) {
     const candidates = [...(darwin ? [HOMEBREW_RUSTUP_BIN] : []), path.join(homedir, '.cargo/bin')];
@@ -606,11 +615,21 @@ export function patchManifestOrientation(xml, orientation) {
   return patched === tag ? xml : xml.replace(tag, patched);
 }
 
-/** Returns a new package.json: adds `native:android:dev`/`native:android:build` scripts only where absent. */
+const ANDROID_SCRIPTS = Object.freeze({
+  'native:android:dev': { old: 'tauri android dev', value: 'caper native android dev' },
+  'native:android:build': { old: 'tauri android build', value: 'caper native android build' },
+});
+
+/**
+ * Returns a new package.json: adds `native:android:dev`/`native:android:build` scripts (routed through
+ * `caper native android dev|build`) where absent, and upgrades the old bare `tauri android ...` values.
+ * Any other value is left alone.
+ */
 export function patchAndroidScripts(pkg) {
   const scripts = { ...(pkg.scripts ?? {}) };
-  if (!('native:android:dev' in scripts)) scripts['native:android:dev'] = 'tauri android dev';
-  if (!('native:android:build' in scripts)) scripts['native:android:build'] = 'tauri android build';
+  for (const [name, { old, value }] of Object.entries(ANDROID_SCRIPTS)) {
+    if (!(name in scripts) || scripts[name] === old) scripts[name] = value;
+  }
   return { ...pkg, scripts };
 }
 
@@ -739,7 +758,7 @@ export async function androidNative(
   const pkgRaw = fs.readFileSync(pkgPath, 'utf-8');
   const pkg = JSON.parse(pkgRaw);
   const patchedPkg = patchAndroidScripts(pkg);
-  const addedScripts = Object.keys(patchedPkg.scripts).filter((name) => !(name in (pkg.scripts ?? {})));
+  const addedScripts = Object.keys(patchedPkg.scripts).filter((name) => patchedPkg.scripts[name] !== pkg.scripts?.[name]);
   if (addedScripts.length) {
     writeJson(pkgPath, patchedPkg, detectIndent(pkgRaw));
   }
@@ -767,10 +786,38 @@ export async function androidNative(
   };
 }
 
+/**
+ * The I/O core of `caper native android dev|build`: runs `tauri android <mode> ...args` with the
+ * resolved Android env (NDK_HOME, JAVA_HOME, rustup-first PATH), so the user's shell needs none of it.
+ * Throws if the Android project or toolchain is missing; the `run` error (non-zero exit) propagates.
+ *
+ * @param {string} cwd
+ * @param {'dev' | 'build'} mode
+ * @param {string[]} args passed to tauri untouched
+ * @param {{ run?: typeof defaultRun, env?: Record<string, string>, platform?: string, homedir?: string, exists?: (p: string) => boolean, listDir?: (p: string) => string[] }} [deps]
+ */
+export function runAndroidTauri(
+  cwd,
+  mode,
+  args = [],
+  { run = defaultRun, env = process.env, platform = process.platform, homedir = os.homedir(), exists = fs.existsSync, listDir = defaultListDir } = {},
+) {
+  if (!exists(path.join(cwd, 'src-tauri/gen/android'))) {
+    throw new Error('no Android project, run `caper native android` first.');
+  }
+  const resolved = resolveAndroidEnv({ env, platform, homedir, exists, listDir });
+  const blocking = resolved.missing.filter((name) => name in ANDROID_MISSING_HELP);
+  if (blocking.length) {
+    throw new Error(`the Android toolchain is incomplete:\n${blocking.map((name) => `  - ${ANDROID_MISSING_HELP[name]}`).join('\n')}`);
+  }
+  const pm = packageManagerFor(cwd);
+  return run(EXEC_RUNNER[pm], ['tauri', 'android', mode, ...args], { cwd, env: resolved.env, stdio: 'inherit' });
+}
+
 function printUsage() {
   console.error(red('Usage: caper native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]'));
   console.error(red('       caper native plugin'));
-  console.error(red('       caper native android'));
+  console.error(red('       caper native android [dev|build] [...tauri args]'));
 }
 
 function parseInitArgs(args) {
@@ -884,12 +931,20 @@ async function runAndroid() {
   console.log('\n  Next:');
   console.log(`    ${cyan('pnpm native:android:dev')}  ${dim('# on a device or emulator')}`);
   console.log(`    ${cyan('pnpm native:android:build --debug --apk --target aarch64')}`);
-  console.log(`  Those scripts need NDK_HOME and JAVA_HOME exported in your shell:`);
+  console.log(`  Those scripts set NDK_HOME, JAVA_HOME and the rustup PATH themselves.`);
+  console.log(`  To run ${cyan('tauri android')} directly, export these first:`);
   console.log(`    export NDK_HOME="${result.env.NDK_HOME}"`);
   console.log(`    export JAVA_HOME="${result.env.JAVA_HOME}"`);
-  if (result.env.rustupBin) {
-    console.log(`  and rustup's Rust ahead of any other on PATH (plain Homebrew rust has no Android targets):`);
-    console.log(`    export PATH="${result.env.rustupBin}:$PATH"`);
+  if (result.env.rustupBin) console.log(`    export PATH="${result.env.rustupBin}:$PATH"`);
+}
+
+async function runAndroidTauriCommand(mode, args) {
+  try {
+    runAndroidTauri(process.cwd(), mode, args);
+  } catch (err) {
+    // The child already printed its own output; add one red line, no stack.
+    console.error(red(`caper native android ${mode}: ${err.message}`));
+    process.exit(typeof err.status === 'number' ? err.status : 1);
   }
 }
 
@@ -910,6 +965,10 @@ export async function native(args) {
   }
 
   if (args[0] === 'android') {
+    if (args[1] === 'dev' || args[1] === 'build') {
+      await runAndroidTauriCommand(args[1], args.slice(2));
+      return;
+    }
     await runAndroid();
     return;
   }

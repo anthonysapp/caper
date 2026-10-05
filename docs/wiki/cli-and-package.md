@@ -73,7 +73,7 @@ banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 | `agent init [--dir <skillsDir>]` | `agent(args.slice(1))` (`cli/agent.mjs`) | copies the shipped `caper` agent skill into the app (default `.claude/skills/`) and upserts a marker-delimited pointer block into `AGENTS.md`/`CLAUDE.md` |
 | `native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]` | `native(args.slice(1))` (`cli/native.mjs`) | one-shot Tauri v2 scaffolding — see [Native (Tauri)](#native-tauri) below |
 | `native plugin` | `native(args.slice(1))` (`cli/native.mjs`) | wires an already-`native init`'d app up for `@caperjs/plugin-tauri` — see [Native (Tauri)](#native-tauri) below |
-| `native android` | `native(args.slice(1))` (`cli/native.mjs`) | sets an already-`native init`'d app up for Android builds; see [Native (Tauri)](#native-tauri) below |
+| `native android` | `native(args.slice(1))` (`cli/native.mjs`) | sets an already-`native init`'d app up for Android builds; `native android dev|build [...tauri args]` runs `tauri android dev|build` with the resolved Android env; see [Native (Tauri)](#native-tauri) below |
 | `agent probe <url> [opts]` | `probe(args)` (`cli/probe.mjs`, via `cli/agent.mjs`) | launches the app's own `playwright` Chromium, waits for `Caper.__readyApps`, sends `--action`s, optional `--until` predicate via `Caper.automation[id].waitFor`, returns context/state/log/errors (+ `--screenshot`); exit 1 on boot/until timeout or page errors, 2 if playwright is missing |
 | `types [--no-assets]` | `types(args)` (`cli/types.mjs`) | `vite.resolveConfig` on the app's own `vite.config`, then calls the `api` seams: `vite-plugin-assetpack.api.runOnce()` → `vite-plugin-caper-config.api.generateTypes()` → `vite-plugin-asset-types.api.generateTypes()`; same output as a dev-server start, no server |
 | `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri` and six `native-android-*` rows once `src-tauri/gen/android/` exists, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
@@ -185,6 +185,16 @@ Idempotent: a second run makes zero `run` calls and zero writes. The CLI
 wrapper prints what changed, warnings, the next commands, and the `NDK_HOME` /
 `JAVA_HOME` values to export for the `native:android:*` scripts.
 
+**`caper native android dev|build [...tauri args]`** (`runAndroidTauri` in
+`native.mjs`) is what the `native:android:dev` / `native:android:build`
+scripts run (setup writes them; the old bare `tauri android ...` values are
+upgraded on re-run). It requires `src-tauri/gen/android/` ("no Android
+project, run `caper native android` first"), resolves the env with
+`resolveAndroidEnv` (same plain-English toolchain error), and runs
+`<pm runner> tauri android <mode> ...args` with that env and inherited stdio.
+Everything after the mode passes through untouched. The wrapper exits with the
+child's exit code and prints one red line, never a stack trace.
+
 **Reading `caper.config.ts` from the CLI.** `native init`, `native android` and
 `doctor` need only `orientation`, so they read it with
 `readConfigOrientation(root)` (`build/internal/buildFlags.mjs`): the same oxc AST
@@ -227,7 +237,8 @@ hint); else `ok`. Unreadable `Cargo.toml`/`capabilities/default.json` ->
 `src-tauri/gen/android/` exists: `native-android-rust` (rustup reachable and
 all four Android targets installed), `native-android-ndk` and
 `native-android-java` (`ok` when `NDK_HOME` / `JAVA_HOME` is set to a
-directory, `warn` with an `export` hint when unset but found, else `fail`),
+directory, also `ok` when unset but found, since the `native:android:*` scripts set it,
+else `fail`),
 `native-android-16kb` (`build.rs` has `max-page-size=16384`, else `fail`), and
 `native-android-bars` (`MainActivity.kt` hides the system bars, else `warn`),
 and `native-android-orientation` (`ok` when the manifest's
@@ -235,7 +246,10 @@ and `native-android-orientation` (`ok` when the manifest's
 sets one; `warn` hinting `caper native android` when config is set and the
 manifest disagrees; `warn` hinting to set the config or remove the attribute
 when only the manifest has a lock; `warn` when the config can't be read).
-Failing rows hint `caper native android`.
+Failing rows hint `caper native android`. `native-android-rust` also `warn`s
+(hint `export PATH="<rustup bin>:$PATH"`) when the real `PATH` resolves `rustc`
+to `/opt/homebrew/bin` (Homebrew's formula) while rustup exists: the scripts
+handle it, plain `tauri android` would fail.
 
 **`caper create [path] [--use-yarn|--use-pnpm]`**
 (`packages/core/cli/create.mjs`; `create-caper.mjs` is a thin wrapper around

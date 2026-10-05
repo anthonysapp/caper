@@ -16,6 +16,7 @@ import {
   readManifestOrientation,
   readOrientation,
   resolveAndroidEnv,
+  rustToolchainOnPath,
   TAURI_PLUGIN_PERMISSIONS,
 } from './native.mjs';
 
@@ -220,6 +221,7 @@ export async function runChecks(
     env = process.env,
     homedir = os.homedir(),
     loadConfig = undefined,
+    exists = fs.existsSync,
   } = {},
 ) {
   const checks = [];
@@ -457,7 +459,7 @@ export async function runChecks(
           return [];
         }
       };
-      const android = resolveAndroidEnv({ env, platform, homedir, exists: fs.existsSync, listDir });
+      const android = resolveAndroidEnv({ env, platform, homedir, exists, listDir });
 
       if (android.missing.includes('rustup')) {
         push(checks, 'native-android-rust', 'fail', 'rustup not found', 'install Rust through rustup, then caper native android');
@@ -467,7 +469,18 @@ export async function runChecks(
           if (missingTargets.length) {
             push(checks, 'native-android-rust', 'fail', `missing rust targets: ${missingTargets.join(', ')}`, 'caper native android');
           } else {
-            push(checks, 'native-android-rust', 'ok', `rust targets: ${ANDROID_RUST_TARGETS.length} Android targets`);
+            const realDirs = (env.PATH ?? '').split(platform === 'win32' ? ';' : ':').filter(Boolean);
+            if (rustToolchainOnPath(realDirs, exists).shadowed) {
+              push(
+                checks,
+                'native-android-rust',
+                'warn',
+                "Homebrew's rustc comes first on PATH; pnpm native:android:* handle it, plain `tauri android` will fail",
+                `export PATH="${android.env.PATH.split(platform === 'win32' ? ';' : ':')[0]}:$PATH"`,
+              );
+            } else {
+              push(checks, 'native-android-rust', 'ok', `rust targets: ${ANDROID_RUST_TARGETS.length} Android targets`);
+            }
           }
         } catch {
           push(checks, 'native-android-rust', 'fail', 'rustup target list failed', 'caper native android');
@@ -489,7 +502,8 @@ export async function runChecks(
           if (isDir(env[name])) push(checks, id, 'ok', `${name} ${env[name]}`);
           else push(checks, id, 'fail', `${name} is not a directory: ${env[name]}`, install);
         } else if (android.env[name]) {
-          push(checks, id, 'warn', `${name} not set (found ${android.env[name]})`, `export ${name}=${android.env[name]}`);
+          // Not exported, but found: the native:android:* scripts set it themselves.
+          push(checks, id, 'ok', `${name} ${android.env[name]} (found; the native:android scripts set it)`);
         } else {
           push(checks, id, 'fail', `${name} not set`, install);
         }
