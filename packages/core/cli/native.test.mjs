@@ -33,6 +33,7 @@ import {
   readManifestOrientation,
   renderMainActivity,
   resolveAndroidEnv,
+  runAndroidTauri,
   TAURI_PLUGIN_PERMISSIONS,
 } from './native.mjs';
 
@@ -919,20 +920,109 @@ describe('planMainActivity / renderMainActivity', () => {
 });
 
 describe('patchAndroidScripts', () => {
-  it('adds the android scripts when absent', () => {
+  it('adds the android scripts, routed through caper, when absent', () => {
     expect(patchAndroidScripts({ scripts: { dev: 'vite' } }).scripts).toEqual({
       dev: 'vite',
-      'native:android:dev': 'tauri android dev',
-      'native:android:build': 'tauri android build',
+      'native:android:dev': 'caper native android dev',
+      'native:android:build': 'caper native android build',
     });
   });
 
-  it('never overwrites existing ones and does not mutate', () => {
+  it('upgrades the old bare tauri scripts', () => {
+    const pkg = { scripts: { 'native:android:dev': 'tauri android dev', 'native:android:build': 'tauri android build' } };
+    expect(patchAndroidScripts(pkg).scripts).toEqual({
+      'native:android:dev': 'caper native android dev',
+      'native:android:build': 'caper native android build',
+    });
+    expect(pkg.scripts['native:android:dev']).toBe('tauri android dev');
+  });
+
+  it('leaves custom values alone and does not mutate', () => {
     const pkg = { scripts: { 'native:android:dev': 'custom' } };
     const out = patchAndroidScripts(pkg);
     expect(out.scripts['native:android:dev']).toBe('custom');
-    expect(out.scripts['native:android:build']).toBe('tauri android build');
+    expect(out.scripts['native:android:build']).toBe('caper native android build');
     expect(pkg.scripts).toEqual({ 'native:android:dev': 'custom' });
+  });
+
+  it('leaves the new values untouched', () => {
+    const pkg = { scripts: { 'native:android:dev': 'caper native android dev', 'native:android:build': 'caper native android build' } };
+    expect(patchAndroidScripts(pkg).scripts).toEqual(pkg.scripts);
+  });
+});
+
+describe('runAndroidTauri', () => {
+  function scaffold(dir, { genAndroid = true } = {}) {
+    fs.writeFileSync(path.join(dir, 'pnpm-lock.yaml'), '', 'utf-8');
+    fs.mkdirSync(path.join(dir, 'src-tauri'), { recursive: true });
+    if (genAndroid) fs.mkdirSync(path.join(dir, 'src-tauri/gen/android'), { recursive: true });
+    const bin = path.join(dir, 'bin');
+    fs.mkdirSync(bin, { recursive: true });
+    fs.writeFileSync(path.join(bin, 'rustup'), '', 'utf-8');
+    return {
+      env: { PATH: '/opt/homebrew/bin', ANDROID_HOME: path.join(dir, 'sdk'), NDK_HOME: path.join(dir, 'ndk'), JAVA_HOME: path.join(dir, 'java') },
+      platform: 'linux',
+      homedir: path.join(dir, 'home'),
+      exists: (p) => p === path.join(bin, 'rustup') || p === path.join(dir, 'home/.cargo/bin/rustup') || fs.existsSync(p),
+    };
+  }
+
+  it('runs `tauri android <mode>` with args passed through and the resolved env', () => {
+    const dir = makeTempDir();
+    const deps = scaffold(dir);
+    fs.mkdirSync(path.join(dir, 'home/.cargo/bin'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'home/.cargo/bin/rustup'), '', 'utf-8');
+    const calls = [];
+    const run = (cmd, args, opts) => {
+      calls.push({ cmd, args, opts });
+      return { status: 0 };
+    };
+
+    runAndroidTauri(dir, 'build', ['--debug', '--apk', '--target', 'aarch64'], { ...deps, run });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].cmd).toBe('pnpm');
+    expect(calls[0].args).toEqual(['tauri', 'android', 'build', '--debug', '--apk', '--target', 'aarch64']);
+    expect(calls[0].opts.cwd).toBe(dir);
+    expect(calls[0].opts.stdio).toBe('inherit');
+    expect(calls[0].opts.env.NDK_HOME).toBe(path.join(dir, 'ndk'));
+    expect(calls[0].opts.env.JAVA_HOME).toBe(path.join(dir, 'java'));
+    expect(calls[0].opts.env.PATH.split(':')[0]).toBe(path.join(dir, 'home/.cargo/bin'));
+  });
+
+  it('runs dev with no extra args', () => {
+    const dir = makeTempDir();
+    const deps = scaffold(dir);
+    fs.mkdirSync(path.join(dir, 'home/.cargo/bin'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'home/.cargo/bin/rustup'), '', 'utf-8');
+    const calls = [];
+    runAndroidTauri(dir, 'dev', [], { ...deps, run: (cmd, args) => calls.push({ cmd, args }) });
+    expect(calls[0].args).toEqual(['tauri', 'android', 'dev']);
+  });
+
+  it('throws when there is no Android project, without running anything', () => {
+    const dir = makeTempDir();
+    const deps = scaffold(dir, { genAndroid: false });
+    const calls = [];
+    expect(() => runAndroidTauri(dir, 'dev', [], { ...deps, run: (...a) => calls.push(a) })).toThrow(/no Android project.*caper native android/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('throws the plain-English toolchain error when something is missing', () => {
+    const dir = makeTempDir();
+    scaffold(dir);
+    const calls = [];
+    expect(() =>
+      runAndroidTauri(dir, 'dev', [], {
+        env: { PATH: '/nowhere' },
+        platform: 'linux',
+        homedir: path.join(dir, 'home'),
+        exists: (p) => p.startsWith(dir) && p.endsWith('gen/android'),
+        listDir: () => [],
+        run: (...a) => calls.push(a),
+      }),
+    ).toThrow(/NDK_HOME[\s\S]*JAVA_HOME[\s\S]*rustup/);
+    expect(calls).toHaveLength(0);
   });
 });
 
@@ -1049,7 +1139,24 @@ describe('androidNative', () => {
 
     const pkgRaw = fs.readFileSync(path.join(dir, 'package.json'), 'utf-8');
     expect(pkgRaw).toContain('\n    "scripts"');
-    expect(JSON.parse(pkgRaw).scripts['native:android:dev']).toBe('tauri android dev');
+    expect(JSON.parse(pkgRaw).scripts['native:android:dev']).toBe('caper native android dev');
+  });
+
+  it('upgrades old tauri scripts on an already set-up app, counting it as a change', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldAndroidApp(dir);
+    const state = { installed: [] };
+    await androidNative(dir, {}, { ...stubs(state, []), ...deps });
+    const pkgPath = path.join(dir, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    pkg.scripts['native:android:dev'] = 'tauri android dev';
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 4) + '\n', 'utf-8');
+
+    const result = await androidNative(dir, {}, { ...stubs(state, []), ...deps });
+
+    expect(result.changed).toBe(true);
+    expect(result.addedScripts).toEqual(['native:android:dev']);
+    expect(JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).scripts['native:android:dev']).toBe('caper native android dev');
   });
 
   it('is idempotent: a second run makes zero run calls and zero writes', async () => {

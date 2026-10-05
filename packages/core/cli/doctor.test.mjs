@@ -712,8 +712,9 @@ describe('runChecks native-android rows', () => {
 
   const allTargets = 'aarch64-linux-android\narmv7-linux-androideabi\ni686-linux-android\nx86_64-linux-android\n';
 
-  function check(cwd, env, responses = { 'rustup target list --installed': allTargets }, loadConfig = () => ({})) {
+  function check(cwd, env, responses = { 'rustup target list --installed': allTargets }, loadConfig = () => ({}), extra = {}) {
     return runChecks(cwd, {
+      ...extra,
       loadConfig,
       online: false,
       platform: 'linux',
@@ -761,6 +762,32 @@ describe('runChecks native-android rows', () => {
     expect(row.hint).toMatch(/caper native android/);
   });
 
+  it('warns native-android-rust when Homebrew rustc comes first on the real PATH', async () => {
+    const cwd = makeTempDir();
+    const { bin, ndk, java } = scaffoldAndroid(cwd);
+    const brew = '/opt/homebrew/bin';
+    const exists = (p) => p === path.join(brew, 'rustc') || (!p.startsWith(brew) && fs.existsSync(p));
+
+    const checks = await check(cwd, { PATH: `${brew}:${bin}`, NDK_HOME: ndk, JAVA_HOME: java }, undefined, undefined, { exists });
+
+    const row = find(checks, 'native-android-rust');
+    expect(row.status).toBe('warn');
+    expect(row.label).toMatch(/Homebrew's rustc comes first on PATH/);
+    expect(row.hint).toBe(`export PATH="${bin}:$PATH"`);
+  });
+
+  it('keeps native-android-rust ok when rustup comes before Homebrew rustc', async () => {
+    const cwd = makeTempDir();
+    const { bin, ndk, java } = scaffoldAndroid(cwd);
+    const brew = '/opt/homebrew/bin';
+    fs.writeFileSync(path.join(bin, 'rustc'), '', 'utf-8');
+    const exists = (p) => p === path.join(brew, 'rustc') || (!p.startsWith(brew) && fs.existsSync(p));
+
+    const checks = await check(cwd, { PATH: `${bin}:${brew}`, NDK_HOME: ndk, JAVA_HOME: java }, undefined, undefined, { exists });
+
+    expect(find(checks, 'native-android-rust').status).toBe('ok');
+  });
+
   it('fails native-android-rust when rustup cannot be found', async () => {
     const cwd = makeTempDir();
     const { ndk, java } = scaffoldAndroid(cwd);
@@ -770,7 +797,7 @@ describe('runChecks native-android rows', () => {
     expect(find(checks, 'native-android-rust').status).toBe('fail');
   });
 
-  it('warns native-android-ndk / -java when unset but resolvable, with an export hint', async () => {
+  it('passes native-android-ndk / -java when unset but resolvable, since the scripts set them', async () => {
     const cwd = makeTempDir();
     const { bin, java } = scaffoldAndroid(cwd);
     const sdk = path.join(cwd, 'sdk');
@@ -780,8 +807,9 @@ describe('runChecks native-android rows', () => {
     const checks = await check(cwd, { PATH: bin, ANDROID_HOME: sdk, JAVA_HOME: java });
 
     const ndk = find(checks, 'native-android-ndk');
-    expect(ndk.status).toBe('warn');
-    expect(ndk.hint).toBe(`export NDK_HOME=${path.join(sdk, 'ndk/27.1.12297006')}`);
+    expect(ndk.status).toBe('ok');
+    expect(ndk.label).toContain(path.join(sdk, 'ndk/27.1.12297006'));
+    expect(ndk.hint).toBeUndefined();
     expect(find(checks, 'native-android-java').status).toBe('ok');
   });
 

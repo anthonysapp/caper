@@ -222,6 +222,7 @@ subcommands run from the app root.
 | `caper native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]` | One-shot Tauri v2 scaffolding: adds `@tauri-apps/cli`, runs `tauri init --ci`, names the app and window after the package (title-cased: `my-game` → "My Game"; `--title` overrides), pins a `dev.caper.*`-style identifier + a stable non-3000 dev port, opens a 1280x720 window (450x800 when `caper.config.ts` sets `orientation: 'portrait'`), adds `native:dev`/`native:build` scripts. No-ops with "already initialized" if `src-tauri/` exists. |
 | `caper native plugin` | Wires an already-`native init`'d app up for `@caperjs/plugin-tauri`: adds its JS deps, runs `tauri add store`, and patches the window permissions it needs into `capabilities/default.json`. Fails with "run `caper native init` first" if `src-tauri/` is missing; idempotent otherwise. |
 | `caper native android` | Sets an already-`native init`'d app up for Android: finds the SDK/NDK/JDK/rustup, adds the four Android Rust targets, runs `tauri android init --ci`, adds 16 KB page alignment to `build.rs`, hides the system bars in `MainActivity.kt`, locks the activity to `caper.config.ts`'s `orientation` (if set; re-run after changing it), adds `native:android:dev`/`native:android:build` scripts. Idempotent; warns instead of overwriting files you changed. |
+| `caper native android dev` / `build [...tauri args]` | Runs `tauri android dev` / `build` with `NDK_HOME`, `JAVA_HOME` and a rustup-first `PATH` resolved for you (the `native:android:*` scripts call these). Needs `src-tauri/gen/android/`; extra args pass through. |
 | `caper update` | Update Caper to latest. |
 | `caper install` | Install peer deps (rarely needed; normally automatic). |
 | `caper vo generate [inputDir] [outputDir]` | Voiceover CSV generation from locales. Defaults: `./src/locales` → `./src/assets/audio/vo/csv`. |
@@ -234,8 +235,9 @@ command (identifier, pinned dev port, `native:dev`/`native:build` scripts);
 major 2, identifier, dev port, and Xcode CLT on macOS) once `src-tauri/`
 exists. For Android, run `caper native android` once, then
 `pnpm native:android:dev` (device or emulator) or
-`pnpm native:android:build --debug --apk --target aarch64`, with `NDK_HOME` and
-`JAVA_HOME` exported; doctor adds `native-android-*` rows (Rust targets, NDK,
+`pnpm native:android:build --debug --apk --target aarch64` (the scripts route through
+`caper native android dev|build`, which set `NDK_HOME`, `JAVA_HOME` and the rustup `PATH`
+themselves); doctor adds `native-android-*` rows (Rust targets, NDK,
 JDK, 16 KB alignment, hidden system bars, and orientation matching `caper.config.ts`) once `src-tauri/gen/android/` exists.
 Set `orientation: 'portrait' | 'landscape'` in `caper.config.ts` rather than editing
 `AndroidManifest.xml` by hand: `caper native android` writes it there (`portrait` or
