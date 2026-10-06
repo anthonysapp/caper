@@ -1,6 +1,6 @@
 {
   "name": "caper-kitchen-sink",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "description": "Examples of Caper Features (V8)",
   "main": "index.html",
   "scripts": {
