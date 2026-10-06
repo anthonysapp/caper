@@ -1,5 +1,6 @@
 import type { IApplication } from '../core/interfaces/IApplication';
 import { Signal } from '../signals';
+import { Logger } from '../utils/console/Logger';
 import { isMobile, isTauri } from '../utils/platform';
 import type { OrientationConfig, OrientationLock as Orientation, OrientationOverlayOptions } from '../utils/orientation';
 import { resolveOrientation } from '../utils/orientation';
@@ -157,8 +158,13 @@ export class OrientationPlugin extends Plugin implements IOrientationPlugin {
   /** Pause the app, but only if nothing else already did, and remember that we did. */
   private _pause(): void {
     if (this.app.paused) return;
-    this.app.pause();
+    // Mark it first: if a pause listener throws, the app is still paused and must resume on turn-back.
     this._didPause = true;
+    try {
+      this.app.pause();
+    } catch (error) {
+      Logger.error('A pause listener threw while the orientation overlay paused the app:', error);
+    }
   }
 
   /** Resume the app, but only if this plugin is the one that paused it. */

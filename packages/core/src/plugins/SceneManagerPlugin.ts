@@ -185,12 +185,13 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
     return Promise.resolve(undefined);
   }
 
+  // The app can pause before the first scene exists (e.g. the orientation overlay at boot).
   private _onPause(config: PauseConfig) {
-    this.currentScene.onPause(config);
+    this.currentScene?.onPause(config);
   }
 
   private _onResume(config: PauseConfig) {
-    this.currentScene.onResume(config);
+    this.currentScene?.onResume(config);
   }
 
   public async loadDefaultScene(): Promise<void> {

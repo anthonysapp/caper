@@ -84,6 +84,24 @@ describe('OrientationPlugin', () => {
     document.querySelectorAll('[data-caper-orientation-overlay]').forEach((node) => node.remove());
   });
 
+  it('still resumes when turned back if a pause listener threw (paused before the first scene)', async () => {
+    const media = mockMatchMedia(false);
+    h.app = makeApp({ orientation: 'portrait' });
+    // Like app.pause() when a scene-manager listener throws: the app is paused, then the call throws.
+    h.app.pause = vi.fn(() => {
+      h.app.paused = true;
+      throw new TypeError("Cannot read properties of undefined (reading 'onPause')");
+    });
+    plugin = new OrientationPlugin();
+    plugin.initialize('portrait' as any);
+    await plugin.postInitialize(h.app);
+    expect(h.app.paused).toBe(true);
+
+    media.rotate(true);
+    expect(h.app.resume).toHaveBeenCalledTimes(1);
+    expect(h.app.paused).toBe(false);
+  });
+
   it('shows the overlay and pauses when the device is held the wrong way, from the start', async () => {
     mockMatchMedia(false);
     const app = await start({ orientation: 'portrait' });
