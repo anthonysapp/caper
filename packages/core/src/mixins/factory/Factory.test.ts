@@ -20,3 +20,17 @@ describe('Factory extensions', () => {
     expect(typeof plain.make.container).toBe('function');
   });
 });
+
+describe('particleContainer factory', () => {
+  it('passes Pixi constructor-only options such as dynamicProperties to the constructor', () => {
+    const container = (getDefaultFactoryMethods() as any).particleContainer({
+      dynamicProperties: { vertex: true, rotation: true, color: true },
+      roundPixels: true,
+    });
+    const props = container._properties;
+    expect(props.vertex.dynamic).toBe(true);
+    expect(props.rotation.dynamic).toBe(true);
+    expect(props.color.dynamic).toBe(true);
+    expect(container.roundPixels).toBe(true);
+  });
+});

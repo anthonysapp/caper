@@ -2,7 +2,7 @@ import { BitmapText, Graphics, HTMLText, Sprite, Text, TilingSprite } from 'pixi
 
 import { AnimatedSprite } from '../../display/AnimatedSprite';
 import { Container, ContainerConfigKeys } from '../../display/Container';
-import { ParticleContainer, ParticleContainerConfigKeys } from '../../display/ParticleContainer';
+import { ParticleContainer, type ParticleContainerConfig, ParticleContainerConfigKeys } from '../../display/ParticleContainer';
 import { SpineAnimation } from '../../display/SpineAnimation';
 import { Svg } from '../../display/Svg';
 import type { ButtonConfig } from '../../ui/Button';
@@ -57,6 +57,17 @@ import {
  */
 const TEXT_CONSUMED_KEYS = ['text', 'roundPixels', 'resolution', 'style', 'anchor', 'pivot'] as const;
 
+// Pixi reads these ParticleContainer options only in its constructor (it builds the per-property
+// upload layout there), so they must go in, not be assigned afterwards by the factory passthrough.
+const ParticleContainerConstructorKeys = [
+  ...ParticleContainerConfigKeys,
+  'dynamicProperties',
+  'shader',
+  'roundPixels',
+  'texture',
+  'particles',
+] as (keyof ParticleContainerConfig)[];
+
 /**
  * Factory method table consumed by the `Factory()` mixin. Almost every
  * entry is built via `buildFactoryMethod({ build, applies, exclude })`:
@@ -92,9 +103,9 @@ export const defaultFactoryMethods = {
 
   particleContainer: buildFactoryMethod({
     build: (props?: Partial<ParticleContainerProps>): ParticleContainer =>
-      new ParticleContainer(props ? pluck(props, ParticleContainerConfigKeys) : undefined),
+      new ParticleContainer(props ? pluck(props, ParticleContainerConstructorKeys) : undefined),
     applies: ['position', 'scale', 'pivot'],
-    exclude: ParticleContainerConfigKeys as readonly string[],
+    exclude: ParticleContainerConstructorKeys as readonly string[],
   }),
 
   texture: resolveTexture,
