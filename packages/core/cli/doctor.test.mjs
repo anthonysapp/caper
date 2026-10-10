@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { agentInit } from './agent.mjs';
 import { parseRustcVersion, runChecks } from './doctor.mjs';
-import { TAURI_PLUGIN_PERMISSIONS } from './native.mjs';
+import { renderInfoIosPlist, TAURI_PLUGIN_PERMISSIONS } from './native.mjs';
 
 const START_MARKER = '<!-- caper:agent-start -->';
 const END_MARKER = '<!-- caper:agent-end -->';
@@ -917,6 +917,165 @@ describe('runChecks native-android rows', () => {
       const row = await orientationRow(cwd, () => {
         throw new Error('boom');
       });
+      expect(row.status).toBe('warn');
+      expect(row.label).toMatch(/could not read caper\.config\.ts orientation/);
+    });
+  });
+});
+
+describe('runChecks native-ios rows', () => {
+  const IOS_IDS = ['native-ios-xcode', 'native-ios-rust', 'native-ios-tools', 'native-ios-team', 'native-ios-plist', 'native-ios-orientation'];
+  const allTargets = 'aarch64-apple-ios\naarch64-apple-ios-sim\nx86_64-apple-ios\n';
+  const XCODE = '/Applications/Xcode.app/Contents/Developer\n';
+
+  function scaffoldIos(cwd, { conf = {}, plist = renderInfoIosPlist(undefined), tools = ['rustup', 'pod', 'xcodegen'] } = {}) {
+    writeTauriConf(cwd, conf);
+    writeTauriCli(cwd, '2.11.4');
+    fs.mkdirSync(path.join(cwd, 'src-tauri/gen/apple'), { recursive: true });
+    if (plist !== null) fs.writeFileSync(path.join(cwd, 'src-tauri/Info.ios.plist'), plist, 'utf-8');
+    const bin = path.join(cwd, 'bin');
+    fs.mkdirSync(bin);
+    for (const tool of tools) fs.writeFileSync(path.join(bin, tool), '', 'utf-8');
+    return bin;
+  }
+
+  function check(cwd, { env, responses = {}, loadConfig = () => ({}), platform = 'darwin', exists } = {}) {
+    return runChecks(cwd, {
+      loadConfig,
+      online: false,
+      platform,
+      env: env ?? { PATH: path.join(cwd, 'bin') },
+      homedir: path.join(cwd, 'home'),
+      // Only the temp dir is real: the machine's own /opt/homebrew must not leak into tests.
+      exists: exists ?? ((p) => p.startsWith(cwd) && fs.existsSync(p)),
+      run: makeRun({ 'rustc --version': 'rustc 1.98.1 ()', 'xcode-select -p': XCODE, 'rustup target list --installed': allTargets, ...responses }),
+    });
+  }
+
+  it('are absent when src-tauri/gen/apple does not exist', async () => {
+    const cwd = makeTempDir();
+    writeTauriConf(cwd);
+    writeTauriCli(cwd, '2.11.4');
+    const checks = await check(cwd);
+    for (const id of IOS_IDS) expect(find(checks, id)).toBeUndefined();
+  });
+
+  it('are absent off macOS', async () => {
+    const cwd = makeTempDir();
+    scaffoldIos(cwd);
+    const checks = await check(cwd, { platform: 'linux' });
+    for (const id of IOS_IDS) expect(find(checks, id)).toBeUndefined();
+  });
+
+  it('are all ok on a fully set-up app', async () => {
+    const cwd = makeTempDir();
+    scaffoldIos(cwd, { conf: { bundle: { iOS: { developmentTeam: 'ABCDE12345' } } } });
+    const checks = await check(cwd);
+    for (const id of IOS_IDS) expect(find(checks, id).status).toBe('ok');
+    expect(find(checks, 'native-ios-team').label).toContain('ABCDE12345');
+  });
+
+  it('fails native-ios-xcode with the xcode-select hint when only the Command Line Tools are selected', async () => {
+    const cwd = makeTempDir();
+    scaffoldIos(cwd);
+    const row = find(await check(cwd, { responses: { 'xcode-select -p': '/Library/Developer/CommandLineTools\n' } }), 'native-ios-xcode');
+    expect(row.status).toBe('fail');
+    expect(row.hint).toMatch(/sudo xcode-select -s \/Applications\/Xcode\.app/);
+  });
+
+  it('fails native-ios-rust when a target is missing, and when rustup is missing', async () => {
+    const cwd = makeTempDir();
+    scaffoldIos(cwd);
+    const row = find(await check(cwd, { responses: { 'rustup target list --installed': 'aarch64-apple-ios\n' } }), 'native-ios-rust');
+    expect(row.status).toBe('fail');
+    expect(row.label).toMatch(/aarch64-apple-ios-sim/);
+    expect(row.hint).toMatch(/caper native ios/);
+
+    fs.rmSync(path.join(cwd, 'bin/rustup'));
+    expect(find(await check(cwd), 'native-ios-rust').status).toBe('fail');
+  });
+
+  it('warns native-ios-rust when Homebrew rustc comes first on the real PATH', async () => {
+    const cwd = makeTempDir();
+    const bin = scaffoldIos(cwd);
+    const brew = '/opt/homebrew/bin';
+    const exists = (p) => p === path.join(brew, 'rustc') || (p.startsWith(cwd) && fs.existsSync(p));
+    const row = find(await check(cwd, { env: { PATH: `${brew}:${bin}` }, exists }), 'native-ios-rust');
+    expect(row.status).toBe('warn');
+    expect(row.hint).toBe(`export PATH="${bin}:$PATH"`);
+  });
+
+  it('fails native-ios-tools naming the missing tools', async () => {
+    const cwd = makeTempDir();
+    scaffoldIos(cwd, { tools: ['rustup'] });
+    const row = find(await check(cwd), 'native-ios-tools');
+    expect(row.status).toBe('fail');
+    expect(row.label).toMatch(/pod[\s\S]*xcodegen/);
+    expect(row.hint).toMatch(/brew install cocoapods xcodegen/);
+  });
+
+  it('warns native-ios-team when no team is set, and takes APPLE_DEVELOPMENT_TEAM', async () => {
+    const cwd = makeTempDir();
+    const bin = scaffoldIos(cwd);
+    const row = find(await check(cwd), 'native-ios-team');
+    expect(row.status).toBe('warn');
+    expect(row.label).toMatch(/Simulator/);
+    expect(row.hint).toBe('caper native ios --team <ID>');
+
+    const fromEnv = find(await check(cwd, { env: { PATH: bin, APPLE_DEVELOPMENT_TEAM: 'ENV1234567' } }), 'native-ios-team');
+    expect(fromEnv.status).toBe('ok');
+    expect(fromEnv.label).toContain('ENV1234567');
+  });
+
+  it('warns native-ios-plist when Info.ios.plist is missing or keeps the status bar', async () => {
+    const cwd = makeTempDir();
+    scaffoldIos(cwd, { plist: null });
+    const row = find(await check(cwd), 'native-ios-plist');
+    expect(row.status).toBe('warn');
+    expect(row.hint).toBe('caper native ios');
+  });
+
+  describe('native-ios-orientation', () => {
+    it('is ok when caper.config matches Info.ios.plist', async () => {
+      const cwd = makeTempDir();
+      scaffoldIos(cwd, { plist: renderInfoIosPlist('landscape') });
+      const row = find(await check(cwd, { loadConfig: () => ({ orientation: 'landscape' }) }), 'native-ios-orientation');
+      expect(row.status).toBe('ok');
+      expect(row.label).toMatch(/landscape/);
+    });
+
+    it('warns with the caper native ios hint on a mismatch or a missing lock', async () => {
+      const cwd = makeTempDir();
+      scaffoldIos(cwd, { plist: renderInfoIosPlist('portrait') });
+      const mismatch = find(await check(cwd, { loadConfig: () => ({ orientation: 'landscape' }) }), 'native-ios-orientation');
+      expect(mismatch.status).toBe('warn');
+      expect(mismatch.hint).toBe('caper native ios');
+
+      fs.writeFileSync(path.join(cwd, 'src-tauri/Info.ios.plist'), renderInfoIosPlist(undefined), 'utf-8');
+      const missing = find(await check(cwd, { loadConfig: () => ({ orientation: 'portrait' }) }), 'native-ios-orientation');
+      expect(missing.status).toBe('warn');
+      expect(missing.hint).toBe('caper native ios');
+    });
+
+    it('warns when Info.ios.plist locks but caper.config sets none', async () => {
+      const cwd = makeTempDir();
+      scaffoldIos(cwd, { plist: renderInfoIosPlist('portrait') });
+      const row = find(await check(cwd), 'native-ios-orientation');
+      expect(row.status).toBe('warn');
+      expect(row.hint).toMatch(/caper\.config\.ts/);
+    });
+
+    it('warns when caper.config orientation cannot be read', async () => {
+      const cwd = makeTempDir();
+      scaffoldIos(cwd);
+      const row = find(
+        await check(cwd, {
+          loadConfig: () => {
+            throw new Error('boom');
+          },
+        }),
+        'native-ios-orientation',
+      );
       expect(row.status).toBe('warn');
       expect(row.label).toMatch(/could not read caper\.config\.ts orientation/);
     });

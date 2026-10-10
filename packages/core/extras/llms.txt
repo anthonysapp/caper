@@ -223,6 +223,8 @@ subcommands run from the app root.
 | `caper native plugin` | Wires an already-`native init`'d app up for `@caperjs/plugin-tauri`: adds its JS deps, runs `tauri add store`, and patches the window permissions it needs into `capabilities/default.json`. Fails with "run `caper native init` first" if `src-tauri/` is missing; idempotent otherwise. |
 | `caper native android` | Sets an already-`native init`'d app up for Android: finds the SDK/NDK/JDK/rustup, adds the four Android Rust targets, runs `tauri android init --ci`, adds 16 KB page alignment to `build.rs`, hides the system bars in `MainActivity.kt`, locks the activity to `caper.config.ts`'s `orientation` (if set; re-run after changing it), adds `native:android:dev`/`native:android:build` scripts. Idempotent; warns instead of overwriting files you changed. |
 | `caper native android dev` / `build [...tauri args]` | Runs `tauri android dev` / `build` with `NDK_HOME`, `JAVA_HOME` and a rustup-first `PATH` resolved for you (the `native:android:*` scripts call these). Needs `src-tauri/gen/android/`; extra args pass through. |
+| `caper native ios [--team <ID>]` | macOS only. Sets an already-`native init`'d app up for iOS: needs full Xcode (`sudo xcode-select -s /Applications/Xcode.app`), installs CocoaPods/XcodeGen with Homebrew if missing, adds the three iOS Rust targets, runs `tauri ios init --ci`, writes `src-tauri/Info.ios.plist` (status bar hidden, `caper.config.ts`'s `orientation` lock for iPhone and iPad; re-run after changing it), sets `bundle.iOS.developmentTeam` with `--team`, adds `native:ios:dev`/`native:ios:build` and `tauri` scripts. Idempotent. No team: the Simulator works, a device does not. |
+| `caper native ios dev` / `build [...tauri args]` | Runs `tauri ios dev` / `build` with a rustup-first `PATH` that reaches `pod` and `xcodegen` (the `native:ios:*` scripts call these). Needs `src-tauri/gen/apple/`; extra args pass through. |
 | `caper update` | Update Caper to latest. |
 | `caper install` | Install peer deps (rarely needed; normally automatic). |
 | `caper vo generate [inputDir] [outputDir]` | Voiceover CSV generation from locales. Defaults: `./src/locales` → `./src/assets/audio/vo/csv`. |
@@ -241,7 +243,11 @@ themselves); doctor adds `native-android-*` rows (Rust targets, NDK,
 JDK, 16 KB alignment, hidden system bars, and orientation matching `caper.config.ts`) once `src-tauri/gen/android/` exists.
 Set `orientation: 'portrait' | 'landscape'` in `caper.config.ts` rather than editing
 `AndroidManifest.xml` by hand: `caper native android` writes it there (`portrait` or
-`sensorLandscape`) and doctor flags a mismatch. Under the Tauri CLI (detected via `TAURI_ENV_PLATFORM`), the preset
+`sensorLandscape`) and doctor flags a mismatch. For iOS (macOS with Xcode), run `caper native ios` once
+(add `--team <ID>` for a device), then `pnpm native:ios:dev`; it writes the orientation lock and the
+hidden status bar into `src-tauri/Info.ios.plist` (caper owns that file while its marker comment is there),
+and doctor adds `native-ios-*` rows (Xcode, Rust targets, CocoaPods/XcodeGen, team, plist, orientation)
+once `src-tauri/gen/apple/` exists. Under the Tauri CLI (detected via `TAURI_ENV_PLATFORM`), the preset
 configures the dev server for you — no extra `vite.config.ts` needed — and
 disables the PWA plugin, since service workers don't work on the `tauri://`
 origin. Check `isTauri` (exported from `@caperjs/core`, alongside
@@ -485,7 +491,7 @@ Every allowed key in `caper.config.ts`. Defer shape details to
 | `resolution?: number` | DPI scale factor. |
 | `splash?: SplashOptions` | Splash screen config. |
 | `logger?: LoggerMode` | Verbosity. |
-| `orientation?: 'portrait' \| 'landscape' \| { lock, overlay? }` | Lock the game to one orientation on every target. Unset means no lock. The string is shorthand for `{ lock: '...' }`. Write the lock as a string literal (the build and CLI read it by parsing the file). `caper native android` writes it into `AndroidManifest.xml`, `caper native init` opens a 450x800 window for portrait, the PWA manifest's `orientation` defaults to it, and in a mobile browser (not desktop, not Tauri) a "rotate your device" overlay covers and pauses the game while the device is held the wrong way. |
+| `orientation?: 'portrait' \| 'landscape' \| { lock, overlay? }` | Lock the game to one orientation on every target. Unset means no lock. The string is shorthand for `{ lock: '...' }`. Write the lock as a string literal (the build and CLI read it by parsing the file). `caper native android` writes it into `AndroidManifest.xml`, `caper native ios` into `Info.ios.plist`, `caper native init` opens a 450x800 window for portrait, the PWA manifest's `orientation` defaults to it, and in a mobile browser (not desktop, not Tauri) a "rotate your device" overlay covers and pauses the game while the device is held the wrong way. |
 | `orientation.overlay?: false \| { text?, background?, color?, fontFamily?, className?, element? }` | Restyle that overlay; `element: () => HTMLElement` replaces it, `false` turns off the overlay and its pause (`app.orientation.onMismatchChanged` / `app.orientation.mismatched` still report). |
 
 Plus all standard PixiJS `ApplicationOptions` (`antialias`, `width`, `height`, etc.).

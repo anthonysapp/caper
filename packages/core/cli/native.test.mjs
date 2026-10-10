@@ -18,23 +18,36 @@ import {
   displayTitle,
   findMainActivity,
   initNative,
+  IOS_ORIENTATIONS,
+  IOS_RUST_TARGETS,
+  iosNative,
+  isFullXcode,
   isValidIdentifier,
+  isValidTeamId,
   missingDeps,
   missingRustTargets,
   packageManagerFor,
   parsePort,
   patchAndroidScripts,
   patchCapabilities,
+  patchIosScripts,
+  patchIosTeam,
   patchManifestOrientation,
   patchPackageScripts,
   patchTauriConfig,
   planBuildRs,
+  planInfoIosPlist,
   planMainActivity,
   readManifestOrientation,
+  readPlistOrientation,
+  renderInfoIosPlist,
   renderMainActivity,
   resolveAndroidEnv,
+  resolveIosEnv,
   runAndroidTauri,
+  runIosTauri,
   TAURI_PLUGIN_PERMISSIONS,
+  xcodeScriptRunner,
 } from './native.mjs';
 
 // A copy of the manifest `tauri android init` generated for kitchen-sink.
@@ -870,6 +883,12 @@ describe('missingRustTargets', () => {
   it('returns nothing when all are installed', () => {
     expect(missingRustTargets(ANDROID_RUST_TARGETS.join('\n'))).toEqual([]);
   });
+
+  it('takes another target list, such as the iOS one', () => {
+    expect(IOS_RUST_TARGETS).toEqual(['aarch64-apple-ios', 'aarch64-apple-ios-sim', 'x86_64-apple-ios']);
+    expect(Object.isFrozen(IOS_RUST_TARGETS)).toBe(true);
+    expect(missingRustTargets('aarch64-apple-ios\naarch64-linux-android\n', IOS_RUST_TARGETS)).toEqual(['aarch64-apple-ios-sim', 'x86_64-apple-ios']);
+  });
 });
 
 describe('planBuildRs', () => {
@@ -1392,5 +1411,527 @@ describe('findMainActivity', () => {
   it('returns null when there is none', () => {
     const dir = makeTempDir();
     expect(findMainActivity(path.join(dir, 'gen/android'))).toBeNull();
+  });
+});
+
+describe('isFullXcode', () => {
+  it('accepts a full Xcode developer dir', () => {
+    expect(isFullXcode('/Applications/Xcode.app/Contents/Developer\n')).toBe(true);
+    expect(isFullXcode('/Applications/Xcode-beta.app/Contents/Developer')).toBe(true);
+  });
+
+  it('rejects the Command Line Tools and empty output', () => {
+    expect(isFullXcode('/Library/Developer/CommandLineTools\n')).toBe(false);
+    expect(isFullXcode('')).toBe(false);
+    expect(isFullXcode(undefined)).toBe(false);
+  });
+});
+
+describe('resolveIosEnv', () => {
+  const HOME = '/Users/me';
+  const fake = (paths) => {
+    const set = new Set(paths);
+    return (p) => set.has(p);
+  };
+
+  it('finds rustup, pod and xcodegen on PATH and leaves PATH alone', () => {
+    const { env, missing } = resolveIosEnv({
+      env: { PATH: '/tools:/usr/bin' },
+      platform: 'darwin',
+      homedir: HOME,
+      exists: fake(['/tools/rustup', '/tools/pod', '/usr/bin/xcodegen']),
+      pm: 'npm',
+    });
+    expect(env.PATH).toBe('/tools:/usr/bin');
+    expect(missing).toEqual([]);
+  });
+
+  it('reports rustup, pod and xcodegen when none can be found', () => {
+    const { missing } = resolveIosEnv({ env: { PATH: '/usr/bin' }, platform: 'darwin', homedir: HOME, exists: fake([]), pm: 'npm' });
+    expect(missing).toEqual(['rustup', 'pod', 'xcodegen']);
+  });
+
+  it('prepends keg-only Homebrew rustup like the Android env does', () => {
+    const { env } = resolveIosEnv({
+      env: { PATH: '/usr/bin' },
+      platform: 'darwin',
+      homedir: HOME,
+      exists: fake(['/opt/homebrew/opt/rustup/bin/rustup', '/usr/bin/pod', '/usr/bin/xcodegen']),
+      pm: 'npm',
+    });
+    expect(env.PATH).toBe('/opt/homebrew/opt/rustup/bin:/usr/bin');
+  });
+
+  it('finds pod and xcodegen in /opt/homebrew/bin and appends it to PATH', () => {
+    const { env, missing } = resolveIosEnv({
+      env: { PATH: '/r:/usr/bin' },
+      platform: 'darwin',
+      homedir: HOME,
+      exists: fake(['/r/rustup', '/opt/homebrew/bin/pod', '/opt/homebrew/bin/xcodegen']),
+      pm: 'npm',
+    });
+    expect(missing).toEqual([]);
+    expect(env.PATH).toBe('/r:/usr/bin:/opt/homebrew/bin');
+  });
+
+  it('sets npm_config_user_agent for pnpm only, without overriding a pnpm one', () => {
+    const base = { platform: 'darwin', homedir: HOME, exists: fake(['/r/rustup', '/r/pod', '/r/xcodegen']) };
+    expect(resolveIosEnv({ ...base, env: { PATH: '/r' }, pm: 'pnpm' }).env.npm_config_user_agent).toBe('pnpm/caper');
+    expect(resolveIosEnv({ ...base, env: { PATH: '/r', npm_config_user_agent: 'npm/10.0.0 node/v22' }, pm: 'pnpm' }).env.npm_config_user_agent).toBe('pnpm/caper');
+    expect(resolveIosEnv({ ...base, env: { PATH: '/r', npm_config_user_agent: 'pnpm/9.3.0 npm/? node/v22' }, pm: 'pnpm' }).env.npm_config_user_agent).toBe(
+      'pnpm/9.3.0 npm/? node/v22',
+    );
+    expect(resolveIosEnv({ ...base, env: { PATH: '/r' }, pm: 'npm' }).env.npm_config_user_agent).toBeUndefined();
+  });
+
+  it('keeps unrelated env vars', () => {
+    expect(resolveIosEnv({ env: { FOO: 'bar', PATH: '' }, platform: 'darwin', homedir: HOME, exists: fake([]), pm: 'npm' }).env.FOO).toBe('bar');
+  });
+});
+
+describe('IOS_ORIENTATIONS', () => {
+  it('maps each lock to iPhone and iPad orientation arrays', () => {
+    expect(IOS_ORIENTATIONS).toEqual({
+      portrait: {
+        iphone: ['UIInterfaceOrientationPortrait'],
+        ipad: ['UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown'],
+      },
+      landscape: {
+        iphone: ['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'],
+        ipad: ['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'],
+      },
+    });
+    expect(Object.isFrozen(IOS_ORIENTATIONS)).toBe(true);
+  });
+});
+
+describe('renderInfoIosPlist / planInfoIosPlist / readPlistOrientation', () => {
+  it('renders a plist with the marker that hides the status bar', () => {
+    const xml = renderInfoIosPlist(undefined);
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<!-- Managed by caper native ios')).toBe(true);
+    expect(xml).toContain('<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">');
+    expect(xml).toMatch(/<key>UIStatusBarHidden<\/key>\s*<true\/>/);
+    expect(xml).toMatch(/<key>UIViewControllerBasedStatusBarAppearance<\/key>\s*<false\/>/);
+    expect(xml).not.toContain('UISupportedInterfaceOrientations');
+    expect(xml).not.toContain('UIRequiresFullScreen');
+    expect(readPlistOrientation(xml)).toBeUndefined();
+  });
+
+  it('adds the iPhone and iPad orientation arrays and UIRequiresFullScreen when locked', () => {
+    const portrait = renderInfoIosPlist('portrait');
+    expect(portrait).toMatch(/<key>UISupportedInterfaceOrientations<\/key>\s*<array>\s*<string>UIInterfaceOrientationPortrait<\/string>\s*<\/array>/);
+    expect(portrait).toMatch(
+      /<key>UISupportedInterfaceOrientations~ipad<\/key>\s*<array>\s*<string>UIInterfaceOrientationPortrait<\/string>\s*<string>UIInterfaceOrientationPortraitUpsideDown<\/string>\s*<\/array>/,
+    );
+    expect(portrait).toMatch(/<key>UIRequiresFullScreen<\/key>\s*<true\/>/);
+    expect(readPlistOrientation(portrait)).toBe('portrait');
+    expect(readPlistOrientation(renderInfoIosPlist('landscape'))).toBe('landscape');
+  });
+
+  it('reads no orientation from a mixed or missing array', () => {
+    const mixed =
+      '<plist><dict><key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationLandscapeLeft</string></array></dict></plist>';
+    expect(readPlistOrientation(mixed)).toBeUndefined();
+    expect(readPlistOrientation('')).toBeUndefined();
+    expect(readPlistOrientation(undefined)).toBeUndefined();
+  });
+
+  it('does not take the iPad array for the iPhone one', () => {
+    const ipadOnly = '<dict><key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationPortrait</string></array></dict>';
+    expect(readPlistOrientation(ipadOnly)).toBeUndefined();
+  });
+
+  it('plans write for a missing file or a managed file that differs, skip when equal, warn without the marker', () => {
+    expect(planInfoIosPlist(null, 'portrait')).toBe('write');
+    expect(planInfoIosPlist(renderInfoIosPlist(undefined), 'portrait')).toBe('write');
+    expect(planInfoIosPlist(renderInfoIosPlist('portrait'), 'portrait')).toBe('skip');
+    expect(planInfoIosPlist('<plist><dict/></plist>', 'portrait')).toBe('warn');
+  });
+});
+
+describe('patchIosTeam / isValidTeamId', () => {
+  it('accepts ten uppercase letters or digits only', () => {
+    expect(isValidTeamId('ABCDE12345')).toBe(true);
+    expect(isValidTeamId('abcde12345')).toBe(false);
+    expect(isValidTeamId('ABCDE1234')).toBe(false);
+    expect(isValidTeamId(undefined)).toBe(false);
+  });
+
+  it('sets bundle.iOS.developmentTeam, keeping other keys, without mutating', () => {
+    const conf = { identifier: 'a.b', bundle: { active: true, iOS: { minimumSystemVersion: '14.0' } } };
+    const patched = patchIosTeam(conf, 'ABCDE12345');
+    expect(patched).toEqual({ identifier: 'a.b', bundle: { active: true, iOS: { minimumSystemVersion: '14.0', developmentTeam: 'ABCDE12345' } } });
+    expect(conf.bundle.iOS.developmentTeam).toBeUndefined();
+    expect(patchIosTeam({}, 'ABCDE12345')).toEqual({ bundle: { iOS: { developmentTeam: 'ABCDE12345' } } });
+  });
+});
+
+describe('patchIosScripts', () => {
+  it('adds the ios scripts and a tauri script when absent', () => {
+    expect(patchIosScripts({ scripts: { dev: 'vite' } }).scripts).toEqual({
+      dev: 'vite',
+      'native:ios:dev': 'caper native ios dev',
+      'native:ios:build': 'caper native ios build',
+      tauri: 'tauri',
+    });
+  });
+
+  it('upgrades bare tauri ios scripts, leaves custom values alone, and does not mutate', () => {
+    const pkg = { scripts: { 'native:ios:dev': 'tauri ios dev', 'native:ios:build': 'custom', tauri: 'tauri --verbose' } };
+    expect(patchIosScripts(pkg).scripts).toEqual({ 'native:ios:dev': 'caper native ios dev', 'native:ios:build': 'custom', tauri: 'tauri --verbose' });
+    expect(pkg.scripts['native:ios:dev']).toBe('tauri ios dev');
+  });
+});
+
+describe('xcodeScriptRunner', () => {
+  const yml = (runner) => `targets:\n  app_iOS:\n    preBuildScripts:\n      - script: ${runner} tauri ios xcode-script -v --platform \${PLATFORM_DISPLAY_NAME:?}\n        name: Build Rust Code\n`;
+
+  it('reads the runner in front of `tauri ios xcode-script`', () => {
+    expect(xcodeScriptRunner(yml('pnpm'))).toBe('pnpm');
+    expect(xcodeScriptRunner(yml('npm run --'))).toBe('npm run --');
+    expect(xcodeScriptRunner(yml('node'))).toBe('node');
+  });
+
+  it('reads the block-scalar form tauri-cli 2.12 writes', () => {
+    const block = (runner) => `    preBuildScripts:\n      - script: |\n          ${runner} tauri ios xcode-script -v --platform "\${PLATFORM_DISPLAY_NAME:?}"\n        name: Build Rust Code\n`;
+    expect(xcodeScriptRunner(block('node'))).toBe('node');
+    expect(xcodeScriptRunner(block('pnpm'))).toBe('pnpm');
+  });
+
+  it('is undefined without the script', () => {
+    expect(xcodeScriptRunner('name: app\n')).toBeUndefined();
+  });
+});
+
+const IOS_PROJECT_YML = (runner = 'pnpm') =>
+  `name: app\ntargets:\n  app_iOS:\n    preBuildScripts:\n      - script: ${runner} tauri ios xcode-script -v --platform \${PLATFORM_DISPLAY_NAME:?}\n        name: Build Rust Code\n`;
+
+describe('iosNative', () => {
+  const XCODE = '/Applications/Xcode.app/Contents/Developer\n';
+
+  function scaffoldIosApp(dir, { conf = { identifier: 'dev.caper.mygame' } } = {}) {
+    fs.writeFileSync(path.join(dir, 'pnpm-lock.yaml'), '', 'utf-8');
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'my-game', scripts: { dev: 'vite' } }, null, 4) + '\n', 'utf-8');
+    fs.mkdirSync(path.join(dir, 'src-tauri'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'src-tauri/tauri.conf.json'), JSON.stringify(conf, null, 2) + '\n', 'utf-8');
+    const bin = path.join(dir, 'bin');
+    fs.mkdirSync(bin);
+    for (const tool of ['rustup', 'pod', 'xcodegen']) fs.writeFileSync(path.join(bin, tool), '', 'utf-8');
+    return {
+      env: { PATH: bin },
+      platform: 'darwin',
+      homedir: path.join(dir, 'home'),
+      // Only the temp dir is real: the machine's own /opt/homebrew must not leak into tests.
+      exists: (p) => p.startsWith(dir) && fs.existsSync(p),
+      loadConfig: () => ({}),
+    };
+  }
+
+  // Mirrors what `rustup target add` / `tauri ios init` do to the machine.
+  function stubs(state, calls, { xcode = XCODE, initCreates = true, runner = 'pnpm' } = {}) {
+    return {
+      exec: (cmd, args, opts) => {
+        calls.push({ kind: 'exec', cmd, args, opts });
+        if (cmd === 'xcode-select' && args.join(' ') === '-p') {
+          if (xcode instanceof Error) throw xcode;
+          return xcode;
+        }
+        if (cmd === 'rustup' && args.join(' ') === 'target list --installed') return state.installed.join('\n') + '\n';
+        throw new Error(`unstubbed exec: ${cmd} ${args.join(' ')}`);
+      },
+      run: (cmd, args, opts) => {
+        calls.push({ kind: 'run', cmd, args, opts });
+        if (cmd === 'rustup' && args[0] === 'target' && args[1] === 'add') {
+          state.installed.push(...args.slice(2));
+        } else if (cmd === 'pnpm' && args.join(' ') === 'tauri ios init --ci') {
+          // Like Tauri without CocoaPods: exits 0 but creates nothing.
+          if (initCreates) {
+            const genApple = path.join(opts.cwd, 'src-tauri/gen/apple');
+            fs.mkdirSync(genApple, { recursive: true });
+            fs.writeFileSync(path.join(genApple, 'project.yml'), IOS_PROJECT_YML(runner), 'utf-8');
+          }
+        } else if (path.basename(cmd) === 'brew' && args[0] === 'install') {
+          state.brewed = args.slice(1);
+        } else {
+          throw new Error(`unstubbed run: ${cmd} ${args.join(' ')}`);
+        }
+        return { status: 0 };
+      },
+    };
+  }
+
+  function snapshot(dir) {
+    const out = {};
+    const walk = (p) => {
+      for (const entry of fs.readdirSync(p, { withFileTypes: true })) {
+        const full = path.join(p, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else out[path.relative(dir, full)] = fs.readFileSync(full, 'utf-8') + String(fs.statSync(full).mtimeMs);
+      }
+    };
+    walk(dir);
+    return out;
+  }
+
+  const plistPath = (dir) => path.join(dir, 'src-tauri/Info.ios.plist');
+
+  it('runs the full first-time flow with the resolved env passed to every child process', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    const calls = [];
+    const state = { installed: ['aarch64-apple-darwin', 'aarch64-apple-ios'] };
+
+    const result = await iosNative(dir, {}, { ...stubs(state, calls), ...deps });
+
+    expect(result.status).toBe('ok');
+    expect(result.changed).toBe(true);
+    expect(result.installedTools).toEqual([]);
+    expect(result.addedTargets).toEqual(['aarch64-apple-ios-sim', 'x86_64-apple-ios']);
+    expect(result.ranIosInit).toBe(true);
+    expect(result.plistPatched).toBe(true);
+    expect(result.teamPatched).toBe(false);
+    expect(result.team).toBeUndefined();
+    expect(result.addedScripts).toEqual(['native:ios:dev', 'native:ios:build', 'tauri']);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/Simulator[\s\S]*caper native ios --team <ID>[\s\S]*developer\.apple\.com/);
+
+    const runs = calls.filter((c) => c.kind === 'run');
+    expect(runs.map((c) => `${c.cmd} ${c.args.join(' ')}`)).toEqual(['rustup target add aarch64-apple-ios-sim x86_64-apple-ios', 'pnpm tauri ios init --ci']);
+    for (const call of calls.filter((c) => c.cmd !== 'xcode-select')) {
+      expect(call.opts.cwd).toBe(dir);
+      expect(call.opts.env.PATH).toBe(deps.env.PATH);
+      expect(call.opts.env.npm_config_user_agent).toBe('pnpm/caper');
+    }
+
+    expect(fs.readFileSync(plistPath(dir), 'utf-8')).toBe(renderInfoIosPlist(undefined));
+    const pkgRaw = fs.readFileSync(path.join(dir, 'package.json'), 'utf-8');
+    expect(pkgRaw).toContain('\n    "scripts"');
+    expect(JSON.parse(pkgRaw).scripts['native:ios:dev']).toBe('caper native ios dev');
+  });
+
+  it('is idempotent: a second run makes zero run calls and zero writes', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    const state = { installed: [] };
+    const team = { ...deps, loadConfig: () => ({ orientation: 'landscape' }) };
+    await iosNative(dir, { team: 'ABCDE12345' }, { ...stubs(state, []), ...team });
+    const before = snapshot(dir);
+
+    const calls = [];
+    const result = await iosNative(dir, { team: 'ABCDE12345' }, { ...stubs(state, calls), ...team });
+
+    expect(calls.filter((c) => c.kind === 'run')).toHaveLength(0);
+    expect(result.changed).toBe(false);
+    expect(result.warnings).toEqual([]);
+    expect(snapshot(dir)).toEqual(before);
+  });
+
+  it('writes the orientation lock from caper.config and rewrites it when the lock changes', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    const state = { installed: [] };
+
+    const first = await iosNative(dir, {}, { ...stubs(state, []), ...deps, loadConfig: () => ({ orientation: 'portrait' }) });
+    expect(first.orientation).toBe('portrait');
+    expect(readPlistOrientation(fs.readFileSync(plistPath(dir), 'utf-8'))).toBe('portrait');
+
+    const second = await iosNative(dir, {}, { ...stubs(state, []), ...deps, loadConfig: () => ({ orientation: { lock: 'landscape' } }) });
+    expect(second.changed).toBe(true);
+    expect(second.plistPatched).toBe(true);
+    expect(fs.readFileSync(plistPath(dir), 'utf-8')).toBe(renderInfoIosPlist('landscape'));
+  });
+
+  it('warns and leaves an Info.ios.plist without the marker alone', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    const own = '<?xml version="1.0"?>\n<plist version="1.0"><dict/></plist>\n';
+    fs.writeFileSync(plistPath(dir), own, 'utf-8');
+
+    const result = await iosNative(dir, { team: 'ABCDE12345' }, { ...stubs({ installed: [] }, []), ...deps });
+
+    expect(result.plistPatched).toBe(false);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/Info\.ios\.plist/);
+    expect(fs.readFileSync(plistPath(dir), 'utf-8')).toBe(own);
+  });
+
+  it('warns and skips orientation when caper.config cannot be read', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    const loadConfig = () => {
+      throw new Error('boom');
+    };
+    const result = await iosNative(dir, { team: 'ABCDE12345' }, { ...stubs({ installed: [] }, []), ...deps, loadConfig });
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/could not read caper\.config\.ts orientation/);
+    expect(fs.readFileSync(plistPath(dir), 'utf-8')).toBe(renderInfoIosPlist(undefined));
+  });
+
+  it('patches the team into tauri.conf.json, keeping its indent', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+
+    const result = await iosNative(dir, { team: 'ABCDE12345' }, { ...stubs({ installed: [] }, []), ...deps });
+
+    expect(result.teamPatched).toBe(true);
+    expect(result.team).toBe('ABCDE12345');
+    expect(result.warnings).toEqual([]);
+    const raw = fs.readFileSync(path.join(dir, 'src-tauri/tauri.conf.json'), 'utf-8');
+    expect(raw).toContain('\n  "bundle"');
+    expect(JSON.parse(raw).bundle.iOS.developmentTeam).toBe('ABCDE12345');
+  });
+
+  it('takes the team from tauri.conf.json or APPLE_DEVELOPMENT_TEAM without warning', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir, { conf: { identifier: 'a.b', bundle: { iOS: { developmentTeam: 'CONF123456' } } } });
+    const fromConf = await iosNative(dir, {}, { ...stubs({ installed: [] }, []), ...deps });
+    expect(fromConf.team).toBe('CONF123456');
+    expect(fromConf.warnings).toEqual([]);
+
+    const fromEnv = await iosNative(dir, {}, { ...stubs({ installed: [...IOS_RUST_TARGETS] }, []), ...deps, env: { ...deps.env, APPLE_DEVELOPMENT_TEAM: 'ENV1234567' } });
+    expect(fromEnv.team).toBe('ENV1234567');
+    expect(fromEnv.warnings).toEqual([]);
+  });
+
+  it('rejects an invalid --team before running anything', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    const calls = [];
+    await expect(iosNative(dir, { team: 'abc' }, { ...stubs({ installed: [] }, calls), ...deps })).rejects.toThrow(/team/i);
+    expect(calls.filter((c) => c.kind === 'run')).toHaveLength(0);
+  });
+
+  it('fails clearly when src-tauri does not exist, with zero calls', async () => {
+    const dir = makeTempDir();
+    fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"x"}\n', 'utf-8');
+    const calls = [];
+    await expect(iosNative(dir, {}, { ...stubs({ installed: [] }, calls), env: {}, platform: 'darwin', homedir: dir })).rejects.toThrow(/caper native init/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('fails off macOS', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    const calls = [];
+    await expect(iosNative(dir, {}, { ...stubs({ installed: [] }, calls), ...deps, platform: 'linux' })).rejects.toThrow(/macOS/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('fails with the xcode-select fix when only the Command Line Tools are selected', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    const calls = [];
+    await expect(iosNative(dir, {}, { ...stubs({ installed: [] }, calls, { xcode: '/Library/Developer/CommandLineTools\n' }), ...deps })).rejects.toThrow(
+      /sudo xcode-select -s \/Applications\/Xcode\.app/,
+    );
+    expect(calls.filter((c) => c.kind === 'run')).toHaveLength(0);
+  });
+
+  it('fails the same way when xcode-select itself fails', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    await expect(iosNative(dir, {}, { ...stubs({ installed: [] }, [], { xcode: new Error('no') }), ...deps })).rejects.toThrow(/xcode-select -s/);
+  });
+
+  it('installs only the missing tools with Homebrew', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    fs.rmSync(path.join(dir, 'bin/pod'));
+    const brewDir = path.join(dir, 'brew/bin');
+    fs.mkdirSync(brewDir, { recursive: true });
+    fs.writeFileSync(path.join(brewDir, 'brew'), '', 'utf-8');
+    const state = { installed: [...IOS_RUST_TARGETS] };
+    const calls = [];
+    const base = stubs(state, calls);
+    const run = (cmd, args, opts) => {
+      const result = base.run(cmd, args, opts);
+      if (path.basename(cmd) === 'brew') fs.writeFileSync(path.join(brewDir, 'pod'), '', 'utf-8');
+      return result;
+    };
+
+    const result = await iosNative(dir, { team: 'ABCDE12345' }, { ...base, ...deps, run, env: { PATH: `${deps.env.PATH}:${brewDir}` } });
+
+    expect(result.installedTools).toEqual(['cocoapods']);
+    expect(state.brewed).toEqual(['cocoapods']);
+    const brewCall = calls.find((c) => c.kind === 'run' && path.basename(c.cmd) === 'brew');
+    expect(brewCall.cmd).toBe(path.join(brewDir, 'brew'));
+  });
+
+  it('fails with install help when tools are missing and there is no Homebrew', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    fs.rmSync(path.join(dir, 'bin/pod'));
+    fs.rmSync(path.join(dir, 'bin/xcodegen'));
+    const calls = [];
+    await expect(iosNative(dir, {}, { ...stubs({ installed: [] }, calls), ...deps })).rejects.toThrow(/pod[\s\S]*xcodegen/);
+    expect(calls.filter((c) => c.kind === 'run')).toHaveLength(0);
+  });
+
+  it('fails in plain English when rustup cannot be found', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    fs.rmSync(path.join(dir, 'bin/rustup'));
+    const calls = [];
+    await expect(iosNative(dir, {}, { ...stubs({ installed: [] }, calls), ...deps })).rejects.toThrow(/rustup[\s\S]*iOS targets/);
+    expect(calls.filter((c) => c.kind === 'run')).toHaveLength(0);
+  });
+
+  it('fails when tauri ios init exits 0 but creates no gen/apple', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    await expect(iosNative(dir, {}, { ...stubs({ installed: [] }, [], { initCreates: false }), ...deps })).rejects.toThrow(/gen\/apple/);
+    expect(fs.existsSync(plistPath(dir))).toBe(false);
+  });
+
+  it('warns when the Xcode build script runs through `node tauri`', async () => {
+    const dir = makeTempDir();
+    const deps = scaffoldIosApp(dir);
+    const result = await iosNative(dir, { team: 'ABCDE12345' }, { ...stubs({ installed: [] }, [], { runner: 'node' }), ...deps });
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/node tauri/);
+  });
+});
+
+describe('runIosTauri', () => {
+  function scaffold(dir, { genApple = true } = {}) {
+    fs.writeFileSync(path.join(dir, 'pnpm-lock.yaml'), '', 'utf-8');
+    fs.mkdirSync(path.join(dir, 'src-tauri'), { recursive: true });
+    if (genApple) fs.mkdirSync(path.join(dir, 'src-tauri/gen/apple'), { recursive: true });
+    const bin = path.join(dir, 'bin');
+    fs.mkdirSync(bin, { recursive: true });
+    for (const tool of ['rustup', 'pod', 'xcodegen']) fs.writeFileSync(path.join(bin, tool), '', 'utf-8');
+    return { env: { PATH: bin }, platform: 'darwin', homedir: path.join(dir, 'home'), exists: (p) => p.startsWith(dir) && fs.existsSync(p) };
+  }
+
+  it('runs `tauri ios <mode>` with args passed through and the resolved env', () => {
+    const dir = makeTempDir();
+    const deps = scaffold(dir);
+    const calls = [];
+    runIosTauri(dir, 'build', ['--target', 'aarch64-sim'], { ...deps, run: (cmd, args, opts) => calls.push({ cmd, args, opts }) });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].cmd).toBe('pnpm');
+    expect(calls[0].args).toEqual(['tauri', 'ios', 'build', '--target', 'aarch64-sim']);
+    expect(calls[0].opts.cwd).toBe(dir);
+    expect(calls[0].opts.stdio).toBe('inherit');
+    expect(calls[0].opts.env.PATH).toBe(deps.env.PATH);
+    expect(calls[0].opts.env.npm_config_user_agent).toBe('pnpm/caper');
+  });
+
+  it('throws when there is no iOS project, without running anything', () => {
+    const dir = makeTempDir();
+    const deps = scaffold(dir, { genApple: false });
+    const calls = [];
+    expect(() => runIosTauri(dir, 'dev', [], { ...deps, run: (...a) => calls.push(a) })).toThrow(/no iOS project.*caper native ios/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('throws the plain-English toolchain error when something is missing', () => {
+    const dir = makeTempDir();
+    const deps = scaffold(dir);
+    fs.rmSync(path.join(dir, 'bin/xcodegen'));
+    const calls = [];
+    expect(() => runIosTauri(dir, 'dev', [], { ...deps, run: (...a) => calls.push(a) })).toThrow(/xcodegen/);
+    expect(calls).toHaveLength(0);
   });
 });

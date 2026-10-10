@@ -12,10 +12,15 @@ import {
   ANDROID_RUST_TARGETS,
   ANDROID_SCREEN_ORIENTATION,
   findMainActivity,
+  INFO_IOS_PLIST,
+  IOS_RUST_TARGETS,
+  isFullXcode,
   missingRustTargets,
   readManifestOrientation,
   readOrientation,
+  readPlistOrientation,
   resolveAndroidEnv,
+  resolveIosEnv,
   rustToolchainOnPath,
   TAURI_PLUGIN_PERMISSIONS,
 } from './native.mjs';
@@ -560,6 +565,98 @@ export async function runChecks(
           'warn',
           `caper.config.ts orientation ${orientation}, AndroidManifest ${locked ? `locks ${locked}` : 'has no lock'}`,
           'caper native android',
+        );
+      }
+    }
+
+    // iOS: only on macOS, once `tauri ios init` (or `caper native ios`) has run.
+    if (platform === 'darwin' && fs.existsSync(path.join(srcTauriDir, 'gen/apple'))) {
+      let xcodeDir = '';
+      try {
+        xcodeDir = String(run('xcode-select', ['-p'])).trim();
+      } catch {
+        // fails below
+      }
+      if (isFullXcode(xcodeDir)) {
+        push(checks, 'native-ios-xcode', 'ok', `Xcode ${xcodeDir}`);
+      } else {
+        push(checks, 'native-ios-xcode', 'fail', 'full Xcode is not selected', 'install Xcode, then sudo xcode-select -s /Applications/Xcode.app');
+      }
+
+      const ios = resolveIosEnv({ env, platform, homedir, exists });
+      if (ios.missing.includes('rustup')) {
+        push(checks, 'native-ios-rust', 'fail', 'rustup not found', 'install Rust through rustup, then caper native ios');
+      } else {
+        try {
+          const missingTargets = missingRustTargets(run('rustup', ['target', 'list', '--installed'], { env: ios.env }), IOS_RUST_TARGETS);
+          if (missingTargets.length) {
+            push(checks, 'native-ios-rust', 'fail', `missing rust targets: ${missingTargets.join(', ')}`, 'caper native ios');
+          } else if (rustToolchainOnPath((env.PATH ?? '').split(':').filter(Boolean), exists).shadowed) {
+            push(
+              checks,
+              'native-ios-rust',
+              'warn',
+              "Homebrew's rustc comes first on PATH; pnpm native:ios:* handle it, plain `tauri ios` will fail",
+              `export PATH="${ios.env.PATH.split(':')[0]}:$PATH"`,
+            );
+          } else {
+            push(checks, 'native-ios-rust', 'ok', `rust targets: ${IOS_RUST_TARGETS.length} iOS targets`);
+          }
+        } catch {
+          push(checks, 'native-ios-rust', 'fail', 'rustup target list failed', 'caper native ios');
+        }
+      }
+
+      const missingTools = ios.missing.filter((name) => name !== 'rustup');
+      if (missingTools.length) {
+        push(checks, 'native-ios-tools', 'fail', `missing: ${missingTools.join(', ')}`, 'brew install cocoapods xcodegen');
+      } else {
+        push(checks, 'native-ios-tools', 'ok', 'CocoaPods and XcodeGen');
+      }
+
+      const team = env.APPLE_DEVELOPMENT_TEAM || tauriConf?.bundle?.iOS?.developmentTeam;
+      if (team) {
+        push(checks, 'native-ios-team', 'ok', `Apple Development Team ${team}`);
+      } else {
+        push(checks, 'native-ios-team', 'warn', 'no Apple Development Team: fine for the Simulator; needed for a device', 'caper native ios --team <ID>');
+      }
+
+      let plist = '';
+      try {
+        plist = fs.readFileSync(path.join(srcTauriDir, INFO_IOS_PLIST), 'utf-8');
+      } catch {
+        // checked below
+      }
+      if (/<key>UIStatusBarHidden<\/key>\s*<true\s*\/>/.test(plist)) {
+        push(checks, 'native-ios-plist', 'ok', 'Info.ios.plist hides the status bar');
+      } else {
+        push(checks, 'native-ios-plist', 'warn', 'Info.ios.plist does not hide the status bar', 'caper native ios');
+      }
+
+      const { orientation, warning: orientationWarning } = await readOrientation(cwd, loadConfig);
+      const locked = readPlistOrientation(plist);
+      if (orientationWarning) {
+        push(checks, 'native-ios-orientation', 'warn', 'could not read caper.config.ts orientation', "write it as orientation: 'portrait' or 'landscape'");
+      } else if (!orientation && !locked) {
+        push(checks, 'native-ios-orientation', 'ok', 'no orientation lock');
+      } else if (orientation === locked) {
+        push(checks, 'native-ios-orientation', 'ok', `orientation ${orientation} (Info.ios.plist)`);
+      } else if (!orientation) {
+        // `caper native ios` writes no lock when orientation is unset, but a hand-edited plist keeps its own.
+        push(
+          checks,
+          'native-ios-orientation',
+          'warn',
+          `Info.ios.plist locks orientation to ${locked}, caper.config.ts sets none`,
+          'set orientation in caper.config.ts, or remove UISupportedInterfaceOrientations from Info.ios.plist',
+        );
+      } else {
+        push(
+          checks,
+          'native-ios-orientation',
+          'warn',
+          `caper.config.ts orientation ${orientation}, Info.ios.plist ${locked ? `locks ${locked}` : 'has no lock'}`,
+          'caper native ios',
         );
       }
     }

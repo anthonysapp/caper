@@ -74,9 +74,10 @@ banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 | `native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]` | `native(args.slice(1))` (`cli/native.mjs`) | one-shot Tauri v2 scaffolding — see [Native (Tauri)](#native-tauri) below |
 | `native plugin` | `native(args.slice(1))` (`cli/native.mjs`) | wires an already-`native init`'d app up for `@caperjs/plugin-tauri` — see [Native (Tauri)](#native-tauri) below |
 | `native android` | `native(args.slice(1))` (`cli/native.mjs`) | sets an already-`native init`'d app up for Android builds; `native android dev|build [...tauri args]` runs `tauri android dev|build` with the resolved Android env; see [Native (Tauri)](#native-tauri) below |
+| `native ios [--team <ID>]` | `native(args.slice(1))` (`cli/native.mjs`) | sets an already-`native init`'d app up for iOS builds (macOS only); `native ios dev|build [...tauri args]` runs `tauri ios dev|build` with the resolved iOS env; see [Native (Tauri)](#native-tauri) below |
 | `agent probe <url> [opts]` | `probe(args)` (`cli/probe.mjs`, via `cli/agent.mjs`) | launches the app's own `playwright` Chromium, waits for `Caper.__readyApps`, sends `--action`s, optional `--until` predicate via `Caper.automation[id].waitFor`, returns context/state/log/errors (+ `--screenshot`); exit 1 on boot/until timeout or page errors, 2 if playwright is missing |
 | `types [--no-assets]` | `types(args)` (`cli/types.mjs`) | `vite.resolveConfig` on the app's own `vite.config`, then calls the `api` seams: `vite-plugin-assetpack.api.runOnce()` → `vite-plugin-caper-config.api.generateTypes()` → `vite-plugin-asset-types.api.generateTypes()`; same output as a dev-server start, no server |
-| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri` and six `native-android-*` rows once `src-tauri/gen/android/` exists, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
+| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri`, six `native-android-*` rows once `src-tauri/gen/android/` exists, and six `native-ios-*` rows on macOS once `src-tauri/gen/apple/` exists, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
 | `create` | `create(projectPath, packageManager)` (`cli/create.mjs`) | parses `--use-yarn`/`--use-pnpm` and a positional path before delegating |
 | `update` | `update()` (`cli/update.mjs`) | installs `@caperjs/core@latest` |
 | `vo generate [inputDir] [csvDir]` | `generateVoiceoverCSV()` (`cli/voiceover/`) | |
@@ -195,7 +196,44 @@ project, run `caper native android` first"), resolves the env with
 Everything after the mode passes through untouched. The wrapper exits with the
 child's exit code and prints one red line, never a stack trace.
 
-**Reading `caper.config.ts` from the CLI.** `native init`, `native android` and
+**`caper native ios [--team <ID>]`** (`iosNative` in `native.mjs`) automates the
+iOS steps in [native-tauri.md](native-tauri.md#ios). Same "run `caper native
+init` first" error as Android. It validates `--team` (`isValidTeamId`, 10
+uppercase letters or digits) before doing anything, fails off macOS, and fails
+with the `sudo xcode-select -s /Applications/Xcode.app` fix unless
+`xcode-select -p` points at a full Xcode (`isFullXcode`). The env comes from
+`resolveIosEnv` (pure, also used by `caper doctor`): a rustup-first `PATH`
+(shared with `resolveAndroidEnv`) that also reaches `pod` and `xcodegen`
+(appending `/opt/homebrew/bin` when only it has them), plus
+`npm_config_user_agent=pnpm/caper` for pnpm apps so Tauri writes
+`pnpm tauri ios xcode-script` into the Xcode project. Then:
+
+1. Runs `brew install` for whichever of `cocoapods` / `xcodegen` is missing;
+   without Homebrew it fails with install help. Fails if rustup is missing.
+2. Runs `rustup target add` for whichever of `IOS_RUST_TARGETS` is missing.
+3. Runs `tauri ios init --ci` if `src-tauri/gen/apple/` doesn't exist, then
+   fails if it still doesn't (Tauri exits 0 when it gives up). Warns when
+   `gen/apple/project.yml` runs the Rust build through `node tauri`
+   (`xcodeScriptRunner`).
+4. Writes `src-tauri/Info.ios.plist` (`renderInfoIosPlist`, `planInfoIosPlist`):
+   status bar hidden, plus the iPhone/iPad orientation arrays and
+   `UIRequiresFullScreen` when `caper.config.ts` sets `orientation`
+   (`IOS_ORIENTATIONS`). A file without caper's marker comment is left alone
+   with a warning.
+5. With `--team`, sets `bundle.iOS.developmentTeam` in `tauri.conf.json`
+   (`patchIosTeam`, keeping its indent). With no team in the options, the
+   config or `APPLE_DEVELOPMENT_TEAM`, it warns: fine for the Simulator,
+   needed for a device.
+6. Adds `native:ios:dev` / `native:ios:build` and `tauri` scripts
+   (`patchIosScripts`), upgrading old bare `tauri ios ...` values.
+
+Idempotent: a second run makes zero `run` calls and zero writes.
+**`caper native ios dev|build [...tauri args]`** (`runIosTauri`) requires
+`src-tauri/gen/apple/` ("no iOS project, run `caper native ios` first"),
+resolves the same env, and runs `<pm runner> tauri ios <mode> ...args` with
+inherited stdio.
+
+**Reading `caper.config.ts` from the CLI.** `native init`, `native android`, `native ios` and
 `doctor` need only `orientation`, so they read it with
 `readConfigOrientation(root)` (`build/internal/buildFlags.mjs`): the same oxc AST
 parse as the preset's build flags, so nothing executes and no DOM stub is
@@ -250,6 +288,15 @@ Failing rows hint `caper native android`. `native-android-rust` also `warn`s
 (hint `export PATH="<rustup bin>:$PATH"`) when the real `PATH` resolves `rustc`
 to `/opt/homebrew/bin` (Homebrew's formula) while rustup exists: the scripts
 handle it, plain `tauri android` would fail.
+On macOS, once `src-tauri/gen/apple/` exists, six `native-ios-*` rows:
+`native-ios-xcode` (full Xcode selected, else `fail` with the `xcode-select -s`
+hint), `native-ios-rust` (like the Android row, for the three iOS targets),
+`native-ios-tools` (`pod` and `xcodegen` found, else `fail`),
+`native-ios-team` (`warn` without a team: fine for the Simulator, needed for a
+device; hint `caper native ios --team <ID>`), `native-ios-plist`
+(`Info.ios.plist` hides the status bar, else `warn`), and
+`native-ios-orientation` (like the Android row, comparing
+`readPlistOrientation` of `Info.ios.plist`).
 
 **`caper create [path] [--use-yarn|--use-pnpm]`**
 (`packages/core/cli/create.mjs`; `create-caper.mjs` is a thin wrapper around
