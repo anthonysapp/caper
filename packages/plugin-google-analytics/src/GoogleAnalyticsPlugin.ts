@@ -22,7 +22,6 @@ export class GoogleAnalyticsPlugin<E extends GAEvents = GAEvents>
   extends Plugin<GoogleAnalyticsPluginOptions>
   implements IGoogleAnalyticsPlugin<E>
 {
-  private _options: GoogleAnalyticsPluginOptions;
   private _dataLayer: { push: (args: any) => void };
   private _queue: any[] = [];
 

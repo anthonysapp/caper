@@ -51,8 +51,6 @@ export interface IFirebasePlugin {
  * @extends StorageAdapter
  */
 export class FirebasePlugin extends Plugin<IFirebasePluginOptions> implements IFirebasePlugin {
-  private _options: IFirebasePluginOptions;
-
   private _firebaseApp: FirebaseApp;
 
   /**
