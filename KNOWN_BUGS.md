@@ -1,6 +1,6 @@
 # Known Bugs — packages/core
 
-**One open core defect (plugin ordering, below).** The 2026-08-02 audit backlog (≈50 defects) and every follow-up finding through 2026-08-04 are fixed — each test-first in its own conventional commit. (One reported item — a UICanvas lifecycle double-registration — was investigated and disproved: UICanvas composes `WithSignals(Factory())` directly and never touches the lifecycle mixin.)
+**Three open core defects (plugin ordering and two `caper native ios` setup gaps, below).** The 2026-08-02 audit backlog (≈50 defects) and every follow-up finding through 2026-08-04 are fixed — each test-first in its own conventional commit. (One reported item — a UICanvas lifecycle double-registration — was investigated and disproved: UICanvas composes `WithSignals(Factory())` directly and never touches the lifecycle mixin.)
 
 CI guards the state on every push and PR: lint (`--max-warnings 0`), core + kitchen-sink typechecks, 373 tests, framework/plugin/demo builds, and a blocking headless boot smoke test.
 
@@ -11,6 +11,8 @@ Process: when a defect is found, add it here with severity + file:line; when fix
 | Severity | Location | Defect |
 |---|---|---|
 | Medium | `packages/core/build/internal/discovery.mjs:232-235`, `packages/core/src/core/Application.ts:1053`, `src/core/config.ts:87` | **`requires` declared on an npm plugin's class is never read.** Discovery hardcodes `requires: []` for every `@caperjs/plugin-*` package, with a comment claiming "the runtime topo-sort reads from the live instance". It does not: `sortPluginsByRequires(this.plugins, ...)` only looks at the list items, before any plugin is instantiated. So `public readonly requires = ['firebase']` on a published plugin gives no ordering and no "missing required plugin" bootstrap error. Harmless for `@caperjs/plugin-tauri` (it needs only the built-in `fullscreen`, registered earlier, and wires it in `postInitialize`). Fix: read a static `requires` from the package at discovery time (e.g. a `caper.requires` field in its `package.json`), or re-sort after import, and make the comment true. |
+| Medium | `packages/core/cli/native.mjs:1108,1186` | **Any existing `src-tauri/gen/apple/` counts as a complete iOS project.** `iosNative` skips `tauri ios init` and `runIosTauri` proceeds whenever the directory exists, so an interrupted or partial init leaves setup reporting success and dev/build running against a broken project. Fix: check for `project.yml` and `app.xcodeproj` and fail with a plain fix when they are missing. |
+| Medium | `packages/core/cli/native.mjs:1084-1095` | **`caper native ios` runs `brew install cocoapods xcodegen` before telling the user.** The list of installed tools is only printed after the whole setup succeeds. Fix: print the exact formulas right before the install (optionally ask first). |
 
 ## Open defects (first-party plugins)
 

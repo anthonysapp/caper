@@ -13,9 +13,10 @@ import { resolveOrientation } from '../src/utils/orientation.js';
  * `@tauri-apps/cli`, runs `tauri init --ci` with a pinned identifier/port,
  * then patches the generated `tauri.conf.json` and the app's own
  * `package.json` scripts. `caper` does not wrap `tauri dev` / `tauri build`
- * (same rule as `dev`/`build` in `cli.mjs`); it wraps only the Android ones
- * (`caper native android dev|build`), because their environment (NDK_HOME,
- * JAVA_HOME, rustup-first PATH) is the hard part.
+ * (same rule as `dev`/`build` in `cli.mjs`); it wraps only the Android and iOS
+ * ones (`caper native android|ios dev|build`), because their environment
+ * (NDK_HOME, JAVA_HOME, a rustup-first PATH, pnpm detection for Xcode's build
+ * script) is the hard part.
  */
 
 const IDENTIFIER_RE = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/;
@@ -422,6 +423,20 @@ export function rustToolchainOnPath(pathDirs, exists) {
 }
 
 /**
+ * `env.PATH` with rustup's toolchain proxies first (Homebrew's plain `rustc` can't add
+ * targets; keg-only rustup isn't on PATH), and whether rustup was found at all.
+ */
+function rustupFirstPath({ env, platform, homedir, exists }) {
+  const delimiter = platform === 'win32' ? ';' : ':';
+  const pathDirs = (env.PATH ?? '').split(delimiter).filter(Boolean);
+  const { rustupDir, shadowed } = rustToolchainOnPath(pathDirs, exists);
+  if (rustupDir && !shadowed) return { PATH: env.PATH, rustupFound: true };
+  const candidates = [...(platform === 'darwin' ? [HOMEBREW_RUSTUP_BIN] : []), path.join(homedir, '.cargo/bin')];
+  const candidate = candidates.find((dir) => exists(path.join(dir, 'rustup'))) ?? rustupDir;
+  return candidate ? { PATH: [candidate, ...pathDirs].join(delimiter), rustupFound: true } : { PATH: env.PATH, rustupFound: false };
+}
+
+/**
  * The env every Android child process needs: `ANDROID_HOME`, `NDK_HOME`,
  * `JAVA_HOME`, and a `PATH` whose rustup toolchain proxies win (Homebrew's
  * plain `rustc` can't add targets; keg-only rustup isn't on PATH). Pure: all
@@ -452,16 +467,8 @@ export function resolveAndroidEnv({ env = {}, platform, homedir, exists, listDir
   if (!javaHome && darwin && exists(MAC_STUDIO_JBR)) javaHome = MAC_STUDIO_JBR;
   if (!javaHome) missing.push('JAVA_HOME');
 
-  const delimiter = platform === 'win32' ? ';' : ':';
-  const pathDirs = (env.PATH ?? '').split(delimiter).filter(Boolean);
-  const { rustupDir, shadowed } = rustToolchainOnPath(pathDirs, exists);
-  let PATH = env.PATH;
-  if (!rustupDir || shadowed) {
-    const candidates = [...(darwin ? [HOMEBREW_RUSTUP_BIN] : []), path.join(homedir, '.cargo/bin')];
-    const candidate = candidates.find((dir) => exists(path.join(dir, 'rustup'))) ?? rustupDir;
-    if (candidate) PATH = [candidate, ...pathDirs].join(delimiter);
-    else missing.push('rustup');
-  }
+  const { PATH, rustupFound } = rustupFirstPath({ env, platform, homedir, exists });
+  if (!rustupFound) missing.push('rustup');
 
   const resolved = { ...env };
   if (androidHome) resolved.ANDROID_HOME = androidHome;
@@ -471,10 +478,10 @@ export function resolveAndroidEnv({ env = {}, platform, homedir, exists, listDir
   return { env: resolved, missing };
 }
 
-/** The `ANDROID_RUST_TARGETS` absent from `rustup target list --installed` output. */
-export function missingRustTargets(installedOutput) {
+/** The `targets` (the Android ones by default) absent from `rustup target list --installed` output. */
+export function missingRustTargets(installedOutput, targets = ANDROID_RUST_TARGETS) {
   const installed = new Set(String(installedOutput ?? '').split(/\s+/).filter(Boolean));
-  return ANDROID_RUST_TARGETS.filter((target) => !installed.has(target));
+  return targets.filter((target) => !installed.has(target));
 }
 
 const PAGE_SIZE_MARKER = 'max-page-size=16384';
@@ -852,10 +859,345 @@ export function runAndroidTauri(
   return run(EXEC_RUNNER[pm], ['tauri', 'android', mode, ...args], { cwd, env: resolved.env, stdio: 'inherit' });
 }
 
+/** Rust targets `tauri ios` builds for: devices, Apple Silicon Simulators, Intel Simulators. */
+export const IOS_RUST_TARGETS = Object.freeze(['aarch64-apple-ios', 'aarch64-apple-ios-sim', 'x86_64-apple-ios']);
+
+// The tools `tauri ios init` needs on PATH, and the Homebrew formula for each.
+const IOS_TOOL_FORMULAS = Object.freeze({ pod: 'cocoapods', xcodegen: 'xcodegen' });
+
+const CLT_DIR = '/Library/Developer/CommandLineTools';
+
+/** Whether `xcode-select -p` output points at a full Xcode, not just the Command Line Tools. */
+export function isFullXcode(xcodeSelectOutput) {
+  const dir = String(xcodeSelectOutput ?? '').trim();
+  return dir !== '' && !dir.startsWith(CLT_DIR);
+}
+
+/**
+ * The env every iOS child process needs: a rustup-first `PATH` (as for Android) that
+ * also reaches `pod` and `xcodegen` (appending /opt/homebrew/bin when only it has
+ * them), and, for pnpm, an `npm_config_user_agent` starting with `pnpm/`: `tauri ios
+ * init` reads it to write `pnpm tauri ios xcode-script` into the Xcode project
+ * instead of a broken `node tauri`. Pure: all filesystem access goes through `exists`.
+ *
+ * @returns {{ env: Record<string, string>, missing: string[] }} `missing` may hold `rustup`, `pod`, `xcodegen`
+ */
+export function resolveIosEnv({ env = {}, platform, homedir, exists, pm }) {
+  const missing = [];
+  const delimiter = platform === 'win32' ? ';' : ':';
+  let { PATH, rustupFound } = rustupFirstPath({ env, platform, homedir, exists });
+  if (!rustupFound) missing.push('rustup');
+
+  const pathDirs = (PATH ?? '').split(delimiter).filter(Boolean);
+  let addHomebrewBin = false;
+  for (const tool of Object.keys(IOS_TOOL_FORMULAS)) {
+    if (pathDirs.some((dir) => exists(path.join(dir, tool)))) continue;
+    if (exists(path.join(HOMEBREW_BIN, tool))) addHomebrewBin = true;
+    else missing.push(tool);
+  }
+  if (addHomebrewBin) PATH = [...pathDirs, HOMEBREW_BIN].join(delimiter);
+
+  const resolved = { ...env };
+  if (PATH !== undefined) resolved.PATH = PATH;
+  if (pm === 'pnpm' && !String(env.npm_config_user_agent ?? '').startsWith('pnpm/')) {
+    resolved.npm_config_user_agent = 'pnpm/caper';
+  }
+  return { env: resolved, missing };
+}
+
+/** The `caper.config.ts` orientation values, and the `UISupportedInterfaceOrientations` each one becomes on iPhone and iPad. */
+export const IOS_ORIENTATIONS = Object.freeze({
+  portrait: Object.freeze({
+    iphone: Object.freeze(['UIInterfaceOrientationPortrait']),
+    ipad: Object.freeze(['UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown']),
+  }),
+  landscape: Object.freeze({
+    iphone: Object.freeze(['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight']),
+    ipad: Object.freeze(['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight']),
+  }),
+});
+
+/** Where Caper's iOS plist keys live, relative to `src-tauri/`. Tauri merges it into the generated Info.plist on every `tauri ios dev|build`. */
+export const INFO_IOS_PLIST = 'Info.ios.plist';
+
+const PLIST_MARKER = '<!-- Managed by caper native ios: re-running it rewrites this file. Delete this line to keep your own edits. -->';
+
+/**
+ * Caper's `src-tauri/Info.ios.plist`: the status bar hidden, plus, when `orientation`
+ * is set, the iPhone and iPad orientation locks and `UIRequiresFullScreen` (iPad
+ * ignores the lock, and App Store validation rejects it, without it). The marker
+ * comment sits right after the XML declaration, which must come first.
+ */
+export function renderInfoIosPlist(orientation) {
+  const entries = [
+    ['UIStatusBarHidden', '<true/>'],
+    ['UIViewControllerBasedStatusBarAppearance', '<false/>'],
+  ];
+  const lock = IOS_ORIENTATIONS[orientation];
+  if (lock) {
+    const array = (values) => ['<array>', ...values.map((v) => `\t\t<string>${v}</string>`), '\t</array>'].join('\n');
+    entries.push(
+      ['UISupportedInterfaceOrientations', array(lock.iphone)],
+      ['UISupportedInterfaceOrientations~ipad', array(lock.ipad)],
+      ['UIRequiresFullScreen', '<true/>'],
+    );
+  }
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    PLIST_MARKER,
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    '<dict>',
+    ...entries.map(([key, value]) => `\t<key>${key}</key>\n\t${value}`),
+    '</dict>',
+    '</plist>',
+    '',
+  ].join('\n');
+}
+
+/** `'write'` (missing, or managed and out of date), `'skip'` (already current), or `'warn'` (the user's own file, no marker). */
+export function planInfoIosPlist(content, orientation) {
+  if (content === null || content === undefined) return 'write';
+  if (!content.includes(PLIST_MARKER)) return 'warn';
+  return content === renderInfoIosPlist(orientation) ? 'skip' : 'write';
+}
+
+const PLIST_ORIENTATIONS_RE = /<key>UISupportedInterfaceOrientations<\/key>\s*<array>([\s\S]*?)<\/array>/;
+
+/** The iPhone orientation lock in a plist's `UISupportedInterfaceOrientations`, or `undefined` (no array, or mixed). */
+export function readPlistOrientation(xml) {
+  const body = String(xml ?? '').match(PLIST_ORIENTATIONS_RE)?.[1];
+  if (!body) return undefined;
+  const values = [...body.matchAll(/<string>\s*([^<]*?)\s*<\/string>/g)].map((m) => m[1]);
+  if (!values.length) return undefined;
+  if (values.every((v) => v.startsWith('UIInterfaceOrientationPortrait'))) return 'portrait';
+  if (values.every((v) => v.startsWith('UIInterfaceOrientationLandscape'))) return 'landscape';
+  return undefined;
+}
+
+/** Apple Developer Team IDs are ten uppercase letters or digits. */
+export function isValidTeamId(team) {
+  return typeof team === 'string' && /^[A-Z0-9]{10}$/.test(team);
+}
+
+/** Returns a new tauri.conf.json with `bundle.iOS.developmentTeam` set; the rest untouched. */
+export function patchIosTeam(conf, team) {
+  return {
+    ...conf,
+    bundle: {
+      ...conf.bundle,
+      iOS: { ...conf.bundle?.iOS, developmentTeam: team },
+    },
+  };
+}
+
+const IOS_SCRIPTS = Object.freeze({
+  'native:ios:dev': { old: 'tauri ios dev', value: 'caper native ios dev' },
+  'native:ios:build': { old: 'tauri ios build', value: 'caper native ios build' },
+});
+
+/**
+ * Returns a new package.json: adds `native:ios:dev`/`native:ios:build` scripts (routed through
+ * `caper native ios dev|build`) where absent, upgrading the old bare `tauri ios ...` values, and a
+ * `tauri` script when absent (with npm, Xcode's Rust build step runs `npm run -- tauri`).
+ */
+export function patchIosScripts(pkg) {
+  const scripts = { ...(pkg.scripts ?? {}) };
+  for (const [name, { old, value }] of Object.entries(IOS_SCRIPTS)) {
+    if (!(name in scripts) || scripts[name] === old) scripts[name] = value;
+  }
+  if (!('tauri' in scripts)) scripts.tauri = 'tauri';
+  return { ...pkg, scripts };
+}
+
+/** The command in front of `tauri ios xcode-script` in a generated `project.yml` (`pnpm`, `npm run --`, `node`, ...), or `undefined`. */
+export function xcodeScriptRunner(projectYml) {
+  // Either `- script: <runner> tauri ...` or a `- script: |` block with the command on its own line.
+  return String(projectYml ?? '').match(/^[ \t]*(?:-[ \t]*script:[ \t]*)?["']?([^\s|"'][^\n]*?)[ \t]+tauri ios xcode-script/m)?.[1];
+}
+
+const IOS_MISSING_HELP = {
+  rustup: 'rustup: install Rust through rustup (https://rustup.rs or `brew install rustup`). Homebrew\'s plain `rust` cannot add iOS targets.',
+  pod: 'pod: install CocoaPods (`brew install cocoapods`).',
+  xcodegen: 'xcodegen: install XcodeGen (`brew install xcodegen`).',
+};
+
+const iosToolchainError = (names) => new Error(`the iOS toolchain is incomplete:\n${names.map((name) => `  - ${IOS_MISSING_HELP[name]}`).join('\n')}`);
+
+/**
+ * The I/O core of `caper native ios`: checks for full Xcode, installs CocoaPods
+ * and XcodeGen with Homebrew when missing, installs the Rust targets, runs
+ * `tauri ios init --ci`, writes `src-tauri/Info.ios.plist` (status bar hidden,
+ * `caper.config.ts`'s orientation lock), sets the signing team when `team` is
+ * given, and adds `native:ios:*` scripts. No console output; the CLI wrapper
+ * below owns presentation. Idempotent: a second run makes zero `run` calls and
+ * zero writes.
+ *
+ * @param {string} cwd
+ * @param {{ team?: string }} [opts]
+ * @param {{ run?: typeof defaultRun, exec?: typeof defaultExec, env?: Record<string, string>, platform?: string, homedir?: string, exists?: (p: string) => boolean, loadConfig?: typeof defaultLoadConfig }} [deps]
+ */
+export async function iosNative(
+  cwd,
+  opts = {},
+  {
+    run = defaultRun,
+    exec = defaultExec,
+    env = process.env,
+    platform = process.platform,
+    homedir = os.homedir(),
+    exists = fs.existsSync,
+    loadConfig = defaultLoadConfig,
+  } = {},
+) {
+  const pkgPath = path.join(cwd, 'package.json');
+  if (!fs.existsSync(pkgPath)) {
+    throw new Error('no package.json found in this directory.');
+  }
+  const srcTauriDir = path.join(cwd, 'src-tauri');
+  const tauriConfPath = path.join(srcTauriDir, 'tauri.conf.json');
+  if (!fs.existsSync(tauriConfPath)) {
+    throw new Error('no src-tauri/ found — run `caper native init` first.');
+  }
+  if (opts.team !== undefined && !isValidTeamId(opts.team)) {
+    throw new Error(`--team must be a 10-character Apple Team ID like ABCDE12345 (got ${JSON.stringify(opts.team)}).`);
+  }
+  if (platform !== 'darwin') {
+    throw new Error('iOS builds need macOS with Xcode.');
+  }
+
+  let xcodeDir = '';
+  try {
+    xcodeDir = exec('xcode-select', ['-p']);
+  } catch {
+    // treated as no Xcode below
+  }
+  if (!isFullXcode(xcodeDir)) {
+    throw new Error(
+      'iOS builds need the full Xcode app, not just the Command Line Tools. Install Xcode from the App Store, then run `sudo xcode-select -s /Applications/Xcode.app`.',
+    );
+  }
+
+  const pm = packageManagerFor(cwd);
+  let resolved = resolveIosEnv({ env, platform, homedir, exists, pm });
+
+  const installedTools = [];
+  const missingTools = resolved.missing.filter((name) => name in IOS_TOOL_FORMULAS);
+  if (missingTools.length) {
+    const brewDir = [...(resolved.env.PATH ?? '').split(':').filter(Boolean), HOMEBREW_BIN].find((dir) => exists(path.join(dir, 'brew')));
+    if (!brewDir) {
+      const error = iosToolchainError(missingTools);
+      error.message += '\n  Or install Homebrew (https://brew.sh) and re-run `caper native ios`.';
+      throw error;
+    }
+    installedTools.push(...missingTools.map((name) => IOS_TOOL_FORMULAS[name]));
+    run(path.join(brewDir, 'brew'), ['install', ...installedTools], { cwd, env: resolved.env });
+    resolved = resolveIosEnv({ env, platform, homedir, exists, pm });
+  }
+  if (resolved.missing.length) {
+    throw iosToolchainError(resolved.missing);
+  }
+  const childOpts = { cwd, env: resolved.env };
+  const warnings = [];
+
+  const addedTargets = missingRustTargets(exec('rustup', ['target', 'list', '--installed'], childOpts), IOS_RUST_TARGETS);
+  if (addedTargets.length) {
+    run('rustup', ['target', 'add', ...addedTargets], childOpts);
+  }
+
+  const genAppleDir = path.join(srcTauriDir, 'gen/apple');
+  const ranIosInit = !fs.existsSync(genAppleDir);
+  if (ranIosInit) {
+    run(EXEC_RUNNER[pm], ['tauri', 'ios', 'init', '--ci'], childOpts);
+    // Tauri exits 0 even when it gives up (e.g. it could not install CocoaPods).
+    if (!fs.existsSync(genAppleDir)) {
+      throw new Error('`tauri ios init` did not create src-tauri/gen/apple. Read its output above; a missing CocoaPods or XcodeGen is the usual cause.');
+    }
+  }
+
+  const projectYmlPath = path.join(genAppleDir, 'project.yml');
+  if (fs.existsSync(projectYmlPath) && xcodeScriptRunner(fs.readFileSync(projectYmlPath, 'utf-8')) === 'node') {
+    warnings.push(
+      'src-tauri/gen/apple/project.yml runs the Rust build with `node tauri`, which fails in Xcode. Delete src-tauri/gen/apple and re-run `caper native ios` (with npm, keep the `tauri` script in package.json).',
+    );
+  }
+
+  const { orientation, warning: orientationWarning } = await readOrientation(cwd, loadConfig);
+  if (orientationWarning) warnings.push(orientationWarning);
+  const plistPath = path.join(srcTauriDir, INFO_IOS_PLIST);
+  const plistPlan = planInfoIosPlist(fs.existsSync(plistPath) ? fs.readFileSync(plistPath, 'utf-8') : null, orientation);
+  if (plistPlan === 'write') {
+    fs.writeFileSync(plistPath, renderInfoIosPlist(orientation), 'utf-8');
+  } else if (plistPlan === 'warn') {
+    warnings.push(
+      `src-tauri/${INFO_IOS_PLIST} has no caper marker, so it was left alone. Set UIStatusBarHidden${orientation ? ', the orientation keys and UIRequiresFullScreen' : ''} by hand (see docs/wiki/native-tauri.md, "iOS").`,
+    );
+  }
+
+  const confRaw = fs.readFileSync(tauriConfPath, 'utf-8');
+  const conf = JSON.parse(confRaw);
+  let teamPatched = false;
+  if (opts.team !== undefined && conf.bundle?.iOS?.developmentTeam !== opts.team) {
+    writeJson(tauriConfPath, patchIosTeam(conf, opts.team), detectIndent(confRaw));
+    teamPatched = true;
+  }
+  const team = env.APPLE_DEVELOPMENT_TEAM || opts.team || conf.bundle?.iOS?.developmentTeam || undefined;
+  if (!team) {
+    warnings.push(
+      'no Apple Development Team set. The Simulator works without one; for a device, run `caper native ios --team <ID>` (find it at developer.apple.com > Account > Membership).',
+    );
+  }
+
+  const pkgRaw = fs.readFileSync(pkgPath, 'utf-8');
+  const pkg = JSON.parse(pkgRaw);
+  const patchedPkg = patchIosScripts(pkg);
+  const addedScripts = Object.keys(patchedPkg.scripts).filter((name) => patchedPkg.scripts[name] !== pkg.scripts?.[name]);
+  if (addedScripts.length) {
+    writeJson(pkgPath, patchedPkg, detectIndent(pkgRaw));
+  }
+
+  const plistPatched = plistPlan === 'write';
+  return {
+    status: 'ok',
+    changed: installedTools.length > 0 || addedTargets.length > 0 || ranIosInit || plistPatched || teamPatched || addedScripts.length > 0,
+    installedTools,
+    addedTargets,
+    ranIosInit,
+    plistPatched,
+    orientation,
+    teamPatched,
+    team,
+    addedScripts,
+    warnings,
+  };
+}
+
+/**
+ * The I/O core of `caper native ios dev|build`: runs `tauri ios <mode> ...args` with the resolved
+ * iOS env (rustup-first PATH that reaches pod and xcodegen). Throws if the iOS project or toolchain
+ * is missing; the `run` error (non-zero exit) propagates.
+ *
+ * @param {string} cwd
+ * @param {'dev' | 'build'} mode
+ * @param {string[]} args passed to tauri untouched
+ * @param {{ run?: typeof defaultRun, env?: Record<string, string>, platform?: string, homedir?: string, exists?: (p: string) => boolean }} [deps]
+ */
+export function runIosTauri(cwd, mode, args = [], { run = defaultRun, env = process.env, platform = process.platform, homedir = os.homedir(), exists = fs.existsSync } = {}) {
+  if (!exists(path.join(cwd, 'src-tauri/gen/apple'))) {
+    throw new Error('no iOS project, run `caper native ios` first.');
+  }
+  const pm = packageManagerFor(cwd);
+  const resolved = resolveIosEnv({ env, platform, homedir, exists, pm });
+  if (resolved.missing.length) throw iosToolchainError(resolved.missing);
+  return run(EXEC_RUNNER[pm], ['tauri', 'ios', mode, ...args], { cwd, env: resolved.env, stdio: 'inherit' });
+}
+
 function printUsage() {
   console.error(red('Usage: caper native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]'));
   console.error(red('       caper native plugin'));
   console.error(red('       caper native android [dev|build] [...tauri args]'));
+  console.error(red('       caper native ios [--team <ID>]'));
+  console.error(red('       caper native ios dev|build [...tauri args]'));
 }
 
 function parseInitArgs(args) {
@@ -987,6 +1329,69 @@ async function runAndroidTauriCommand(mode, args) {
   }
 }
 
+function parseIosArgs(args) {
+  const opts = {};
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--team') {
+      const next = args[++i];
+      if (!next) throw new Error('Missing value for --team');
+      opts.team = next;
+    } else {
+      throw new Error(`Unknown option: ${arg}`);
+    }
+  }
+  return opts;
+}
+
+async function runIos(args) {
+  let opts;
+  try {
+    opts = parseIosArgs(args);
+  } catch (err) {
+    console.error(red(err.message));
+    printUsage();
+    process.exit(1);
+  }
+
+  let result;
+  try {
+    result = await iosNative(process.cwd(), opts);
+  } catch (err) {
+    console.error(red(`caper native ios: ${err.message}`));
+    process.exit(1);
+  }
+
+  if (!result.changed) {
+    console.log(yellow('Already set up for iOS. Nothing to do.'));
+  } else {
+    console.log(green(bold('✓ Set up for')) + ` ${cyan('iOS')}`);
+    if (result.installedTools.length) console.log(`  ${yellow('brew installed:')} ${result.installedTools.join(', ')}`);
+    if (result.addedTargets.length) console.log(`  ${yellow('rust targets:')} ${result.addedTargets.join(', ')}`);
+    if (result.ranIosInit) console.log(`  ${yellow('ran:')} tauri ios init --ci`);
+    if (result.plistPatched) {
+      console.log(`  ${yellow('Info.ios.plist:')} status bar hidden${result.orientation ? `, ${result.orientation} orientation` : ''}`);
+    }
+    if (result.teamPatched) console.log(`  ${yellow('tauri.conf.json:')} bundle.iOS.developmentTeam = ${result.team}`);
+    if (result.addedScripts.length) console.log(`  ${yellow('scripts:')} ${result.addedScripts.join(', ')}`);
+  }
+  for (const warning of result.warnings) console.log(yellow(`  ⚠ ${warning}`));
+
+  console.log('\n  Next:');
+  console.log(`    ${cyan('pnpm native:ios:dev')}  ${dim('# pick a Simulator, or a device once a team is set')}`);
+  console.log(`    ${cyan('pnpm native:ios:build')}`);
+}
+
+async function runIosTauriCommand(mode, args) {
+  try {
+    runIosTauri(process.cwd(), mode, args);
+  } catch (err) {
+    // The child already printed its own output; add one red line, no stack.
+    console.error(red(`caper native ios ${mode}: ${err.message}`));
+    process.exit(typeof err.status === 'number' ? err.status : 1);
+  }
+}
+
 /**
  * CLI entry for `caper native`.
  *
@@ -1009,6 +1414,15 @@ export async function native(args) {
       return;
     }
     await runAndroid();
+    return;
+  }
+
+  if (args[0] === 'ios') {
+    if (args[1] === 'dev' || args[1] === 'build') {
+      await runIosTauriCommand(args[1], args.slice(2));
+      return;
+    }
+    await runIos(args.slice(1));
     return;
   }
 

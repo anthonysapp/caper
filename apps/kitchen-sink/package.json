@@ -27,7 +27,10 @@
     "native:dev": "tauri dev",
     "native:build": "tauri build",
     "native:android:dev": "caper native android dev",
-    "native:android:build": "caper native android build"
+    "native:android:build": "caper native android build",
+    "native:ios:dev": "caper native ios dev",
+    "native:ios:build": "caper native ios build",
+    "tauri": "tauri"
   },
   "author": "Anthony Sapp <anthony@anthonysapp.dev>",
   "license": "MIT",
