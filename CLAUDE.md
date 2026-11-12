@@ -154,8 +154,10 @@ under the stub rather than guessing.
 ## Model delegation — plan at the frontier, implement downstream
 
 When a frontier model (Fable/Opus-tier) orchestrates work in this repo, it should
-**diagnose, spec, and review — not type**. Delegate implementation via the Agent tool
-with a model override (this repo has no `.claude/agents/`): `model: "sonnet"` for
+**diagnose, spec, and review — not type**. The repo has a team of lead agents in
+[.claude/agents/](.claude/agents/) (`product-lead`, `lead-engineer`, `design-lead`, `native-lead`, `qa-lead`,
+`docs-release-lead`); each lead hands typing to cheaper models through `delegate`. For a plain build step,
+delegate via the Agent tool with a model override: `model: "sonnet"` for
 mechanical, fully-specified changes (single-file edits, spec'd fixes, renames);
 `model: "opus"` for judgment-heavy work (package export surgery, build/bundling
 changes, anything spanning core + plugins or affecting the published API).
