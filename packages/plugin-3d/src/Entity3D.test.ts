@@ -2,6 +2,7 @@ import { Application } from '@caperjs/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Entity3D } from './Entity3D';
 import { View3D } from './View3D';
+import { registerFactory3DMethods } from './factory3d';
 
 const app = {
   renderer: { name: 'webgpu', lighting3d: {}, resolution: 2 },
@@ -41,5 +42,24 @@ describe('Entity3D', () => {
     expect(cube.destroyed).toBe(true);
     expect(material.destroyed).toBe(true);
     expect(app.ticker.remove).toHaveBeenCalledWith(cube.update, cube);
+  });
+
+  it('passes its containing view to registered add and make methods', () => {
+    const method = vi.fn((view: View3D, value: string) => ({ view, value }));
+    const dispose = registerFactory3DMethods({ probe: method });
+    try {
+      const view = new View3D();
+      const entity = new Entity3D();
+      view.add.existing(entity);
+      const add = entity.add as typeof entity.add & { probe(value: string): unknown };
+      const make = entity.make as typeof entity.make & { probe(value: string): unknown };
+      expect(add.probe('add')).toEqual({ view, value: 'add' });
+      expect(make.probe('make')).toEqual({ view, value: 'make' });
+      expect(method).toHaveBeenNthCalledWith(1, view, 'add');
+      expect(method).toHaveBeenNthCalledWith(2, view, 'make');
+      view.destroy();
+    } finally {
+      dispose();
+    }
   });
 });

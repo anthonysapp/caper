@@ -4,6 +4,7 @@ import { createFactory3D } from './factory3d';
 import type { Factory3D } from './factory3d';
 import { ownedByView } from './owned';
 import type { Owned3D } from './owned';
+import type { View3D } from './View3D';
 
 /**
  * Base class for 3D entities: a `Container3D` with the Caper lifecycle (`added` / `removed` / `update`),
@@ -42,7 +43,8 @@ export class Entity3D<Props = void> extends WithLifecycle(WithSignals(Container3
     }
     // Rebuilt only if the entity moved to another view.
     if (this.factories?.owned !== owned) {
-      this.factories = { owned, add: createFactory3D(this, owned, true), make: createFactory3D(this, owned, false) };
+      const view = this.view3d as View3D;
+      this.factories = { owned, add: createFactory3D(this, owned, true, view), make: createFactory3D(this, owned, false, view) };
     }
     return this.factories;
   }

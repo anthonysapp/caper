@@ -196,6 +196,7 @@ export default defineConfig({
     // Inert on the web; only does anything inside the Tauri shell (native:dev / native:build).
     'tauri',
     '3d',
+    'klipp',
   ],
   i18n: {
     loadAll: true,

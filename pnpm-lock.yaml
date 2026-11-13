@@ -6,6 +6,7 @@ settings:
 
 overrides:
   pixi.js: 8.23.0
+  '@pmndrs/klipp>react': '*'
 
 importers:
 
@@ -68,6 +69,9 @@ importers:
       '@caperjs/plugin-google-analytics':
         specifier: workspace:*
         version: link:../../packages/plugin-google-analytics
+      '@caperjs/plugin-klipp':
+        specifier: workspace:*
+        version: link:../../packages/plugin-klipp
       '@caperjs/plugin-rive':
         specifier: workspace:*
         version: link:../../packages/plugin-rive
@@ -89,6 +93,9 @@ importers:
       '@pixi/sound':
         specifier: ^6.0.1
         version: 6.0.1(pixi.js@8.23.0)
+      '@pmndrs/klipp':
+        specifier: 0.17.0
+        version: 0.17.0(react@19.1.0)
       '@tauri-apps/api':
         specifier: ^2
         version: 2.12.1
@@ -399,6 +406,37 @@ importers:
       vite-plugin-dts:
         specifier: ^4.5.3
         version: 4.5.4(@types/node@20.19.1)(rollup@4.68.2)(supports-color@8.1.1)(typescript@5.9.3)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.51.2)(yaml@2.8.0))
+
+  packages/plugin-klipp:
+    dependencies:
+      pixi.js:
+        specifier: 8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@caperjs/core':
+        specifier: workspace:^
+        version: link:../core
+      '@caperjs/plugin-3d':
+        specifier: workspace:^
+        version: link:../plugin-3d
+      '@pixi/3d':
+        specifier: 0.1.0
+        version: 0.1.0(pixi.js@8.23.0)
+      '@pmndrs/klipp':
+        specifier: 0.17.0
+        version: 0.17.0(react@19.1.0)
+      happy-dom:
+        specifier: ^15
+        version: 15.11.7
+      vite:
+        specifier: ^8.0.7
+        version: 8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.51.2)(yaml@2.8.0)
+      vite-plugin-dts:
+        specifier: ^4.5.3
+        version: 4.5.4(@types/node@20.19.1)(rollup@4.68.2)(supports-color@8.1.1)(typescript@5.9.3)(vite@8.0.7(@types/node@20.19.1)(jiti@2.6.1)(terser@5.51.2)(yaml@2.8.0))
+      vitest:
+        specifier: ^3
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@20.19.1)(happy-dom@15.11.7)(jiti@2.6.1)(lightningcss@1.32.0)(supports-color@8.1.1)(terser@5.51.2)(yaml@2.8.0)
 
   packages/plugin-rive:
     dependencies:
@@ -2368,6 +2406,23 @@ packages:
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
+
+  '@pmndrs/klipp@0.17.0':
+    resolution: {integrity: sha512-9/kh7GuHyZvBQ+UIPLPNm/OPeO11PmXL6jfEZF8efY15yllu2m9nXjYNga/F9tl6Ow434BNmvMGkAgnaoAUcUA==}
+    peerDependencies:
+      '@react-three/fiber': ^9.7.0
+      camera-controls: ^3.1.2
+      react: '*'
+      three: '>=0.156.0'
+    peerDependenciesMeta:
+      '@react-three/fiber':
+        optional: true
+      camera-controls:
+        optional: true
+      react:
+        optional: true
+      three:
+        optional: true
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -4910,6 +4965,9 @@ packages:
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
+
+  math@0.0.0-canary-20261026-7c55d752:
+    resolution: {integrity: sha512-/j7DIzYW1HH1HzhamMnG7FmQ63H4RaWSokfPFZbaGS9evolX2d90SEgn+LRD0b2BO6NWyn75zxXCyhM9yITg/Q==}
 
   maxrects-packer@2.7.3:
     resolution: {integrity: sha512-bG6qXujJ1QgttZVIH4WDanhoJtvbud/xP/XPyf6A69C9RdA61BM4TomFALCq2nrTa+tARRIBB4LuIFsnUQU2wA==}
@@ -8330,7 +8388,7 @@ snapshots:
   '@jridgewell/gen-mapping@0.3.8':
     dependencies:
       '@jridgewell/set-array': 1.2.1
-      '@jridgewell/sourcemap-codec': 1.5.0
+      '@jridgewell/sourcemap-codec': 1.6.0
       '@jridgewell/trace-mapping': 0.3.25
 
   '@jridgewell/resolve-uri@3.1.2': {}
@@ -8349,7 +8407,7 @@ snapshots:
   '@jridgewell/trace-mapping@0.3.25':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.0
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   '@microsoft/api-extractor-model@7.30.6(@types/node@20.19.1)':
     dependencies:
@@ -8650,6 +8708,12 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
+  '@pmndrs/klipp@0.17.0(react@19.1.0)':
+    dependencies:
+      math: 0.0.0-canary-20261026-7c55d752
+    optionalDependencies:
+      react: 19.1.0
+
   '@protobufjs/aspromise@1.1.2': {}
 
   '@protobufjs/base64@1.1.2': {}
@@ -8754,7 +8818,7 @@ snapshots:
   '@rollup/plugin-replace@6.0.3(rollup@4.68.2)':
     dependencies:
       '@rollup/pluginutils': 5.2.0(rollup@4.68.2)
-      magic-string: 0.30.17
+      magic-string: 0.30.21
     optionalDependencies:
       rollup: 4.68.2
 
@@ -11241,6 +11305,8 @@ snapshots:
       uc.micro: 2.1.0
 
   math-intrinsics@1.1.0: {}
+
+  math@0.0.0-canary-20261026-7c55d752: {}
 
   maxrects-packer@2.7.3: {}
 
