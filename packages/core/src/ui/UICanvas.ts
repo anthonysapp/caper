@@ -193,6 +193,8 @@ export class UICanvas extends _UICanvas {
       justifyContent: 'space-between',
       ...(typeof this.config.layout === 'object' ? this.config.layout : {}),
     };
+    // Without this, `padding` and the safe area only took effect after the first window resize.
+    this._applyPadding();
 
     this.on('childRemoved', this._childRemoved);
     this.once('added', this._added);
