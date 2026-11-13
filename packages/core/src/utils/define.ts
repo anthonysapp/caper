@@ -1,5 +1,5 @@
 import type { SceneAssets, SceneDebug, ScenePlugins } from '../display/Scene';
-import type { AppTypeOverrides } from './types';
+import type { AppTypeOverrides, PluginPhase } from './types';
 
 type AppPluginId = AppTypeOverrides['Plugins'];
 
@@ -59,6 +59,13 @@ export interface PluginConfigInput {
   active?: boolean;
   /** Defaults to `true` (code-split). Set `false` to force a static import. */
   dynamic?: boolean;
+  /**
+   * Initialize before the renderer is created. This plugin cannot have
+   * `autoLoad: false` or be loaded by a scene. Its `initialize()` must not
+   * touch the renderer, stage, or default plugins; `postInitialize()` runs
+   * at the normal time after all plugins initialize.
+   */
+  phase?: PluginPhase;
   /**
    * Plugin IDs that must be initialized before this one. The framework
    * topologically sorts plugins by `requires` at bootstrap, so the order

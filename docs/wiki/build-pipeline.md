@@ -210,8 +210,8 @@ Per-kind behaviour:
 | Kind | Directory | Emit default | Extra rule |
 | --- | --- | --- | --- |
 | Scene | `src/scenes` | dynamic | Carries `assets`, `plugins`, `debug*`, `autoUnloadAssets` through to the list. |
-| Local plugin | `src/plugins` | dynamic | Requires an actual `definePlugin()` wrapper in the file (`discovery.mjs:145`), not just a default class. |
-| npm plugin | `package.json` deps | dynamic always | Any `@caperjs/plugin-*` dependency; id is the suffix (`discovery.mjs:219`). |
+| Local plugin | `src/plugins` | dynamic | Requires an actual `definePlugin()` wrapper in the file (`discovery.mjs:145`), not just a default class. Carries `requires` and `phase` through to the list. |
+| npm plugin | `package.json` deps | dynamic always | Any `@caperjs/plugin-*` dependency; id is the suffix (`discovery.mjs:219`). `requires` and `phase` come from the `caper` field of the installed package's own `package.json` (found by walking up `node_modules` from the project root); the plugin module is never imported at build time. |
 | Popup | `src/popups` | dynamic | `show()` is async, so code-splitting is free. |
 | Entity | `src/entities` | **static** | `this.add.entity(id, props)` must construct synchronously. |
 | UI | `src/ui` | **static** | Same reason. |

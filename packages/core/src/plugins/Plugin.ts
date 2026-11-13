@@ -3,7 +3,7 @@ import type { IApplication, ICoreFunctions, ICoreSignals } from '../core';
 import { coreFunctionRegistry, coreSignalRegistry } from '../core';
 import { Application } from '../core/Application';
 import { SignalConnection, SignalConnections } from '../signals';
-import { type AppTypeOverrides, bindAllMethods, ImportListItemModule, Logger } from '../utils';
+import { type AppTypeOverrides, bindAllMethods, ImportListItemModule, Logger, type PluginPhase } from '../utils';
 
 /**
  * Public contract for a Caper plugin. A plugin is a long-lived object
@@ -173,6 +173,7 @@ export interface IPlugin<O = any> {
 export interface PluginListItem {
   id: string;
   path: string;
+  phase?: PluginPhase;
   module?: ImportListItemModule<IPlugin>;
   assets?: string[];
   plugins?: string[];

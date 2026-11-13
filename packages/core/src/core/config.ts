@@ -1,5 +1,5 @@
 import { IPlugin, PluginListItem } from '../plugins/Plugin';
-import { type AppTypeOverrides, ImportList, Logger } from '../utils';
+import { type AppTypeOverrides, ImportList, type ImportListItem, Logger } from '../utils';
 import { AppConfig } from './types';
 
 type PluginId = AppTypeOverrides['Plugins'];
@@ -35,6 +35,7 @@ export async function generatePluginList<T extends IPlugin = IPlugin>(plugins: P
         path: p.path,
         module: p.module,
         requires: p.requires ?? [],
+        phase: p.phase,
         options: pluginAsArray[1]?.options,
         autoLoad: pluginAsArray[1]?.autoLoad === false ? false : true,
       };
@@ -44,6 +45,44 @@ export async function generatePluginList<T extends IPlugin = IPlugin>(plugins: P
 
 export function defineConfig(config: Partial<AppConfig>) {
   return config;
+}
+
+/** Validate and select the plugins that must initialize before Pixi's renderer. */
+export function getPreRendererPlugins<T extends ImportListItem>(
+  items: T[],
+  scenes?: ReadonlyArray<{ id: string; plugins?: string[] }>,
+): T[] {
+  const pre = items.filter((item) => item.phase === 'pre-renderer');
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const problems: string[] = [];
+
+  for (const item of pre) {
+    if (item.autoLoad === false) {
+      problems.push(
+        `Plugin '${item.id}' must load before the renderer is created, so it cannot be marked autoLoad: false. Remove autoLoad: false from its entry in plugins[] in caper.config.ts.`,
+      );
+    }
+    for (const scene of scenes ?? []) {
+      if (scene.plugins?.includes(item.id)) {
+        problems.push(
+          `Plugin '${item.id}' must load before the renderer is created, so it cannot be loaded by a scene. Remove '${item.id}' from the plugins list of scene '${scene.id}' (it is already loaded at startup).`,
+        );
+      }
+    }
+    for (const required of item.requires ?? []) {
+      const dependency = byId.get(required);
+      if (dependency && dependency.phase !== 'pre-renderer') {
+        problems.push(
+          `Plugin '${item.id}' loads before the renderer but requires '${required}', which loads after it. A pre-renderer plugin can only require other pre-renderer plugins.`,
+        );
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    throw new Error(`Caper bootstrap failed:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`);
+  }
+  return pre;
 }
 
 /**
@@ -75,7 +114,7 @@ export function sortPluginsByRequires<T extends ImportList<IPlugin>[number]>(
   items: T[],
   registeredIds?: ReadonlySet<string>,
 ): T[] {
-  if (items.length < 2) return items.slice();
+  if (items.length === 0) return [];
 
   const byId = new Map<string, T>();
   for (const it of items) byId.set(it.id, it);

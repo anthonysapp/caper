@@ -66,11 +66,10 @@ export function runBuildTimeValidation({
     );
   }
 
-  // 4. Plugin `requires` cross-references (local plugins only — npm
-  // plugins can declare requires on the class itself, which the runtime
-  // topo-sort handles, but the AST can't see).
+  // 4. Plugin `requires` cross-references — local plugins from definePlugin,
+  // npm plugins from package.json `caper.requires` at discovery time.
   for (const p of plugins) {
-    if (!p.isLocal || !Array.isArray(p.requires) || p.requires.length === 0) continue;
+    if (!Array.isArray(p.requires) || p.requires.length === 0) continue;
     for (const req of p.requires) {
       if (!discoveredPluginIds.has(req)) {
         warnings.push(

@@ -61,26 +61,33 @@ down to `Plugin` is `this`-bound and can be passed straight to
 Bootstrap runs in `Application.initialize` (`packages/core/src/core/Application.ts:686`).
 Ordered phases:
 
-1. `boot()` → `preInitialize()` (`Application.ts:927`) loads the **pre-render** plugins,
-   in this fixed order: `DevToolsPlugin` (dev only), `LayoutPlugin` (if
+1. `boot()` → `preInitialize()` (`Application.ts:927`) loads the built-in early
+   plugins, in this fixed order: `DevToolsPlugin` (dev only), `LayoutPlugin` (if
    `config.useLayout`), `GSAPPlugin` (always), `SpinePlugin` (if `config.useSpine`).
    These run *before* the Pixi renderer exists.
-2. Pixi `init()`, canvas appended to the container element.
+   Then `generatePluginList(config.plugins)` (`packages/core/src/core/config.ts:15`) resolves
+   the app's declared plugin ids against the Vite-discovered `pluginsList`, then
+   `registerPreRendererPlugins()` initializes the **pre-renderer plugins** (phase
+   `'pre-renderer'`), sorted by `requires` among themselves. Still no renderer.
+2. `initAssets()`, then Pixi `init()`, canvas appended to the container element.
 3. `registerDefaultPlugins()` (`Application.ts:996`) walks `defaultPlugins` in array
    order, then conditionally adds `stats`, `voiceover`, `captions`.
-4. `_setup()`, which registers the `Store` and the `data` plugin
-   (`Application.ts:960`) when `config.useStore`.
-5. `generatePluginList(config.plugins)` (`packages/core/src/core/config.ts:15`) resolves
-   the app's declared plugin ids against the Vite-discovered `pluginsList`.
-6. `registerPlugins()` (`Application.ts:1025`) topologically sorts that list by
-   `requires` and initializes each entry whose `autoLoad !== false`.
+4. `_setup()` (resize wiring, stage assembly). The `Store` and the `data` plugin
+   are registered earlier, in `preInitialize` (step 1), when `config.useStore`.
+5. (The plugin list was already resolved in step 1.)
+6. `registerPlugins()` (`Application.ts:1025`) topologically sorts the normal-phase
+   entries by `requires` and initializes each one whose `autoLoad !== false`.
+   Pre-renderer plugins are skipped here; they count as already registered, so a
+   normal plugin may `require` one.
 7. `_postInitialize()` (`Application.ts:776`) iterates `_plugins` in **insertion order**
    and awaits each `postInitialize`, then wires PWA signals and the
    visibility → audio/timer bridge, then calls the user's `postInitialize()`.
 
 Guarantees you can rely on:
 
-- **`requires` is honoured only inside step 6.** `sortPluginsByRequires`
+- **`requires` is honoured inside step 1 and inside step 6, never across them
+  backwards.** A pre-renderer plugin that `requires` a normal-phase config plugin
+  fails bootstrap with a plain message (`getPreRendererPlugins`, `core/config.ts`). `sortPluginsByRequires`
   (`core/config.ts:62`) is Kahn's algorithm with original-index tie-breaking, so
   independent plugins keep their `caper.config.ts` order. Default plugins are *not*
   sorted — their order is the literal array in `defaults.ts`.
@@ -89,6 +96,14 @@ Guarantees you can rely on:
   (`core/config.ts:77-85`). The config file stays the single source of truth; nothing
   is auto-registered.
 - **Cycles = hard failure**, with the cycle path printed (`core/config.ts:124-132`).
+- **A pre-renderer plugin is always loaded at bootstrap.** Marking one
+  `autoLoad: false`, or listing it in a scene's `defineScene({ plugins })`, fails
+  bootstrap and names the plugin (and the scene).
+- **`postInitialize` runs once, at the normal time, for both phases.** A
+  pre-renderer plugin wires to the renderer, the ticker and other plugins there.
+  `registerPlugins()` moves pre-renderer plugins behind the default plugins in
+  `_plugins`, so their `postInitialize` runs after every default plugin's and
+  before the normal-phase config plugins'.
 - **`postInitialize` sees every plugin.** `app.getPlugin(id)` is safe there regardless
   of `requires`.
 - **A throwing plugin does not abort bootstrap.** `registerPlugin` and
@@ -125,7 +140,7 @@ form: `plugins: ['leaderboard', ['analytics', { options: {...}, autoLoad: false 
 (`core/config.ts:7`, `:25-33`).
 
 **Discovery.** The Vite plugin at `packages/core/build/plugins/lists.mjs:147` scans the
-project, reads each plugin file's `definePlugin({ id, requires, active, dynamic })`
+project, reads each plugin file's `definePlugin({ id, requires, phase, active, dynamic })`
 annotation (`packages/core/src/utils/define.ts:106`), and emits the virtual module
 `virtual:caper-plugins`. The runtime plugin publishes it as
 `globalThis.Caper.pluginsList` (`build/plugins/runtime.mjs:75`), which
@@ -206,7 +221,7 @@ Registered outside that array:
 - `LayoutPlugin` — `preInitialize`, when `config.useLayout` (`Application.ts:941`).
 - `GSAPPlugin` — `preInitialize`, unconditional (`Application.ts:948`).
 - `SpinePlugin` — `preInitialize`, when `config.useSpine`.
-- `data` — `_setup`, when `config.useStore` (`Application.ts:964`).
+- `data` — `preInitialize`, when `config.useStore` (`Application.ts:964`).
 - `stats` — after defaults, when `config.showStats === true` or dev and not explicitly
   `false` (`Application.ts:1000`).
 - `voiceover` + `captions` — after defaults, when `config.useVoiceover`.
@@ -222,14 +237,19 @@ class hardcodes `id = 'StatsPlugin'` (the framework overwrites it —
 **A local project plugin** (`src/plugins/MyPlugin.ts`):
 
 1. Default-export a class extending `Plugin`.
-2. Export `definePlugin({ id, requires?, active?, dynamic? })` so discovery records the
-   canonical id and dependency edges.
+2. Export `definePlugin({ id, requires?, phase?, active?, dynamic? })` so discovery records the
+   canonical id, dependency edges and plugin phase.
 3. Add the id to `plugins: []` in `caper.config.ts`.
 
 **An external package** (`@caperjs/plugin-*`) is the same contract, plus:
 `pixi.js` / `gsap` / `@pixi/sound` stay **peer** dependencies, and npm packages are
 always dynamically imported (static import is local-only —
-`build/plugins/lists.mjs:156`).
+`build/plugins/lists.mjs:156`). An npm plugin cannot use `definePlugin` for
+discovery (its module is never imported at build time); it declares the same
+metadata in its own `package.json`:
+`"caper": { "phase": "pre-renderer", "requires": ["firebase"] }`. Discovery
+(`discoverNpmPlugins`, `build/internal/discovery.mjs`) reads that field from the
+installed package.
 
 **The four hook points a plugin can use:**
 
@@ -239,6 +259,14 @@ always dynamically imported (static import is local-only —
 | `postInitialize(app)` | Cross-plugin wiring, ticker subscriptions, anything needing the renderer. |
 | `getCoreFunctions()` / `getCoreSignals()` | Publish to `app.func` / `app.signals`. Names must also be declared in `ICoreFunctions` / `ICoreSignals` to typecheck. |
 | `requires` | Force ordering relative to other *config-declared* plugins. |
+| `phase: 'pre-renderer'` | Initialize before the Pixi renderer is created (step 1). For libraries that must be imported or registered before the renderer exists, and for `registerFactoryMethods`. |
+| `registerFactoryMethods({...})` | Add `this.add.<name>` / `this.make.<name>` / `app.make.<name>` for every container. See [mixins-and-factory.md](mixins-and-factory.md). |
+
+**What a pre-renderer `initialize` may touch:** `app.config`, its own options,
+dynamic imports, `registerFactoryMethods`, and the built-in `preInitialize` plugins
+(GSAP, Layout, Spine, DevTools, `data`). **Not:** `app.renderer`, `app.stage`,
+`app.canvas`, any default plugin (`app.assets`, `app.scenes`, `app.resizer`, ...) or
+any normal-phase plugin. None of those exist yet. Do that work in `postInitialize`.
 
 **Scene-scoped plugins.** A scene's `defineScene({ plugins: ['physics'] })` entry makes
 `SceneManagerPlugin.loadScene` load that plugin on demand before the scene mounts
@@ -324,6 +352,42 @@ Checklist: default-export the class · `id` matches `definePlugin` · merge opti
 yourself · call `super.destroy()` · declare any published core function/signal name in
 `ICoreFunctions` / `ICoreSignals` · augment `AppTypeOverrides['Plugins']` so
 `app.getPlugin('leaderboard')` typechecks.
+
+### Write a pre-renderer plugin (and add a factory method)
+
+```ts
+// src/plugins/ShapesPlugin.ts
+import { buildFactoryMethod, definePlugin, IApplication, Plugin, registerFactoryMethods } from '@caperjs/core';
+import { Gauge, type GaugeProps } from '../ui/Gauge';
+
+export const plugin = definePlugin({ id: 'shapes', phase: 'pre-renderer' });
+
+declare module '@caperjs/core' {
+  interface FactoryMethodOverrides {
+    gauge: (props?: GaugeProps) => Gauge;
+  }
+}
+
+export default class ShapesPlugin extends Plugin {
+  async initialize() {
+    await import('some-lib-that-must-load-before-the-renderer');
+    this.addDisposer(                                  // removed again on destroy
+      registerFactoryMethods({
+        gauge: buildFactoryMethod<GaugeProps, Gauge>({ build: (props) => new Gauge(props) }),
+      }),
+    );
+  }
+
+  async postInitialize(app: IApplication) {
+    // renderer, stage, ticker and every other plugin exist here
+  }
+}
+```
+
+Checklist: list the id in `plugins: []` with no `autoLoad: false` · never list it in a
+scene's `plugins` · only `require` other pre-renderer plugins · touch the renderer in
+`postInitialize`, not `initialize` · an npm package declares the phase in its
+`package.json` `caper` field instead of `definePlugin`.
 
 ### Override or disable a default plugin
 

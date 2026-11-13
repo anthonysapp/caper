@@ -1,7 +1,10 @@
 export * from './methods';
+export * from './schema';
 export * from './const';
 export * from './props';
 export * from './utils';
 export * from './Factory';
+export { registerFactoryMethods } from './defaults';
+export type { FactoryMethodOverrides } from './defaults';
 export { getRegisteredEntityIds } from './registry';
 export { getRegisteredUIIds } from './ui-registry';
