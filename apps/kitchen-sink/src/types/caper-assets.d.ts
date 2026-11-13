@@ -11,6 +11,7 @@ export type AssetBundles =
   | 'default'
   | 'game'
   | 'kenney'
+  | 'models'
   | 'platformer'
   | 'required'
   | 'spine'

@@ -17,3 +17,7 @@ allowBuilds:
   '@ffmpeg-installer/linux-x64': true
   cpu-features: false
   protobufjs: false
+
+# @pixi/3d is younger than pnpm 11's minimum release age; allow the exact pin.
+minimumReleaseAgeExclude:
+  - '@pixi/3d@0.1.0'
