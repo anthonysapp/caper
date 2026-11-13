@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveConfig } from 'vite';
@@ -166,5 +167,66 @@ describe('tps frames', () => {
 
     expect(types).toContain("'thumbs/present'");
     expect(warn.mock.calls.flat().join('\n')).toContain('screens-9.png.json');
+  });
+});
+
+const noModelsManifest = {
+  bundles: [
+    { name: 'game', assets: [{ alias: ['game/wordmark'], src: 'wordmark.png' }] },
+    { name: 'audio', assets: [{ alias: ['click'], src: 'click.mp3' }] },
+  ],
+};
+
+/** SHA-256 of output captured from the generator before model types existed. */
+const noModelsBaselineHash = '482268d37d02eb1a61613e62303cd9050e65e5779df2679bced25f6aa6c0a98c';
+
+describe('models', () => {
+  it('omits model types when the manifest has no glb or gltf assets', async () => {
+    const types = await generateFrom(noModelsManifest, {});
+    expect(createHash('sha256').update(types).digest('hex')).toBe(noModelsBaselineHash);
+    expect(types).not.toContain('AssetModels');
+    expect(types).not.toMatch(/\bModel:/);
+  });
+
+  it('types every alias for a .glb in its bundle', async () => {
+    const types = await generateFrom(
+      {
+        bundles: [
+          {
+            name: 'models',
+            assets: [{ alias: ['cesium-man.glb', 'cesium-man'], src: 'cesium-man.glb' }],
+          },
+        ],
+      },
+      {},
+    );
+
+    expect(types).toContain("export type AssetModels");
+    expect(types).toContain("'cesium-man'");
+    expect(types).toContain("'cesium-man.glb'");
+    expect(types).toMatch(/models: 'cesium-man' \| 'cesium-man\.glb'/);
+    expect(types).toMatch(/AssetModelsByBundle/);
+    expect(types).toMatch(/AssetModelsIn</);
+    expect(types).toMatch(/\| AssetModels/);
+    expect(types).toContain('models: Record<AssetModels, any>');
+    expect(types).toMatch(/T extends AssetModels \? any/);
+    expect(types).toContain('Model: AssetModels');
+  });
+
+  it('classifies .gltf by first src', async () => {
+    const types = await generateFrom(
+      {
+        bundles: [
+          {
+            name: 'characters',
+            assets: [{ alias: ['hero'], src: ['hero.gltf', 'hero.bin'] }],
+          },
+        ],
+      },
+      {},
+    );
+
+    expect(types).toContain("'hero'");
+    expect(types).toMatch(/characters: 'hero'/);
   });
 });

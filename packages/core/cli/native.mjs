@@ -214,7 +214,7 @@ export function missingDeps(pkg, names) {
 }
 
 /** The default injectable `run`: a synchronous, inherited-stdio child process that throws on non-zero exit. */
-function defaultRun(cmd, args, opts = {}) {
+export function defaultRun(cmd, args, opts = {}) {
   const result = spawnSync(cmd, args, { stdio: 'inherit', ...opts });
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -654,7 +654,7 @@ function isGitIgnored(cwd, rel, exec) {
 }
 
 /** The default injectable `exec`: a synchronous child process whose stdout is returned as a string. */
-function defaultExec(cmd, args, opts = {}) {
+export function defaultExec(cmd, args, opts = {}) {
   return execFileSync(cmd, args, { encoding: 'utf-8', ...opts });
 }
 

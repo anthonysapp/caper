@@ -50,7 +50,7 @@ lives in `packages/core/src/core/config.ts` (`getPreRendererPlugins`).
 ```ts
 const view = this.add.view3d({
   environment: { skyColor: 0xbcd4f0, groundColor: 0x6b6250, intensity: 0.7 }, // default fill; null disables
-  camera: { position: [0, 1.5, 4], lookAt: [0, 0, 0] },
+  camera: { position: [0, 1.5, 4], lookAt: [0, 0, 0], fitAspect: 16 / 9 },
   interactive: true,                  // 3D picking + full-rect hit target
   // width / height omitted → full screen, auto-placed for Caper scene origin
 });
@@ -79,6 +79,19 @@ display object.
 
 **`interactive`.** `true` → `eventMode: 'static'` (picking on). `false` → `'none'` (see Gotchas).
 
+**Portrait framing.** On `camera: { … }` props (not when passing a raw `Camera3D`), optional
+`fitAspect` is the width/height ratio the scene is framed for (e.g. `16 / 9`). When the view is
+narrower than that, vertical field of view grows so the same horizontal span stays in frame; at
+or above the ratio, `fov` is unchanged. Omit `fitAspect` for fixed `fov`, same as before.
+`fitFov()` in `src/fit.ts`; applied in the constructor, `added`, and `resize`.
+
+**Types.** With `'3d'` in `plugins` and `@caperjs/plugin-3d` installed, build regeneration adds
+`import type {} from '@caperjs/plugin-3d'` to `src/types/caper-app.d.ts` when the package ships a
+`types` entry, so `this.add.view3d` typechecks with no scene import. Model manifest names become
+`AssetModels` in `caper-assets.d.ts` when at least one `.glb`/`.gltf` is packed; `Model3DProps.asset`
+is then `ModelAsset | Scene3DSource`, and unknown alias strings fail typecheck. Load by hand with
+`asset: await Assets.load(url)` as `Scene3DSource`.
+
 ### Quality (per plugin and per view)
 
 Pure function in `packages/plugin-3d/src/quality.ts`: maps `quality` + mobile detection to default
@@ -94,6 +107,7 @@ Pure function in `packages/plugin-3d/src/quality.ts`: maps `quality` + mobile de
 | `src/Model.ts` | Animation API; `autoUpdate: false`, updated from view. |
 | `src/owned.ts` | Tracks factory-created geometry/materials and players; safe destroy. |
 | `src/quality.ts` | `auto` / `low` / `high` → shadow and resolution defaults. |
+| `src/fit.ts` | `fitFov(fov, aspect, fitAspect?)` for portrait-safe framing on props cameras. |
 | `src/renderer.ts` | `assertRenderer3D` — Canvas, WebGL1, late `@pixi/3d` load. |
 | `src/index.ts` | Public exports; the factory type augmentation lives in `Plugin3D.ts`. |
 | `package.json` `caper.phase` | `"pre-renderer"` for discovery (`packages/core/build/internal/discovery.mjs`). |
@@ -112,11 +126,20 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, a
   and custom geometry stay upstream-shaped.
 - **`Owned3D`** — seam for “who destroys what”: only resources created by the factory are
   destroyed after the view's node tree is torn down.
-- **Deferred:** `Entity3D` + `view.add.entity` needs build-side 3D entity discovery (phase 4).
-  A field-of-view aspect policy is not shipped — scenes adjust
-  `camera.fov` in `resize`.
+- **Deferred:** `Entity3D` + `view.add.entity`. It needs two core changes first (2D `add.entity` must
+  refuse 3D ids; the entity registry lookup must be public). Design: `plan/pixi3d.md`
+  ("Phase 4 design (as built)").
 
 ## Invariants & gotchas
+
+- **Spawning many meshes: pass one shared `material`.** `color` gives each mesh its own material
+  for the life of the view (kitchen-sink recolours one cube without affecting others). For a
+  spawner, build one `Material3D` and pass `material`; destroy it when the scene ends.
+  ```ts
+  const red = new Material3D({ baseColor: 0xd9534f });
+  for (let i = 0; i < 200; i++) view.add.mesh({ geometry: 'box', material: red, x: i });
+  // on scene destroy: red.destroy();
+  ```
 
 - **Import order / silent blank view.** `@pixi/3d` must load before the renderer is created. If it
   loads late, `renderer.lighting3d` is missing, the view draws **nothing**, and there is **no error**
@@ -131,8 +154,7 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, a
   (`box` / `plane` / `sphere`, shared by all its meshes so they can batch) and every material its
   factory made, and frees them when the view is destroyed. A node from `view.make.*` that is still
   alive after its view is gone holds dead resources: destroy it with the view, or do not keep it.
-  A spawner that makes many meshes should pass one raw `material` (the caller's to destroy) instead
-  of `color`, or each mesh's material lives until the view goes.
+  See the shared-material bullet above for many meshes.
 - **View origin vs scene centre.** Pixi `View3D` with `autoResize` sizes from local (0,0). Caper
   scenes use screen centre as origin, so an untouched view only covers the bottom-right quadrant.
   Auto full-screen views offset by `-size/2`; fixed-size views must be positioned by the scene.
@@ -148,9 +170,9 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, a
 - **Boot cost.** Pre-renderer import adds ~490 KB raw / **~155 KB gzip** on every start for opted-in
   apps, even with zero 3D scenes. Chunks include **both** WebGL and WebGPU backend inits at boot.
   It cannot load per scene without recreating the renderer.
-- **pnpm 11 `minimumReleaseAgeExclude`.** Fresh `@pixi/3d@0.1.0` may require
-  `minimumReleaseAgeExclude: ['@pixi/3d@0.1.0']` in `pnpm-workspace.yaml`; document in app README when
-  installing by hand.
+- **pnpm release-age holdback.** On pnpm ≥ 10.16, `npx caper add 3d` adds
+  `'@pixi/3d@<pin>'` to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml` when needed and explains why.
+  Manual installs may still need that line by hand.
 - **`lookAt` vs `rotation`.** After `camera.lookAt`, orientation is quaternion-driven; setting
   `rotation` afterward may fight the look-at. Prefer `lookAt` in props or use the raw camera API
   consistently.
@@ -160,9 +182,9 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, a
   visible). Default fill uses a hemisphere **`environment`**, not an ambient light; `environment: null`
   turns fill off.
 - **Canvas / WebGL1.** Unsupported; guard throws instead of a blank view.
-- **Typed model names / `caper add 3d`.** Phase 4: `AssetModels` union in `assetTypes.mjs`, CLI
-  `caper add 3d`, doctor rows. Until then, model `asset` is an untyped string (manifest aliases
-  still work).
+- **Typed model names.** With models in the manifest, `asset` on `view.add.model` must be a known
+  bundle alias or a loaded `Scene3DSource`. Opt in with `npx caper add 3d`, then `npx caper doctor`
+  for `3d-plugin`, `3d-engine`, `3d-pixi`, and `3d-config` rows.
 
 ## Recipes
 
@@ -220,22 +242,22 @@ view.root.addChild(/* any Container3D */);
 view.camera.fov = 50;
 ```
 
-### Adjust FOV on resize (until aspect policy ships)
+### Frame for portrait (`fitAspect`)
 
 ```ts
-resize() {
-  super.resize();
-  const view = this.myView;
-  if (!view) return;
-  const aspect = this.app.screen.width / this.app.screen.height;
-  view.camera.fov = aspect < 1 ? 55 : 45; // example: portrait vs landscape
-}
+const view = this.add.view3d({
+  camera: { position: [0, 1.5, 4], lookAt: [0, 0, 0], fitAspect: 16 / 9 },
+});
+// On a tall phone, fov adjusts on resize so landscape framing width stays in view.
 ```
 
-### Opt in today
+### Opt in
 
-Run `pnpm add @caperjs/plugin-3d @pixi/3d@0.1.0`, add `'3d'` to `plugins`, and import the
-package once for types. `caper add 3d` is deferred to phase 4.
+Run `npx caper add 3d`, then `npx caper doctor`. The command is idempotent: detects the package
+manager, pins `@pixi/3d` and upgrades `pixi.js` only when below the floor, announces packages and
+the install command before running it, adds `'3d'` to `caper.config.ts` (or prints the line if there
+is no `plugins` array), writes `src/scenes/Sample3DScene.ts` when missing, and prints next steps
+including the `pixijs-3d` skill install command.
 
 ## Related pages
 

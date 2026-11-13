@@ -7,6 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { compareVersions as compareReleases, isPlainVersion, read3dConfig, readInstalledPackage } from './add3d.mjs';
+
 import {
   ANDROID_MANIFEST,
   ANDROID_RUST_TARGETS,
@@ -16,6 +18,7 @@ import {
   IOS_RUST_TARGETS,
   isFullXcode,
   missingRustTargets,
+  packageManagerFor,
   readManifestOrientation,
   readOrientation,
   readPlistOrientation,
@@ -356,6 +359,74 @@ export async function runChecks(
         missing.length ? 'solid tsconfig incomplete' : 'solid tsconfig',
         missing.length ? `add ${missing.join(', ')} to tsconfig.json compilerOptions` : undefined,
       );
+    }
+  }
+
+  // 3D is opt-in. Rows appear when the app depends on the plugin, or caper.config.ts
+  // lists '3d' (including an entry that refuses to auto-load).
+  const configPath = path.join(cwd, 'caper.config.ts');
+  let config3d = 'not-listed';
+  if (fs.existsSync(configPath)) {
+    try {
+      config3d = read3dConfig(fs.readFileSync(configPath, 'utf-8'));
+    } catch {
+      config3d = 'not-listed';
+    }
+  }
+  const wants3d = Boolean(appDeps['@caperjs/plugin-3d']) || config3d === 'listed' || config3d === 'auto-load-false';
+  if (wants3d) {
+    // Versions come from package.json files on disk: anything that is not a plain version is treated as
+    // unreadable, so it is never compared or printed.
+    const installed = (name) => {
+      const info = readInstalledPackage(cwd, name);
+      return info && { ...info, version: isPlainVersion(info.version) ? info.version : undefined };
+    };
+    const pm = packageManagerFor(cwd);
+    const plugin = installed('@caperjs/plugin-3d');
+    const pixi3d = installed('@pixi/3d');
+    if (!plugin?.version) {
+      push(checks, '3d-plugin', 'fail', '@caperjs/plugin-3d not installed', 'npx caper add 3d');
+    } else {
+      push(checks, '3d-plugin', 'ok', `@caperjs/plugin-3d ${plugin.version}`);
+    }
+
+    const pixiFloor = (raw) => {
+      if (typeof raw !== 'string') return null;
+      const match = /^(\d+\.\d+\.\d+)/.exec(raw.replace(/^[~^]/, ''));
+      return match ? match[1] : null;
+    };
+
+    if (plugin) {
+      const pin = plugin.peerDependencies?.['@pixi/3d'];
+      if (!isPlainVersion(pin)) {
+        push(checks, '3d-engine', 'warn', 'could not read the @pixi/3d version @caperjs/plugin-3d needs');
+      } else if (!pixi3d?.version) {
+        push(checks, '3d-engine', 'fail', '@pixi/3d not installed', 'npx caper add 3d');
+      } else if (pixi3d.version !== pin) {
+        push(checks, '3d-engine', 'fail', `@pixi/3d ${pixi3d.version}, plugin needs ${pin}`, `${pm} add @pixi/3d@${pin}`);
+      } else {
+        push(checks, '3d-engine', 'ok', `@pixi/3d ${pixi3d.version}`);
+      }
+    }
+
+    const floor = pixiFloor(pixi3d?.peerDependencies?.['pixi.js']) ?? pixiFloor(plugin?.peerDependencies?.['pixi.js']);
+    if (floor) {
+      const pixi = installed('pixi.js');
+      if (!pixi?.version) {
+        push(checks, '3d-pixi', 'fail', `pixi.js missing, @pixi/3d needs ${floor} or newer`, `${pm} add pixi.js@${floor}`);
+      } else if (compareReleases(pixi.version, floor) < 0) {
+        push(checks, '3d-pixi', 'fail', `pixi.js ${pixi.version}, @pixi/3d needs ${floor} or newer`, `${pm} add pixi.js@${floor}`);
+      } else {
+        push(checks, '3d-pixi', 'ok', `pixi.js ${pixi.version}`);
+      }
+    }
+
+    if (config3d === 'listed') {
+      push(checks, '3d-config', 'ok', "'3d' is in plugins");
+    } else if (config3d === 'auto-load-false') {
+      push(checks, '3d-config', 'fail', "'3d' has autoLoad: false", 'remove autoLoad: false: 3D must load before the renderer');
+    } else if (plugin) {
+      push(checks, '3d-config', 'warn', "@caperjs/plugin-3d installed but '3d' is not in plugins", 'npx caper add 3d');
     }
   }
 

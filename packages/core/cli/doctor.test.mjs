@@ -254,6 +254,142 @@ ${END_MARKER}`;
     expect(solid.hint).not.toContain('"jsx": "preserve"');
   });
 
+  function writeInstalled(root, name, pkg) {
+    const dir = path.join(root, 'node_modules', name);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(pkg), 'utf-8');
+  }
+
+  it('emits no 3d rows when the app does not use 3D', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/core': '^1' } }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['firebase'] }\n", 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(checks.filter((c) => c.id.startsWith('3d'))).toEqual([]);
+  });
+
+  it('fails 3d-plugin when the config lists 3d and the plugin is not installed', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ name: 'app' }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['3d'] }\n", 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, '3d-plugin')).toMatchObject({ status: 'fail', hint: 'npx caper add 3d' });
+    expect(find(checks, '3d-engine')).toBeUndefined();
+    expect(find(checks, '3d-pixi')).toBeUndefined();
+    expect(find(checks, '3d-config')).toMatchObject({ status: 'ok', label: "'3d' is in plugins" });
+  });
+
+  it('checks pixi.js against @pixi/3d even when the plugin is missing', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ name: 'app' }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['3d'] }\n", 'utf-8');
+    writeInstalled(cwd, '@pixi/3d', { version: '0.1.0', peerDependencies: { 'pixi.js': '^8.23.0' } });
+    writeInstalled(cwd, 'pixi.js', { version: '8.22.0' });
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, '3d-plugin').status).toBe('fail');
+    expect(find(checks, '3d-engine')).toBeUndefined();
+    expect(find(checks, '3d-pixi')).toMatchObject({ status: 'fail', label: 'pixi.js 8.22.0, @pixi/3d needs 8.23.0 or newer' });
+  });
+
+  it('fails 3d-plugin from a devDependency without a config row when 3d is not listed', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ devDependencies: { '@caperjs/plugin-3d': '^1' } }), 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, '3d-plugin').status).toBe('fail');
+    expect(find(checks, '3d-config')).toBeUndefined();
+  });
+
+  it('reports a healthy 3d install, including packages resolved from a parent node_modules', async () => {
+    const root = makeTempDir();
+    const cwd = path.join(root, 'apps/game');
+    fs.mkdirSync(cwd, { recursive: true });
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/plugin-3d': '1.0.0' } }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['3d'] }\n", 'utf-8');
+    writeInstalled(root, '@caperjs/plugin-3d', { version: '1.2.0', peerDependencies: { '@pixi/3d': '8.1.0', 'pixi.js': '^8.0.0' } });
+    writeInstalled(root, '@pixi/3d', { version: '8.1.0', peerDependencies: { 'pixi.js': '^8.23.0' } });
+    writeInstalled(root, 'pixi.js', { version: '8.23.0' });
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, '3d-plugin')).toMatchObject({ status: 'ok', label: '@caperjs/plugin-3d 1.2.0' });
+    expect(find(checks, '3d-engine')).toMatchObject({ status: 'ok', label: '@pixi/3d 8.1.0' });
+    expect(find(checks, '3d-pixi')).toMatchObject({ status: 'ok', label: 'pixi.js 8.23.0' });
+    expect(find(checks, '3d-config')).toMatchObject({ status: 'ok', label: "'3d' is in plugins" });
+  });
+
+  it('fails 3d-engine when @pixi/3d is missing or a different version', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/plugin-3d': '1.0.0' } }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['3d'] }\n", 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'pnpm-lock.yaml'), '', 'utf-8');
+    writeInstalled(cwd, '@caperjs/plugin-3d', { version: '1.0.0', peerDependencies: { '@pixi/3d': '8.1.0', 'pixi.js': '^8.0.0' } });
+
+    const missing = await runChecks(cwd, { online: false });
+    expect(find(missing, '3d-engine')).toMatchObject({ status: 'fail', label: '@pixi/3d not installed', hint: 'npx caper add 3d' });
+    expect(find(missing, '3d-pixi')).toMatchObject({
+      status: 'fail',
+      label: 'pixi.js missing, @pixi/3d needs 8.0.0 or newer',
+      hint: 'pnpm add pixi.js@8.0.0',
+    });
+
+    writeInstalled(cwd, '@pixi/3d', { version: '8.0.0', peerDependencies: { 'pixi.js': '~8.5.0' } });
+    writeInstalled(cwd, 'pixi.js', { version: '8.4.0' });
+    const different = await runChecks(cwd, { online: false });
+    expect(find(different, '3d-engine')).toMatchObject({
+      status: 'fail',
+      label: '@pixi/3d 8.0.0, plugin needs 8.1.0',
+      hint: 'pnpm add @pixi/3d@8.1.0',
+    });
+    expect(find(different, '3d-pixi')).toMatchObject({
+      status: 'fail',
+      label: 'pixi.js 8.4.0, @pixi/3d needs 8.5.0 or newer',
+      hint: 'pnpm add pixi.js@8.5.0',
+    });
+  });
+
+  it('warns when the plugin does not say which @pixi/3d it needs', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/plugin-3d': '1.0.0' } }), 'utf-8');
+    writeInstalled(cwd, '@caperjs/plugin-3d', { version: '1.0.0', peerDependencies: {} });
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, '3d-engine').status).toBe('warn');
+    expect(find(checks, '3d-engine').label).toContain('@pixi/3d');
+    expect(find(checks, '3d-pixi')).toBeUndefined();
+    expect(find(checks, '3d-config')).toMatchObject({
+      status: 'warn',
+      label: "@caperjs/plugin-3d installed but '3d' is not in plugins",
+      hint: 'npx caper add 3d',
+    });
+  });
+
+  it('fails 3d-config when 3d is listed with autoLoad false', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/plugin-3d': '1.0.0' } }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: [['3d', { autoLoad: false }]] }\n", 'utf-8');
+    writeInstalled(cwd, '@caperjs/plugin-3d', { version: '1.0.0', peerDependencies: { '@pixi/3d': '8.1.0' } });
+    writeInstalled(cwd, '@pixi/3d', { version: '8.1.0', peerDependencies: { 'pixi.js': '^8.0.0' } });
+    writeInstalled(cwd, 'pixi.js', { version: '8.0.0' });
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, '3d-config')).toMatchObject({
+      status: 'fail',
+      label: "'3d' has autoLoad: false",
+      hint: 'remove autoLoad: false: 3D must load before the renderer',
+    });
+    expect(find(checks, '3d-pixi').status).toBe('ok');
+  });
+
   it('reports a linked package missing its build', async () => {
     const cwd = makeTempDir();
     const checkout = path.join(cwd, 'checkout');

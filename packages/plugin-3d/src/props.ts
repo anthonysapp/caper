@@ -11,6 +11,7 @@ import type {
   SpotLightOptions,
 } from '@pixi/3d';
 import type { BaseMaterial3D } from '@pixi/3d';
+import type { AssetTypeOverrides } from '@caperjs/core';
 
 export type Vec3 = [number, number, number] | { x: number; y: number; z: number };
 
@@ -28,8 +29,18 @@ export type Mesh3DProps = Omit<PixiMesh3DOptions, keyof Node3DProps | 'geometry'
     color?: number;
   };
 
+/**
+ * A model's manifest name. Once the app's generated `caper-assets.d.ts` lists models (any `.glb` in the assets
+ * folder), this is that union, so unknown names are type errors; until then it is `string`. A model loaded by
+ * hand is passed as its `Scene3DSource`.
+ */
+// Known names autocomplete; any other string is still allowed, the same as texture and spritesheet names.
+export type ModelAsset = AssetTypeOverrides extends { Model: infer Name extends string }
+  ? Name | (string & {})
+  : string;
+
 export type Model3DProps = Omit<PixiModel3DOptions, keyof Node3DProps | 'source'> &
-  Node3DProps & { asset: string | Scene3DSource };
+  Node3DProps & { asset: ModelAsset | Scene3DSource };
 
 export type Light3DProps = Omit<
   DirectionalLightOptions & PointLightOptions & SpotLightOptions & AmbientLightOptions,

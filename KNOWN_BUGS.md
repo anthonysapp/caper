@@ -1,6 +1,6 @@
 # Known Bugs — packages/core
 
-**Three open core defects (plugin ordering and two `caper native ios` setup gaps, below).** The 2026-08-02 audit backlog (≈50 defects) and every follow-up finding through 2026-08-04 are fixed — each test-first in its own conventional commit. (One reported item — a UICanvas lifecycle double-registration — was investigated and disproved: UICanvas composes `WithSignals(Factory())` directly and never touches the lifecycle mixin.)
+**Open core defects are listed in the table below.** The 2026-08-02 audit backlog (≈50 defects) and every follow-up finding through 2026-08-04 are fixed — each test-first in its own conventional commit. (One reported item — a UICanvas lifecycle double-registration — was investigated and disproved: UICanvas composes `WithSignals(Factory())` directly and never touches the lifecycle mixin.)
 
 CI guards the state on every push and PR: lint (`--max-warnings 0`), core + kitchen-sink typechecks, 373 tests, framework/plugin/demo builds, and a blocking headless boot smoke test.
 
@@ -11,6 +11,7 @@ Process: when a defect is found, add it here with severity + file:line; when fix
 | Severity | Location | Defect |
 |---|---|---|
 | Medium | `packages/core/cli/native.mjs:1108,1186` | **Any existing `src-tauri/gen/apple/` counts as a complete iOS project.** `iosNative` skips `tauri ios init` and `runIosTauri` proceeds whenever the directory exists, so an interrupted or partial init leaves setup reporting success and dev/build running against a broken project. Fix: check for `project.yml` and `app.xcodeproj` and fail with a plain fix when they are missing. |
+| Medium | `packages/core/build/plugins/caperConfig.mjs:439` (`build`), `build/plugins/lists.mjs` | **A scene (or plugin, popup, entity, UI) file added while the dev server runs is not loadable until the server restarts.** The watcher regenerates `caper-app.d.ts` and sends `full-reload`, but nothing invalidates `virtual:caper-scenes` and the other list modules in Vite's module graph, so the reloaded page gets the old list (`Scene item not found for id ...`) while the types already contain the new id. Seen 2026-11-13 with `caper add 3d` in kitchen-sink. Fix: in the file-change handler, `server.moduleGraph.invalidateModule` each `\0virtual:caper-*` module before the reload. |
 | Medium | `packages/core/cli/native.mjs:1084-1095` | **`caper native ios` runs `brew install cocoapods xcodegen` before telling the user.** The list of installed tools is only printed after the whole setup succeeds. Fix: print the exact formulas right before the install (optionally ask first). |
 
 ## Open defects (first-party plugins)

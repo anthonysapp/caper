@@ -211,7 +211,7 @@ Per-kind behaviour:
 | --- | --- | --- | --- |
 | Scene | `src/scenes` | dynamic | Carries `assets`, `plugins`, `debug*`, `autoUnloadAssets` through to the list. |
 | Local plugin | `src/plugins` | dynamic | Requires an actual `definePlugin()` wrapper in the file (`discovery.mjs:145`), not just a default class. Carries `requires` and `phase` through to the list. |
-| npm plugin | `package.json` deps | dynamic always | Any `@caperjs/plugin-*` dependency; id is the suffix (`discovery.mjs:219`). `requires` and `phase` come from the `caper` field of the installed package's own `package.json` (found by walking up `node_modules` from the project root); the plugin module is never imported at build time. |
+| npm plugin | `package.json` deps | dynamic always | Any `@caperjs/plugin-*` dependency; id is the suffix (`discovery.mjs:219`). `requires` and `phase` come from the `caper` field of the installed package's own `package.json` (found by walking up `node_modules` from the project root); the plugin module is never imported at build time. Packages with a `types` field also feed `pluginTypeImports` for `caper-app.d.ts`. |
 | Popup | `src/popups` | dynamic | `show()` is async, so code-splitting is free. |
 | Entity | `src/entities` | **static** | `this.add.entity(id, props)` must construct synchronously. |
 | UI | `src/ui` | **static** | Same reason. |
@@ -241,6 +241,12 @@ import('@/…').default }` class maps for scenes/popups/entities/UI
 (`caperConfig.mjs:253`) using the `@/` alias, so `ConstructorParameters<>` and
 `InstanceType<>` at framework call sites derive real prop types without any AST
 type extraction. It lives inside the app so the app's tsconfig `paths` applies.
+`pluginTypeImports()` (`caperConfig.mjs`) also appends one `import type {} from
+'@caperjs/plugin-x'` line per npm plugin that discovery finds in `package.json`, is listed in
+the config `plugins` AST (string or tuple), and is installed with a `package.json` `types` entry
+(`discovery.mjs`). That loads each plugin's `FactoryMethodOverrides` augmentation (e.g.
+`this.add.view3d`) with no scene import. Listed but not installed plugins get no line; apps with
+none of these get a byte-identical file.
 
 **HMR behaviour.** `configureServer` (`caperConfig.mjs:439`) watches
 `caper.config.ts` plus `src/{scenes,plugins,popups,entities,ui,locales}`, so editing
@@ -329,7 +335,9 @@ pixels match production (`assetpack.mjs:88`).
 **Asset types** (`plugins/assetTypes.mjs`). Categorises every manifest asset by
 extension and `data.tags`, emits flat unions (`AssetTextures`) and per-bundle maps
 (`AssetTexturesIn<'menu'>`), and reads TPS `.json` files off disk for frame names
-(`assetTypes.mjs:82`).
+(`assetTypes.mjs:82`). A `models` category covers `.glb` / `.gltf`; when the manifest has at
+least one, `caper-assets.d.ts` gains `AssetModels`, bundle maps, and `Model: AssetModels` in
+`AssetTypeOverrides`. With no models the generated file is unchanged.
 
 **PNG pruning** (`plugins/pruneFallbacks.mjs`). AssetPack emits every image twice and
 lists webp first, so the png half is dead weight — 5.8MB of a 43MB build in one real

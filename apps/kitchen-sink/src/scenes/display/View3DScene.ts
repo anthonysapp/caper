@@ -40,7 +40,8 @@ export default class View3DScene extends BaseScene {
     behind.label = 'View 3D behind circle';
 
     this.view = this.add.view3d({
-      camera: { position: [0, 4, 9], lookAt: [0, 1, 0] },
+      // fitAspect: on a screen narrower than 16:9 the camera widens so the sides stay in frame.
+      camera: { position: [0, 4, 9], lookAt: [0, 1, 0], fitAspect: 16 / 9 },
     });
 
     this.view.add.mesh({
