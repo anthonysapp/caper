@@ -28,7 +28,8 @@ pnpm kitchen-sink:dev   # vite dev server, http://localhost:3000
 AssetPack scans all of `./assets`, so attribution lives here rather than beside the `.glb` (a
 `.md` in `assets/` would enter the manifest).
 
-- **CesiumMan** (`cesium-man.glb`) — from the Khronos [glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets)
-  repository, **CC-BY-4.0**. Credit **Cesium**.
-- The Cesium logo texture embedded in the model is a **trademark** of Cesium and is **excluded**
-  from the CC-BY-4.0 license terms for that texture.
+- **RobotExpressive** (`robot.glb`), by Tomás Laulhé (Quaternius), with modifications by Don McCurdy.
+  **CC0 1.0**. Source: the three.js examples,
+  <https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive>. Unmodified file.
+  Clips: `Idle`, `Walking`, `Running`, `Dance`, `Jump`, `Wave`, `ThumbsUp`, `Punch`, `Yes`, `No`, `Sitting`,
+  `Standing`, `WalkJump`, `Death`.
