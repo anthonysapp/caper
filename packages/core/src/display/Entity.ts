@@ -3,8 +3,8 @@ import { Container } from './Container';
 /**
  * Optional convenience base class for entities discovered from
  * `src/entities/`. The factory system (`this.add.entity(id, props)`) does
- * **not** require entities to extend this class — any class with a
- * single-options-object constructor works. `Entity<Props>` just gives you
+ * **not** require entities to extend this class — any Pixi `Container` class
+ * with a single-options-object constructor works. `Entity<Props>` just gives you
  * typed prop storage and a conventional lifecycle for free.
  *
  * **Lifecycle** (inherited from Container):

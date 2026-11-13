@@ -60,17 +60,54 @@ hero.play('anim_0');
 Put self-contained `.glb` files in your assets folder (AssetPack pass-through). v1 supports
 **.glb only** — multi-file `.gltf` and `.hdr` are not tested.
 
-## Many meshes: share one material
+## Entities
 
-`color` gives each mesh its own material for the life of the view. For a spawner, build one
-`Material3D` and pass `material`; destroy it when the scene ends.
+Declare a 3D game object the way you declare any Caper entity, on the `Entity3D` base class:
 
 ```ts
-import { Material3D } from '@pixi/3d';
-const red = new Material3D({ baseColor: 0xd9534f });
-for (let i = 0; i < 200; i++) view.add.mesh({ geometry: 'box', material: red, x: i });
-// on scene destroy: red.destroy();
+// src/entities/Car.ts
+import { defineEntity } from '@caperjs/core';
+import { Entity3D } from '@caperjs/plugin-3d';
+
+export const entity = defineEntity({ id: 'car' });
+
+export default class Car extends Entity3D<{ color?: number }> {
+  added() {
+    // this.add / this.make are the 3D factory, parented to the entity
+    this.add.mesh({ geometry: 'box', color: this.props.color ?? 0xd9534f, scale: [2, 0.6, 1] });
+  }
+  update() {
+    this.rotation.y += 0.02 * this.app.ticker.deltaTime;
+  }
+}
 ```
+
+```ts
+const car = view.add.entity('car', { color: 0x4a90d9, x: -2, y: 0.3 });
+```
+
+- `id`, props and the returned instance are typed from the class. Only ids whose class extends
+  `Container3D` are accepted; `this.add.entity('car')` on a 2D container is a type error.
+- `view.add.entity` applies the placement props (`position`, `rotation`, `scale`, `x` / `y` / `z`,
+  `visible`, `lookAt`, `parent`); the rest are the entity's own, on `this.props`.
+- Build parts in `added()`, not in the constructor: the entity's factory belongs to the view it is
+  in. What it creates is freed with that view, and its models' clips follow `app.ticker`.
+- `update()` runs every frame while the entity is in the scene, and stops with `app.pause()`.
+- `view.make.entity` builds without parenting; `this.add.entity(...)` inside an entity nests one.
+
+## Many meshes: share one material
+
+`color` gives each mesh its own material for the life of the view; materials are never shared by
+colour behind your back. For a spawner, make one material and pass it. The view frees it.
+
+```ts
+const red = view.make.material({ color: 0xd9534f, roughness: 0.6 });
+for (let i = 0; i < 200; i++) view.add.mesh({ geometry: 'box', material: red, x: i });
+```
+
+`color` is shorthand for `baseColor`; every other key is a raw `Material3D` option. Writing to
+`red` recolours every mesh that uses it. (`view.add.material` is the same function: a material has
+no parent.) A `new Material3D(...)` you build yourself also works and stays yours to destroy.
 
 ## Portrait screens
 
@@ -119,8 +156,8 @@ on glTF nodes): glTF materials are shared on the cached source and the next visi
 frame. The plugin destroys only geometry and materials **it** created; models use
 `{ children: true }` only.
 
-Nodes made by a view's factory belong to that view: the built-in geometry and `color` materials
-are freed when the view is destroyed, so do not keep such a node alive past its view. A raw
+Nodes made by a view's factory belong to that view: the built-in geometry, `color` materials and
+`make.material` materials are freed when the view is destroyed, so do not keep such a node alive past its view. A raw
 `geometry` or `material` you pass in stays yours to destroy.
 
 ## Types
@@ -133,8 +170,8 @@ loaded `Scene3DSource` (`asset: await Assets.load(url)`).
 
 ## Not in v1 yet
 
-- **`Entity3D` / `view.add.entity(id)`** — deferred until build-side discovery can tell 3D
-  entities from 2D.
+- **`caper add entity --3d`** — scaffold with `caper add entity`, then change the base class to
+  `Entity3D`.
 
 ## License
 

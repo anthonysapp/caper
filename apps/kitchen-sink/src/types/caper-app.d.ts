@@ -67,7 +67,8 @@ type AppEntities =
   | 'actor'
   | 'boy'
   | 'dragon'
-  | 'player';
+  | 'player'
+  | 'spin-cube';
 
 // UI Elements
 type AppUIs = 
@@ -117,6 +118,7 @@ type AppEntityClasses = {
   "boy": typeof import('@/entities/Boy').default;
   "dragon": typeof import('@/entities/Dragon').default;
   "player": typeof import('@/entities/Player').default;
+  "spin-cube": typeof import('@/entities/SpinCube').default;
 };
 
 type AppUIClasses = {

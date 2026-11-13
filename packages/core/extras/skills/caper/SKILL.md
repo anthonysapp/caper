@@ -143,8 +143,10 @@ Reference: llms.txt §18, the package README, and the caper repo's kitchen-sink 
 ## 5. 3D (`@caperjs/plugin-3d`): only when `'3d'` is in `plugins`
 
 Caper's wrappers are `this.add.view3d(...)` and the view's own factory
-(`view.add.model | mesh | light | camera | container | existing`); read llms.txt
-§13.1 for them and their rules. Everything past the wrappers (`view.root`,
+(`view.add.model | mesh | light | camera | container | existing | entity | material`);
+read llms.txt §13.1 for them and their rules. A 3D game object is an `Entity3D`
+(`defineEntity` + `view.add.entity(id, props)`); many meshes share one
+`view.make.material(...)`. Everything past the wrappers (`view.root`,
 materials, cameras, picking, effects) is raw `@pixi/3d`: load the `pixijs-3d`
 skill before writing it. If it is missing, install it with
 `npx skills add https://github.com/pixijs/pixijs-skills --skill pixijs-3d`.

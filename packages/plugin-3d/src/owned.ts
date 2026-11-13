@@ -3,6 +3,8 @@ import type { Ticker } from 'pixi.js';
 type Resource = { destroy(): void };
 type Player = { destroyed: boolean; update(ticker: Ticker): void };
 
+export const ownedByView = new WeakMap<object, Owned3D>();
+
 export class Owned3D {
   private readonly geometries = new Map<string, Resource>();
   private readonly materials = new Set<Resource>();

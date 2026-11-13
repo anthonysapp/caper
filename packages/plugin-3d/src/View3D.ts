@@ -6,7 +6,7 @@ import type { Ticker } from 'pixi.js';
 import { fitFov } from './fit';
 import { createFactory3D } from './factory3d';
 import type { Factory3D } from './factory3d';
-import { Owned3D } from './owned';
+import { Owned3D, ownedByView } from './owned';
 import type { Vec3 } from './props';
 import { toVec3 } from './props';
 import type { IPlugin3D } from './Plugin3D';
@@ -60,6 +60,7 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
       ...(camera instanceof Camera3D ? { camera } : {}),
     });
     this.fillsScreen = fillsScreen;
+    ownedByView.set(this, this.owned);
     bindAllMethods(this);
     this._initLifecycle({ autoResize: true, autoUpdate: true });
     if (!(camera instanceof Camera3D)) {
@@ -70,8 +71,8 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
       if (camera?.far !== undefined) this.camera.far = camera.far;
       if (camera?.fitAspect) this.fit = { fov: this.camera.fov, aspect: camera.fitAspect };
     }
-    this.add = createFactory3D(this, this.owned, true);
-    this.make = createFactory3D(this, this.owned, false);
+    this.add = createFactory3D(this.root, this.owned, true);
+    this.make = createFactory3D(this.root, this.owned, false);
     this.fitCamera();
   }
 

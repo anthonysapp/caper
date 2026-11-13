@@ -1,4 +1,4 @@
-import { BitmapText, Graphics, HTMLText, Sprite, Text, TilingSprite } from 'pixi.js';
+import { BitmapText, Container as PixiContainer, Graphics, HTMLText, Sprite, Text, TilingSprite } from 'pixi.js';
 
 import { AnimatedSprite } from '../../display/AnimatedSprite';
 import { Container, ContainerConfigKeys } from '../../display/Container';
@@ -329,6 +329,11 @@ export const defaultFactoryMethods = {
       throw new Error(
         `[caper] Unknown entity id '${String(id)}'. ` +
           `Known: ${known.length > 0 ? known.map((k) => `'${k}'`).join(', ') : '(none — discovery may have failed)'}`,
+      );
+    }
+    if (!(Ctor.prototype instanceof PixiContainer)) {
+      throw new Error(
+        `[caper] Entity '${String(id)}' is not a Pixi Container, so this.add.entity cannot build it. Use the factory of the system it belongs to.`,
       );
     }
     const instance = new (Ctor as new (props?: EntityProps<K>) => EntityInstance<K>)(props);
