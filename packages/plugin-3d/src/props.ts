@@ -50,9 +50,11 @@ export type Entity3DNodeProps = Pick<
 
 export type Mesh3DProps = Omit<PixiMesh3DOptions, keyof Node3DProps | 'geometry' | 'material'> &
   Node3DProps & {
-    geometry?: 'box' | 'plane' | 'sphere' | Geometry3D;
+    geometry?: 'box' | 'plane' | 'sphere' | 'cylinder' | Geometry3D;
     material?: BaseMaterial3D;
     color?: number;
+    roughness?: number;
+    metallic?: number;
   };
 
 /**

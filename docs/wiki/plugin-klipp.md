@@ -32,7 +32,7 @@ plugins: ['3d', 'klipp'],
 
 ```ts
 const view = this.add.view3d();
-const hero = view.add.model({ asset: 'cesium-man' });
+const hero = view.add.model({ asset: 'robot' });
 
 const rig = view.add.cameraRig({ fitAspect: 16 / 9 });
 rig.add.shot('follow', { priority: 10, follow: hero, offset: [0, 3, -8], damping: 0.5, lookAt: hero });
@@ -48,8 +48,8 @@ rig.orbit({ target: hero });            // user orbit from pointer events; rig.o
 | `rig.add.shot(name, props)` | Adds a named shot and returns klipp's `VirtualCamera`. Exactly one of `follow` (with `offset`, `damping`) or `position`. `lookAt` defaults to the follow target. `priority` (default 0): the highest one is live. `fov` defaults to the view camera's fov when the rig was made. |
 | `rig.cut(name, { blend? })` | Makes that shot live by lifting its priority above the others. `blend` in seconds, `0` is a hard cut. Turns user orbit off. |
 | `rig.shake({ amplitude?, duration? })` | Shakes the live picture. World units (0.3) and seconds (0.3). Runs on the game clock. |
-| `rig.orbit({ target?, distance? })` / `rig.orbit(false)` | User orbit: drag to turn, wheel to zoom. Starts from where the camera is. Off returns to the shot that was live before. |
-| `rig.dragging` | True from the moment an orbit drag passes 6 px until just after release. Tap handlers check it. |
+| `rig.orbit({ target?, distance? })` / `rig.orbit(false)` | User orbit: one finger drag to turn, wheel to zoom, two fingers pinch to zoom (pinch never orbits; lifting one finger continues as a one-finger orbit with no jump). Starts from where the camera is. Off returns to the shot that was live before. |
+| `rig.dragging` | True from the moment an orbit drag passes 6 px, during a pinch, and briefly after release so a following `pointertap` can be ignored. Tap handlers check it. |
 | `rig.klipp` | The raw `Klipp` instance: everything else upstream offers. |
 | `update` / `resize` / `destroy` | Lifecycle. The view calls them (`view.own`). Games never do. |
 
@@ -68,7 +68,7 @@ with `interactive: false`, a view camera that is not a direct child of `view.roo
 | File | Responsibility |
 | --- | --- |
 | `src/CameraRig.ts` | The deep module. Every runtime import from `@pmndrs/klipp` is here: the `Klipp` subclass and its `write` hook, shots, targets, the impulse field and game clock, orbit axes. |
-| `src/drag.ts` | Pointer gesture arbitration on the view (press, 6 px threshold, drag deltas, wheel, microtask release). No klipp import. |
+| `src/drag.ts` | Pointer gesture arbitration on the view (press, 6 px threshold, one-finger drag, two-finger pinch zoom, wheel, microtask release). No klipp import. |
 | `src/PluginKlipp.ts` | Plugin `klipp`; registers `cameraRig`; the `Factory3DOverrides` augmentation. |
 | `src/index.ts` | Public exports. |
 | `package.json` `caper.requires` | `["3d"]`, read by discovery (`packages/core/build/internal/discovery.mjs`). |
@@ -93,7 +93,10 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/CameraRigScene.ts`
 - **Orbit.** One internal shot named `orbit` (`OrbitFollowBody`, world-space binding). The name is taken:
   a game shot called `orbit` is a duplicate, and `cut('orbit')` throws (use `rig.orbit()`). Input comes only
   from Pixi federated events on the view (`pointerdown`, `globalpointermove`, `pointerup`,
-  `pointerupoutside`, `pointercancel`, `wheel`). Never klipp's `/dom` entry.
+  `pointerupoutside`, `pointercancel`, `wheel`): one-finger drag after 6 px, two-finger pinch for zoom
+  (pinch never applies orbit), wheel for zoom. Never klipp's `/dom` entry. One exception: Pixi v8 does
+  not forward the browser's `pointercancel` (a touch the system took over), so the rig also listens for
+  that one event on the canvas; without it a cancelled press would stay down.
 - **Teardown.** `Klipp` has no `destroy`. The rig removes its listeners, sets `mode = 'disabled'`,
   and removes every shot.
 
@@ -112,6 +115,8 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/CameraRigScene.ts`
   fitted `fov` as its base).
 - **Taps vs drags.** With orbit on, a drag that ends on a pickable mesh still fires its `pointertap`.
   Guard handlers: `if (rig.dragging) return;`. 2D UI added after the view is unaffected.
+- **Pinch tracks two pointers.** A third finger is ignored. If one of the two tracked fingers lifts
+  while a third is still down, the rig sees one finger and orbits.
 - **Orbit needs an interactive view.** `interactive: false` views get no pointer events; `orbit()` throws.
 - **The camera must stay under `view.root`.** The rig writes the camera's local transform as a world pose.
 - **Update order.** The rig updates from the view's `update`, after model clips. A scene that moves a
@@ -121,12 +126,21 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/CameraRigScene.ts`
   blend hides it. Set `shot.standbyUpdate = 'always'` if you read a standby shot's `state`.
 - **Bundle.** One lazy chunk, about 48 kB raw / 16 kB gzip in the kitchen-sink production build (wrapper,
   klipp and `math` as used). No Three.js or React. Fetched only when `'klipp'` is in `plugins`.
-- **Not built:** spline dollies, sequences, gamepad, orthographic cameras, pinch zoom. Reach them
+- **Not built:** spline dollies, sequences, gamepad, orthographic cameras. Reach them
   through `rig.klipp`.
 - **Install side effect.** Klipp's optional `react` peer makes pnpm link a React into `node_modules`
   if one is resolvable. Nothing imports it. This repo pins that with an override in `pnpm-workspace.yaml`.
 
 ## Recipes
+
+### Opt in
+
+Run `npx caper add klipp`, then `npx caper doctor`. The command sets up 3D first when needed, installs
+`@caperjs/plugin-klipp` and the pinned `@pmndrs/klipp` (pin from the plugin's peer), adds `'klipp'` after
+`'3d'` in `caper.config.ts` (or prints the line to add when there is no `plugins` array; when `'klipp'`
+is already listed without `'3d'` before it, it stops with a plain message before installing anything), writes `src/scenes/SampleCameraRigScene.ts` (`sample-camera-rig`) when missing,
+and prints next steps. Doctor rows when the app depends on `@caperjs/plugin-klipp` or lists `'klipp'`:
+`klipp-plugin`, `klipp-engine`, `klipp-config`.
 
 ### Follow the hero, cut to an overview
 
@@ -167,7 +181,8 @@ rig.klipp.addEventListener('blendFinished', (e) => { /* ... */ });
 ### Upgrade the klipp pin
 
 Change the exact version in `packages/plugin-klipp/package.json` (peer and dev), the kitchen-sink
-dependency and the README. Re-read `CameraRig.ts` against the new `.d.ts` (`write`, `InputAxis`,
+dependency and the README. `caper add klipp` reads the pin from the plugin's peer, not a hardcoded CLI
+version. Re-read `CameraRig.ts` against the new `.d.ts` (`write`, `InputAxis`,
 `ImpulseField.generate` / `ImpulseListenerNoise.update`). Run the package tests, then the `camera-rig`
 scene.
 

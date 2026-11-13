@@ -194,7 +194,7 @@ describe('models', () => {
         bundles: [
           {
             name: 'models',
-            assets: [{ alias: ['cesium-man.glb', 'cesium-man'], src: 'cesium-man.glb' }],
+            assets: [{ alias: ['robot.glb', 'robot'], src: 'robot.glb' }],
           },
         ],
       },
@@ -202,9 +202,11 @@ describe('models', () => {
     );
 
     expect(types).toContain("export type AssetModels");
-    expect(types).toContain("'cesium-man'");
-    expect(types).toContain("'cesium-man.glb'");
-    expect(types).toMatch(/models: 'cesium-man' \| 'cesium-man\.glb'/);
+    // The doc example is a real name from the manifest, the bare one when there is one.
+    expect(types).toContain("const model: AssetModels = 'robot';");
+    expect(types).toContain("'robot'");
+    expect(types).toContain("'robot.glb'");
+    expect(types).toMatch(/models: 'robot' \| 'robot\.glb'/);
     expect(types).toMatch(/AssetModelsByBundle/);
     expect(types).toMatch(/AssetModelsIn</);
     expect(types).toMatch(/\| AssetModels/);

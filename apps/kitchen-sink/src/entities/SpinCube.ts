@@ -22,9 +22,6 @@ export default class SpinCube extends Entity3D<SpinCubeProps> {
 
   added() {
     this.colors = this.props.colors ?? [CaperColors.coral, CaperColors.text, CaperColors.olive];
-    // The mesh is the tap target. A 3D parent only hears its children's events when it is
-    // 'static' too, so set it here and scenes can listen on the entity.
-    this.eventMode = 'static';
     this.mesh = this.add.mesh({
       geometry: 'box',
       material: this.make.material({ color: this.colors[0], roughness: 0.5 }),

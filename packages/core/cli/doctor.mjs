@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { compareVersions as compareReleases, isPlainVersion, read3dConfig, readInstalledPackage } from './add3d.mjs';
+import { compareVersions as compareReleases, isPlainVersion, listedPluginIds, readInstalledPackage, readPluginConfig } from './addPlugin.mjs';
 
 import {
   ANDROID_MANIFEST,
@@ -365,22 +365,21 @@ export async function runChecks(
   // 3D is opt-in. Rows appear when the app depends on the plugin, or caper.config.ts
   // lists '3d' (including an entry that refuses to auto-load).
   const configPath = path.join(cwd, 'caper.config.ts');
-  let config3d = 'not-listed';
-  if (fs.existsSync(configPath)) {
-    try {
-      config3d = read3dConfig(fs.readFileSync(configPath, 'utf-8'));
-    } catch {
-      config3d = 'not-listed';
-    }
+  let configSource = '';
+  try {
+    configSource = fs.readFileSync(configPath, 'utf-8');
+  } catch {
+    // No config, or unreadable: nothing is listed.
   }
+  // Versions come from package.json files on disk: anything that is not a plain version is treated as
+  // unreadable, so it is never compared or printed.
+  const installed = (name) => {
+    const info = readInstalledPackage(cwd, name);
+    return info && { ...info, version: isPlainVersion(info.version) ? info.version : undefined };
+  };
+  const config3d = readPluginConfig(configSource, '3d');
   const wants3d = Boolean(appDeps['@caperjs/plugin-3d']) || config3d === 'listed' || config3d === 'auto-load-false';
   if (wants3d) {
-    // Versions come from package.json files on disk: anything that is not a plain version is treated as
-    // unreadable, so it is never compared or printed.
-    const installed = (name) => {
-      const info = readInstalledPackage(cwd, name);
-      return info && { ...info, version: isPlainVersion(info.version) ? info.version : undefined };
-    };
     const pm = packageManagerFor(cwd);
     const plugin = installed('@caperjs/plugin-3d');
     const pixi3d = installed('@pixi/3d');
@@ -427,6 +426,44 @@ export async function runChecks(
       push(checks, '3d-config', 'fail', "'3d' has autoLoad: false", 'remove autoLoad: false: 3D must load before the renderer');
     } else if (plugin) {
       push(checks, '3d-config', 'warn', "@caperjs/plugin-3d installed but '3d' is not in plugins", 'npx caper add 3d');
+    }
+  }
+
+  // Klipp is opt-in. Rows appear when the app depends on the plugin, or caper.config.ts lists 'klipp'.
+  const configKlipp = readPluginConfig(configSource, 'klipp');
+  const wantsKlipp = Boolean(appDeps['@caperjs/plugin-klipp']) || configKlipp === 'listed' || configKlipp === 'auto-load-false';
+  if (wantsKlipp) {
+    const pm = packageManagerFor(cwd);
+    const plugin = installed('@caperjs/plugin-klipp');
+    const engine = installed('@pmndrs/klipp');
+    if (!plugin?.version) {
+      push(checks, 'klipp-plugin', 'fail', '@caperjs/plugin-klipp not installed', 'npx caper add klipp');
+    } else {
+      push(checks, 'klipp-plugin', 'ok', `@caperjs/plugin-klipp ${plugin.version}`);
+    }
+
+    if (plugin) {
+      const pin = plugin.peerDependencies?.['@pmndrs/klipp'];
+      if (!isPlainVersion(pin)) {
+        push(checks, 'klipp-engine', 'warn', 'could not read the @pmndrs/klipp version @caperjs/plugin-klipp needs');
+      } else if (!engine?.version) {
+        push(checks, 'klipp-engine', 'fail', '@pmndrs/klipp not installed', 'npx caper add klipp');
+      } else if (engine.version !== pin) {
+        push(checks, 'klipp-engine', 'fail', `@pmndrs/klipp ${engine.version}, plugin needs ${pin}`, `${pm} add @pmndrs/klipp@${pin}`);
+      } else {
+        push(checks, 'klipp-engine', 'ok', `@pmndrs/klipp ${engine.version}`);
+      }
+    }
+
+    if (configKlipp === 'listed' || configKlipp === 'auto-load-false') {
+      const order = listedPluginIds(configSource);
+      if (!order.includes('3d') || order.indexOf('klipp') <= order.indexOf('3d')) {
+        push(checks, 'klipp-config', 'fail', "'klipp' must load after '3d'", "list '3d' before 'klipp' in plugins");
+      } else {
+        push(checks, 'klipp-config', 'ok', "'klipp' is in plugins, after '3d'");
+      }
+    } else if (plugin || appDeps['@caperjs/plugin-klipp']) {
+      push(checks, 'klipp-config', 'warn', "@caperjs/plugin-klipp installed but 'klipp' is not in plugins", 'npx caper add klipp');
     }
   }
 

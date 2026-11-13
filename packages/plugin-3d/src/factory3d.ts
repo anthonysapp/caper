@@ -3,6 +3,7 @@ import {
   Camera3D,
   Container3D,
   CubeGeometry,
+  CylinderGeometry,
   DirectionalLight,
   Material3D,
   Mesh3D,
@@ -90,6 +91,7 @@ export function registerFactory3DMethods(methods: Partial<Factory3DMethods>): ()
 
 const BUILT_IN_GEOMETRY = {
   box: () => new CubeGeometry(),
+  cylinder: () => new CylinderGeometry({ radiusTop: 0.5, radiusBottom: 0.5, height: 1 }),
   plane: () => new PlaneGeometry(),
   sphere: () => new SphereGeometry({ radius: 0.5 }),
 };
@@ -144,12 +146,16 @@ export function createFactory3D(root: Container3D, owned: Owned3D, parent: boole
       return existing(node, placement) as Entity3DInstance<typeof id>;
     },
     mesh(props = {}) {
-      const { geometry = 'box', material, color, ...nodeProps } = props;
+      const { geometry = 'box', material, color, roughness, metallic, ...nodeProps } = props;
       let actualGeometry: Geometry3D;
       if (typeof geometry !== 'string') actualGeometry = geometry;
       else if (geometry in BUILT_IN_GEOMETRY) actualGeometry = owned.geometry(geometry, BUILT_IN_GEOMETRY[geometry]);
-      else throw new Error(`Unknown 3D geometry '${geometry}'. Use box, plane, or sphere.`);
-      const actualMaterial = material ?? owned.material(new Material3D({ baseColor: color ?? 0xffffff }));
+      else throw new Error(`Unknown 3D geometry '${geometry}'. Use box, plane, sphere, or cylinder.`);
+      const actualMaterial = material ?? owned.material(new Material3D({
+        baseColor: color ?? 0xffffff,
+        ...(roughness !== undefined && { roughness }),
+        ...(metallic !== undefined && { metallic }),
+      }));
       return finish(new Mesh3D({ ...options(nodeProps), geometry: actualGeometry, material: actualMaterial }), props);
     },
     model(props) {
@@ -158,7 +164,7 @@ export function createFactory3D(root: Container3D, owned: Owned3D, parent: boole
       if (!source)
         throw new Error(`Model asset '${asset}' is not loaded. Add its bundle to the scene's assets.preload.`);
       const model = finish(new Model({ ...options(nodeProps), source, autoUpdate: false }), props);
-      if (model.player) owned.player(model.player);
+      if (model.player) owned.player(model);
       return model;
     },
     light(props = {}) {

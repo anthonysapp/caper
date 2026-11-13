@@ -10,7 +10,11 @@ Breaking changes between Caper versions, newest first. Each entry says what chan
 - Upstream behavior change in Pixi 8.23.0: an interactive ancestor now receives each global pointer,
   mouse or touch move (`globalpointermove`, `globalmousemove`, `globaltouchmove`) **once**, not twice.
   If you counted or throttled those events around the double fire, remove that workaround.
-- This is the minimum Pixi version for `@pixi/3d`, which upcoming 3D support builds on.
+- This is the minimum Pixi version for `@pixi/3d`, which the new experimental `@caperjs/plugin-3d` builds on.
+
+**`UICanvas` applies `padding` and the safe area on its first layout.** Before, a `padding` passed to
+`uiCanvas({ padding })` only took effect after the first window resize. If you added manual offsets to
+make up for that, remove them.
 
 ## From dill-pixel
 

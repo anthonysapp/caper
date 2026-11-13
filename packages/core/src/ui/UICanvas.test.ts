@@ -81,6 +81,7 @@ describe('UICanvas element reordering', () => {
     app = {
       config: { useLayout: true },
       size: { width: 800, height: 600 },
+      safeArea: { top: 0, right: 0, bottom: 34, left: 0 },
       onResize: new Signal<() => void>(),
       ticker: { addOnce: vi.fn() },
     };
@@ -156,5 +157,12 @@ describe('UICanvas element reordering', () => {
     const { a } = addThree(canvas);
 
     expect(() => canvas.setChildIndex(a, 0)).toThrow(/Do not call setChildIndex/);
+  });
+
+  it('applies constructor padding and the safe area before the first resize', () => {
+    const canvas = new UICanvas({ padding: { bottom: 64 } });
+
+    // @pixi/layout is not loaded here, so `layout` holds the last style written to it.
+    expect(canvas.layout).toMatchObject({ paddingTop: 0, paddingBottom: 98 });
   });
 });

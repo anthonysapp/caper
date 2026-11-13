@@ -1,4 +1,5 @@
-import { Material3D, CubeGeometry } from '@pixi/3d';
+import { Material3D, CubeGeometry, Container3D } from '@pixi/3d';
+import { Container, Point } from 'pixi.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
@@ -48,6 +49,88 @@ beforeEach(() => {
 });
 
 describe('View3D', () => {
+  it('pins a 2D node through its parent, with a world offset and visibility changes', () => {
+    const view = new View3D();
+    const parent = new Container();
+    const node = parent.addChild(new Container());
+    const toLocal = vi.spyOn(parent, 'toLocal').mockImplementation((_p, _from, out) => { out!.set(12, 34); return out!; });
+    const project = vi.spyOn(view, 'worldToScreen').mockImplementation((point, out) => {
+      expect(point).toMatchObject({ x: 1, y: 3, z: 3 });
+      (out as Point).set(50, 60);
+      return out!;
+    });
+    view.pin(node, [1, 2, 3], { offset: [0, 1, 0] });
+    view.update();
+    expect(toLocal).toHaveBeenCalledWith(expect.objectContaining({ x: 50, y: 60 }), undefined, node.position);
+    expect(node.position).toMatchObject({ x: 12, y: 34 });
+    project.mockReturnValueOnce(null);
+    view.update();
+    expect(node.visible).toBe(false);
+    view.update();
+    expect(node.visible).toBe(true);
+    view.destroy();
+    parent.destroy({ children: true });
+  });
+
+  it('replaces pins, unpins without moving the node, and drops destroyed targets and nodes', () => {
+    const view = new View3D();
+    const node = new Container();
+    vi.spyOn(view, 'worldToScreen').mockImplementation((point, out) => {
+      (out as Point).set(point.x * 10, point.y * 10);
+      return out!;
+    });
+    const oldUnpin = view.pin(node, [1, 1, 0]);
+    const unpin = view.pin(node, [2, 3, 0]);
+    oldUnpin();
+    view.update();
+    expect(node.position).toMatchObject({ x: 20, y: 30 });
+    unpin();
+    view.update();
+    expect(node.position).toMatchObject({ x: 20, y: 30 });
+    const target = view.add.container({ x: 4 });
+    view.pin(node, target);
+    view.update();
+    expect(node.position.x).toBe(40);
+    target.destroy();
+    view.update();
+    expect((view as any).pins.size).toBe(0);
+    view.pin(node, [5, 0, 0]);
+    node.destroy();
+    view.update();
+    expect((view as any).pins.size).toBe(0);
+    view.destroy();
+  });
+
+  it('shows a node again when its pin ends while it was hidden behind the camera', () => {
+    const view = new View3D();
+    const node = new Container();
+    vi.spyOn(view, 'worldToScreen').mockReturnValue(null);
+    const unpin = view.pin(node, [0, 0, 0]);
+    view.update();
+    expect(node.visible).toBe(false);
+    unpin();
+    expect(node.visible).toBe(true);
+    const target = new Container3D();
+    view.pin(node, target);
+    view.update();
+    expect(node.visible).toBe(false);
+    target.destroy();
+    view.update();
+    expect(node.visible).toBe(true);
+    view.destroy();
+    node.destroy();
+  });
+
+  it('clears pins on destroy without destroying 2D nodes', () => {
+    const view = new View3D();
+    const node = new Container();
+    view.pin(node, [0, 0, 0]);
+    view.destroy();
+    expect(node.destroyed).toBe(false);
+    expect((view as any).pins.size).toBe(0);
+    node.destroy();
+  });
+
   it('adds default fill, respects null, and positions the default camera', () => {
     const view = new View3D();
     expect(view.environment).toMatchObject({ skyColor: 0xbcd4f0, groundColor: 0x6b6250, intensity: 0.7 });

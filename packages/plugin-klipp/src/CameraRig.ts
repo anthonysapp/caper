@@ -238,8 +238,10 @@ export class CameraRig implements View3DPart {
           this.orbitBody!.horizontal.applyDelta(-dx * 0.3);
           this.orbitBody!.vertical.applyDelta(dy * 0.2);
         },
+        // Fingers apart is closer. The radial axis is clamped, so a full pinch stays inside its range.
+        onPinch: (delta) => this.orbitBody!.radial.applyDelta(-delta * 0.0025),
         onWheel: (deltaY) => this.orbitBody!.radial.applyDelta(deltaY * 0.001),
-      });
+      }, this.view.app?.canvas);
     }
   }
 

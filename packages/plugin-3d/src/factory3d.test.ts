@@ -1,4 +1,4 @@
-import { Container3D, CubeGeometry, Material3D, View3D as PixiView3D } from '@pixi/3d';
+import { Container3D, CubeGeometry, CylinderGeometry, Material3D, View3D as PixiView3D } from '@pixi/3d';
 import { Assets } from 'pixi.js';
 import { describe, expect, it, vi } from 'vitest';
 import { getEntityCtor, getRegisteredEntityIds } from '@caperjs/core';
@@ -99,6 +99,61 @@ describe('createFactory3D', () => {
     pixiView.destroy({ children: true });
   });
 
+  it('passes mesh color, roughness, and metallic shorthand only into Material3D, not Mesh3D', () => {
+    const pixiView = new PixiView3D();
+    const owned = new Owned3D();
+    const view = fakeCaperView(pixiView.root, owned);
+    const add = factory3D(pixiView.root, owned, true, view);
+    const materialSpy = vi.spyOn(owned, 'material');
+    const mesh = add.mesh({ color: 0xaabbcc, roughness: 0.35, metallic: 0.8, x: 1 });
+    expect(mesh.x).toBe(1);
+    expect('color' in mesh).toBe(false);
+    expect('roughness' in mesh).toBe(false);
+    expect('metallic' in mesh).toBe(false);
+    expect(mesh.material.roughness).toBeCloseTo(0.35);
+    expect(mesh.material.metallic).toBeCloseTo(0.8);
+    expect(mesh.material.baseColor).toBe(0xaabbcc);
+    materialSpy.mockClear();
+    const roughOnly = add.mesh({ roughness: 0.42 });
+    expect(roughOnly.material.roughness).toBeCloseTo(0.42);
+    expect(roughOnly.material.baseColor).toBe(new Material3D({ roughness: 0.42 }).baseColor);
+    expect(add.mesh({}).material.baseColor).toBe(0xffffff);
+    const shared = add.material({ color: 0x111111 });
+    materialSpy.mockClear();
+    const withExplicit = add.mesh({ material: shared, color: 0xff0000, roughness: 1, metallic: 1 });
+    expect(withExplicit.material).toBe(shared);
+    expect(withExplicit.material.baseColor).toBe(0x111111);
+    expect(materialSpy).not.toHaveBeenCalled();
+    pixiView.destroy({ children: true });
+    owned.destroy();
+  });
+
+  it('make.material accepts roughness and metallic in Material3DOptions', () => {
+    const root = new Container3D();
+    const owned = new Owned3D();
+    const view = fakeCaperView(root, owned);
+    const make = factory3D(root, owned, false, view);
+    const material = make.material({ roughness: 0.25, metallic: 0.9 });
+    expect(material.roughness).toBeCloseTo(0.25);
+    expect(material.metallic).toBeCloseTo(0.9);
+    root.destroy({ children: true });
+    owned.destroy();
+  });
+
+  it('shares one owned cylinder geometry per view', () => {
+    const pixiView = new PixiView3D();
+    const owned = new Owned3D();
+    const view = fakeCaperView(pixiView.root, owned);
+    const geometry = vi.spyOn(owned, 'geometry');
+    const add = factory3D(pixiView.root, owned, true, view);
+    const first = add.mesh({ geometry: 'cylinder' });
+    expect(first.geometry).toBeInstanceOf(CylinderGeometry);
+    expect(add.mesh({ geometry: 'cylinder' }).geometry).toBe(first.geometry);
+    expect(geometry).toHaveBeenCalledTimes(2);
+    pixiView.destroy({ children: true });
+    owned.destroy();
+  });
+
   it('owns only built-in geometry and default material', () => {
     const pixiView = new PixiView3D();
     const owned = new Owned3D();
@@ -142,7 +197,7 @@ describe('createFactory3D', () => {
     const view = fakeCaperView(pixiView.root, owned);
     const add = factory3D(pixiView.root, owned, true, view);
     expect(add.light().rotation).toMatchObject({ x: -Math.PI / 4, y: Math.PI / 6, z: 0 });
-    expect(() => add.mesh({ geometry: 'pyramid' as any })).toThrow(/box.*plane.*sphere/);
+    expect(() => add.mesh({ geometry: 'pyramid' as any })).toThrow(/box.*plane.*sphere.*cylinder/);
     pixiView.destroy({ children: true });
   });
 

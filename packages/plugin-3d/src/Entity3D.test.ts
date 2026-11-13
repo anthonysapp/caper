@@ -18,6 +18,28 @@ beforeEach(() => {
 });
 
 describe('Entity3D', () => {
+  it('enables picking only when a pointer listener is added', () => {
+    const passive = new Entity3D();
+    expect(passive.eventMode).toBe('passive');
+    passive.on('added', () => undefined);
+    expect(passive.eventMode).toBe('passive');
+    passive.on('pointertap', () => undefined);
+    expect(passive.eventMode).toBe('static');
+    const once = new Entity3D();
+    once.once('pointerdown', () => undefined);
+    expect(once.eventMode).toBe('static');
+    const global = new Entity3D();
+    global.on('globalpointermovecapture', () => undefined);
+    expect(global.eventMode).toBe('static');
+    const menu = new Entity3D();
+    menu.on('contextmenu', () => undefined);
+    expect(menu.eventMode).toBe('static');
+    const disabled = new Entity3D();
+    disabled.eventMode = 'none';
+    disabled.on('pointertap', () => undefined);
+    expect(disabled.eventMode).toBe('none');
+  });
+
   it('explains why factories are unavailable before parenting', () => {
     const entity = new Entity3D();
     expect(() => entity.add).toThrow(

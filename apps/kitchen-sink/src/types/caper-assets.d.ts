@@ -464,7 +464,7 @@ export type AssetRive = never;
 /**
  * Available 3D model names in the asset manifest
  * @example
- * const model: AssetModels = 'cesium-man';
+ * const model: AssetModels = 'robot';
  */
 export type AssetModels =
   | 'models/robot'

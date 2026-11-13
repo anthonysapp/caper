@@ -55,10 +55,10 @@ const view = this.add.view3d({
   // width / height omitted → full screen, auto-placed for Caper scene origin
 });
 
-const hero = view.add.model({ asset: 'cesium-man', y: 0 });
+const hero = view.add.model({ asset: 'robot', y: 0 });
 view.add.light({ type: 'directional', intensity: 2, castShadow: true });
 view.add.mesh({ geometry: 'box', color: 0xe85d5d });
-hero.play('anim_0');
+hero.play('Walking');
 ```
 
 `View3D` (`packages/plugin-3d/src/View3D.ts`) subclasses Pixi's `View3D` with Caper lifecycle and
@@ -70,9 +70,10 @@ upstream members, not a wrapper handle.
 | `this.add.view3d(props)` / `this.make.view3d(props)` | Full-screen or fixed-size view on the 2D stage (`FactoryMethodOverrides.view3d`). |
 | `view.add.*` / `view.make.*` | `Factory3D` (`packages/plugin-3d/src/factory3d.ts`): `container`, `mesh`, `model`, `light`, `camera`, `existing`, `entity`, `material`. |
 | `view.add.entity(id, props)` | Builds a discovered entity whose class extends `Container3D` (usually `Entity3D`). `id` is typed as `Entity3DId`, props and return type come from the class. Placement keys (`position`, `rotation`, `scale`, `x`/`y`/`z`, `visible`, `lookAt`, `parent`) are applied to the node before it is parented; every other prop is the entity's own. |
-| `Entity3D` (`packages/plugin-3d/src/Entity3D.ts`) | `Container3D` + Caper lifecycle (`added` / `removed` / `update`, update on by default) + signals + its own `add` / `make` (same `Factory3D`, parented to the entity, resources owned by the view it is in). |
-| `view.make.material(props)` | A `Material3D` owned by the view (freed with it) to pass to many meshes. `color` is shorthand for `baseColor`; every other key is a raw `Material3DOptions` key. `add.material` is the same function: a material has no parent. |
-| `Model` (`packages/plugin-3d/src/Model.ts`) | `play(name, opts?)`, `stop()` on loaded glTF clips; players driven from `View3D.update`. |
+| `Entity3D` (`packages/plugin-3d/src/Entity3D.ts`) | `Container3D` + Caper lifecycle (`added` / `removed` / `update`, update on by default) + signals + its own `add` / `make` (same `Factory3D`, parented to the entity, resources owned by the view it is in). The first `on` / `once` pointer listener sets `eventMode: 'static'` when the entity is still `'passive'`, so `entity.on('pointertap', …)` hears taps on the entity and its passive parts (`e.target3D` is the hit node). `onpointertap = …` and `addListener` do not; set `eventMode` yourself. |
+| `view.pin(node2d, target3d, { offset? })` | Keeps a 2D `Container` over a `Container3D` or a fixed `[x, y, z]`; `offset` is world units. Updated each frame after models and add-on parts. Hides the node when the point is behind the camera; returns unpin; pins end when the view, node, or target is destroyed. The view sets the node's `position` and `visible`. |
+| `view.make.material(props)` | A `Material3D` owned by the view (freed with it) to pass to many meshes. `color` is shorthand for `baseColor`; every other key (`roughness`, `metallic`, ...) is a raw `Material3DOptions` key. `view.add.mesh({ color, roughness, metallic })` takes the same three for the mesh's own material, and ignores them when `material` is given. `add.material` is the same function: a material has no parent. |
+| `Model` (`packages/plugin-3d/src/Model.ts`) | `play(name, opts?)` replaces what is playing and restarts the clip from the start; options do not stick between calls (`loop`, `animationSpeed`, `weight`, `onComplete`, `onLoop`, `fade` seconds on the game clock, `layer: true` to blend without stopping others). Replaced clips do not run `onComplete`. `stop()` stops everything and cancels a fade. Players driven from `View3D.update`. |
 | `view.root` | Escape hatch to the full `@pixi/3d` scene graph. |
 | `registerFactory3DMethods(methods)` + `Factory3DOverrides` | Add-on packages add methods to every 3D factory (`view.add.cameraRig`). See Seams. |
 | `view.own(part)` + `View3DPart` | Add-on lifecycle: the view updates the part each frame, tells it about resizes, destroys it with itself. |
@@ -108,10 +109,10 @@ Pure function in `packages/plugin-3d/src/quality.ts`: maps `quality` + mobile de
 | File | Responsibility |
 | --- | --- |
 | `src/Plugin3D.ts` | Pre-renderer `initialize` / `postInitialize`, factory registration, renderer guard. |
-| `src/View3D.ts` | Subclass, screen offset, `interactive` → `eventMode`, `Owned3D` tick + destroy, add-on parts (`own`). |
-| `src/factory3d.ts` | Holds the add-on method table (`registerFactory3DMethods`, `Factory3DOverrides`) and merges it into each factory it builds. Builds `Container3D`, `Mesh3D`, `Model`, lights, cameras, view-owned materials, and registry entities; shorthand props and the `Entity3DId` types (`packages/plugin-3d/src/props.ts`). `createFactory3D(root, owned, parent, view)` serves both a view (`root` = `view.root`) and an entity (`root` = the entity). |
-| `src/Entity3D.ts` | Base class for 3D entities. Finds its view's tracker through `ownedByView` when `add` / `make` are first used. |
-| `src/Model.ts` | Animation API; `autoUpdate: false`, updated from view. |
+| `src/View3D.ts` | Subclass, screen offset, `interactive` → `eventMode`, `Owned3D` tick + destroy, add-on parts (`own`), 2D `pin` tracking after parts each frame. |
+| `src/factory3d.ts` | Holds the add-on method table (`registerFactory3DMethods`, `Factory3DOverrides`) and merges it into each factory it builds. Builds `Container3D`, `Mesh3D`, `Model`, lights, cameras, view-owned materials, and registry entities; built-in `box` / `plane` / `sphere` / `cylinder` geometry, mesh `color` / `roughness` / `metallic` on the mesh material, and the `Entity3DId` types (`packages/plugin-3d/src/props.ts`). `createFactory3D(root, owned, parent, view)` serves both a view (`root` = `view.root`) and an entity (`root` = the entity). |
+| `src/Entity3D.ts` | Base class for 3D entities; `on` / `once` opt into `eventMode: 'static'` for pointer events. Finds its view's tracker through `ownedByView` when `add` / `make` are first used. |
+| `src/Model.ts` | Replace-and-restart `play`, cross-fade, optional layering; `autoUpdate: false`, updated from view. |
 | `src/owned.ts` | Tracks factory-created geometry/materials and players; safe destroy. `ownedByView` (package-internal `WeakMap`) maps a view to its tracker. |
 | `src/quality.ts` | `auto` / `low` / `high` → shadow and resolution defaults. |
 | `src/fit.ts` | `fitFov(fov, aspect, fitAspect?)` for portrait-safe framing on props cameras. |
@@ -194,7 +195,7 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, t
   system). The plugin destroys models with `{ children: true }` only and limits resource flags to
   factory-owned resources.
 - **Factory-made nodes belong to their view.** Each view keeps one geometry per built-in kind
-  (`box` / `plane` / `sphere`, shared by all its meshes so they can batch) and every material its
+  (`box` / `plane` / `sphere` / `cylinder`, shared by all its meshes so they can batch) and every material its
   factory made, and frees them when the view is destroyed. A node from `view.make.*` that is still
   alive after its view is gone holds dead resources: destroy it with the view, or do not keep it.
   See the shared-material bullet above for many meshes.
@@ -206,8 +207,27 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, t
   from `View3D.update` → `app.ticker`, so pause, `ticker.speed`, and `app.ticker.stop()` match 2D.
 - **`eventMode`: `static`, `none`, `passive`.** Default / `interactive: true` is `'static'` (3D
   picking; the view's bounds block taps to 2D behind it). `interactive: false` is `'none'` (picking
-  off, taps reach 2D below). **`'passive'` is a trap:** picking is off and taps still do not pass
+  off, taps reach 2D below). **`'passive'` on the view is a trap:** picking is off and taps still do not pass
   through. Put interactive HUD **after** the view in the display list so 2D on top wins taps.
+- **3D nodes default to `'passive'`, and a passive ancestor does not hear its children.** Events bubble
+  like 2D, but upstream skips every ancestor that is not `'static'` / `'dynamic'`
+  (`EventBoundary3D._emit3DChain`). A `'static'` ancestor also makes its passive mesh descendants
+  pickable, with that ancestor as the target, so a static group blocks picking of what is behind it.
+  That is why `Entity3D` is not static by default: its first `on` / `once` pointer listener makes it
+  `'static'` (only from `'passive'`; `'none'` stays). From then on the whole entity is the tap target and
+  `e.target3D` says which node was hit. `onpointertap = fn` and `addListener` do not opt in: set
+  `eventMode = 'static'` yourself.
+- **`Model.play` replaces (not layers by default).** Unlike 0.7, `play` stops other playing clips unless
+  `layer: true`. Options reset each call; a replaced clip does not call its old `onComplete`. `fade`
+  only applies when something is being replaced (not with `layer`, not when nothing is playing). A
+  `layer` call during a fade leaves that fade running.
+  Upstream has no mixer: a fade is two clips whose `weight` the model ramps on the view's clock.
+- **`view.pin` owns `visible`.** It hides the 2D node when the 3D point is behind the camera, and shows
+  it again when the pin ends (unpin, or the target is destroyed). A node
+  moved later in the same frame may trail by one frame.
+- **An opaque or fogged full-screen view covers 2D added before it.** That is display order, not a bug:
+  kitchen-sink's `BaseScene` adds its header first, so a scene with `fog` or a `clearColor` re-adds it
+  after the view (`this.add.existing(this.titleContainer)`).
 - **`.glb` only (v1).** AssetPack pass-through works for self-contained `.glb`. Multi-file `.gltf`
   (external `.bin`/textures) and `.hdr` are untested; production hashing can 404 external refs.
 - **Boot cost.** Pre-renderer import adds ~490 KB raw / **~155 KB gzip** on every start for opted-in
@@ -219,8 +239,9 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, t
 - **`lookAt` vs `rotation`.** After `camera.lookAt`, orientation is quaternion-driven; setting
   `rotation` afterward may fight the look-at. Prefer `lookAt` in props or use the raw camera API
   consistently.
-- **Built-in plane orientation.** Factory `geometry: 'plane'` lies in **XY** (upstream default).
-  Rotate **-π/2 on X** for a floor; size with `scale` or raw width/height (unit plane is 1×1).
+- **Built-in geometry.** `box`, `plane`, `sphere`, and `cylinder` are unit-sized upstream defaults
+  (sphere radius 0.5, cylinder radius 0.5 and height 1). Factory `geometry: 'plane'` lies in **XY**.
+  Rotate **-π/2 on X** for a floor; size with `scale` or raw width/height.
 - **Ambient vs environment.** Upstream `AmbientLight` intensity is divided by π (0.2 is barely
   visible). Default fill uses a hemisphere **`environment`**, not an ambient light; `environment: null`
   turns fill off.
@@ -239,13 +260,23 @@ const view = this.add.view3d({
 });
 const model = view.add.model({ asset: 'my-model', y: 0 });
 view.add.light({ type: 'directional', intensity: 2, castShadow: true });
-model.play('idle');
+model.play('Idle');
 ```
 
 Preload the bundle in the scene's `assets` like any other bundle. Asset name is the manifest alias
-(without path), e.g. `cesium-man` for `assets/models{m}/cesium-man.glb`.
+(without path), e.g. `robot` for `assets/models{m}/robot.glb`.
+
+### Play, replace and cross-fade clips
+
+```ts
+model.play('Walking');
+model.play('Wave', { loop: false, onComplete: () => model.play('Walking') });
+model.play('Wave', { loop: false, fade: 0.2, onComplete: () => model.play('Walking') });
+```
 
 ### Define a 3D entity
+
+Scaffold with `npx caper add entity <Name> --3d` (`--3d` before or after the name), or by hand:
 
 ```ts
 // src/entities/Car.ts
@@ -323,7 +354,21 @@ const cube = view.add.mesh({
 cube.on('pointertap', () => { /* ... */ });
 ```
 
-Mesh picking uses Pixi pointer events on 3D nodes; events bubble view → stage.
+3D pointer events bubble toward the stage like 2D, skipping ancestors that are not interactive;
+`'static'` meshes (or a `'static'` parent) receive picks.
+
+```ts
+const robot = view.add.entity('robot', { clip: 'Walking' });
+robot.on('pointertap', (e) => { /* e.target3D is the part hit */ });
+```
+
+### Pin a 2D label to a 3D point
+
+```ts
+const nameTag = this.add.container();
+// ... label chrome ...
+view.pin(nameTag, robot, { offset: [0, 2, 0] });
+```
 
 ### 2D UI over the view
 

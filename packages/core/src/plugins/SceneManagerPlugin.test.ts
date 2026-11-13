@@ -81,3 +81,16 @@ describe('SceneManagerPlugin destroy', () => {
     expect(document.getElementById('scene-debug')).toBeNull();
   });
 });
+
+describe('SceneManagerPlugin scene initialize errors', () => {
+  it('names the scene when its initialize() throws, and still rejects', async () => {
+    const plugin = new SceneManagerPlugin();
+    const failure = new Error('boom');
+    plugin.currentScene = { id: 'camera-rig', initialize: () => Promise.reject(failure) } as never;
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect((plugin as any)._initializeCurrentScene()).rejects.toBe(failure);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("'camera-rig'"), failure);
+    error.mockRestore();
+  });
+});
