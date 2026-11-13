@@ -1,4 +1,4 @@
-import type { AssetInitOptions, AssetsManifest, AssetsPreferences, Texture, UnresolvedAsset } from 'pixi.js';
+import type { AssetInitOptions, AssetsManifest, AssetsPreferences, Container as PixiContainer, Texture, UnresolvedAsset } from 'pixi.js';
 import { Point } from 'pixi.js';
 import type { Scene } from '../display/Scene';
 import type { SceneAssets } from '../display/Scene';
@@ -325,8 +325,10 @@ type AnyCtor = abstract new (...args: any[]) => any;
 
 type _UIClassMap = AppTypeOverrides extends { UIClasses: infer U } ? U : {};
 
-/** Union of discovered entity IDs from `src/entities/`. */
-export type EntityId = keyof _EntityClassMap & string;
+/** Union of discovered entity ids whose class is a Pixi `Container` (what `this.add.entity` can parent). */
+export type EntityId = {
+  [K in keyof _EntityClassMap]: _EntityClassMap[K] extends abstract new (...args: any[]) => PixiContainer ? K : never;
+}[keyof _EntityClassMap] & string;
 /** Constructor type of the entity class registered under `K`. */
 export type EntityCtor<K extends EntityId> = _EntityClassMap[K] extends AnyCtor
   ? _EntityClassMap[K]

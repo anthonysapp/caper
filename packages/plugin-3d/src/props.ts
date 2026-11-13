@@ -1,9 +1,11 @@
 import type {
   AmbientLightOptions,
   Camera3DOptions,
+  Container3D,
   Container3DOptions,
   DirectionalLightOptions,
   Geometry3D,
+  Material3DOptions,
   Mesh3DOptions as PixiMesh3DOptions,
   Model3DOptions as PixiModel3DOptions,
   PointLightOptions,
@@ -11,7 +13,7 @@ import type {
   SpotLightOptions,
 } from '@pixi/3d';
 import type { BaseMaterial3D } from '@pixi/3d';
-import type { AssetTypeOverrides } from '@caperjs/core';
+import type { AppTypeOverrides, AssetTypeOverrides } from '@caperjs/core';
 
 export type Vec3 = [number, number, number] | { x: number; y: number; z: number };
 
@@ -21,6 +23,30 @@ export type Node3DProps = Omit<Container3DOptions, 'position' | 'rotation' | 'sc
   scale?: Vec3 | number;
   lookAt?: Vec3;
 };
+
+export type Material3DProps = Material3DOptions & { /** Shorthand for `baseColor`. */ color?: number };
+
+type EntityClasses = AppTypeOverrides extends { EntityClasses: infer E } ? E : {};
+type Entity3DCtor = abstract new (...args: any[]) => Container3D;
+/** Ids of discovered entities whose class extends `Container3D` (usually through `Entity3D`). */
+export type Entity3DId = {
+  [K in keyof EntityClasses]: EntityClasses[K] extends Entity3DCtor ? K : never;
+}[keyof EntityClasses] & string;
+type OwnProps<C extends Entity3DCtor> = Exclude<ConstructorParameters<C>[0], void | undefined>;
+/** The entity's own constructor props; `{}` for a class that takes none (`Entity3D` with no `Props`). */
+export type Entity3DProps<K extends Entity3DId> = EntityClasses[K] extends Entity3DCtor
+  ? [OwnProps<EntityClasses[K]>] extends [never]
+    ? {}
+    : OwnProps<EntityClasses[K]>
+  : never;
+export type Entity3DInstance<K extends Entity3DId> = EntityClasses[K] extends Entity3DCtor
+  ? InstanceType<EntityClasses[K]>
+  : never;
+/** Placement props `view.add.entity` applies to the new entity; everything else is the entity's own. */
+export type Entity3DNodeProps = Pick<
+  Node3DProps,
+  'position' | 'rotation' | 'scale' | 'x' | 'y' | 'z' | 'visible' | 'lookAt' | 'parent'
+>;
 
 export type Mesh3DProps = Omit<PixiMesh3DOptions, keyof Node3DProps | 'geometry' | 'material'> &
   Node3DProps & {

@@ -6,5 +6,5 @@ export * from './utils';
 export * from './Factory';
 export { registerFactoryMethods } from './defaults';
 export type { FactoryMethodOverrides } from './defaults';
-export { getRegisteredEntityIds } from './registry';
+export { getEntityCtor, getRegisteredEntityIds } from './registry';
 export { getRegisteredUIIds } from './ui-registry';

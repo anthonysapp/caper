@@ -49,8 +49,10 @@ comments); nothing enforces that a subclass overrides them.
   defaults to `` `__scene_${id}` `` if never set explicitly (Scene.ts:150-152).
 - **`Entity<Props>`** (Entity.ts:42) extends `Container` and adds nothing but typed prop
   storage: `this.props` is assigned in the constructor. It is a *convention*, not a
-  requirement — `this.add.entity(id, props)` works with any class taking a single options
-  object, per the file's own doc comment.
+  requirement — `this.add.entity(id, props)` works with any Pixi `Container` class taking a
+  single options object, per the file's own doc comment. (A class that is not a Pixi
+  `Container`, such as a 3D entity, is refused: see
+  [mixins-and-factory.md](mixins-and-factory.md).)
 - **`Camera`** (Camera.ts:59) extends `Container` with `{ isRenderGroup: true }` only — so
   `autoUpdate` stays at `Container`'s default (`false`). It parents one child, `config.container`
   (the actual scrollable/zoomable world), and exposes `follow` / `pan` / `zoom` /

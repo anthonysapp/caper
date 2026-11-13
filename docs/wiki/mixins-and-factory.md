@@ -62,7 +62,12 @@ specifically because they aren't classes at all:
 - **`this.add.entity(id, props)`** / **`this.make.entity(id, props)`** —
   look up a build-time-discovered entity constructor by string id
   (`packages/core/src/mixins/factory/registry.ts`) and construct it. Throws
-  at runtime if `id` isn't registered.
+  at runtime if `id` isn't registered, or if the registered class is not a
+  Pixi `Container` (nothing a 2D container could parent). The `EntityId`
+  type applies the same rule: it is the union of discovered ids whose class
+  constructs a Pixi `Container`, so an entity built for another scene graph
+  (a 3D entity from `@caperjs/plugin-3d`) is a type error here and is added
+  through its own factory (`view.add.entity`).
 - **`this.add.ui(id, props)`** — the same pattern against the UI registry
   (`packages/core/src/mixins/factory/ui-registry.ts`).
 - **`this.add.existing(view)`** — parent an already-built node instead of
@@ -96,11 +101,12 @@ passthrough to instance properties (`alpha`, `visible`, `label`,
 | `mixins/factory/schema.ts` | `buildFactoryMethod({build, applies, exclude})` — the helper most `const.ts` entries are built from; centralizes the position/scale/pivot/anchor-then-unknown-keys pipeline. | `buildFactoryMethod`, `FactorySchema`, `FactoryApply` |
 | `mixins/factory/props.ts` | Prop-shape interfaces for every factory method (`SpriteProps`, `TextProps`, `ContainerProps`, etc.) — the types that drive `this.add.sprite({...})` autocomplete. | `*Props` interfaces |
 | `mixins/factory/utils.ts` | Prop resolvers shared by hand-written methods and `buildFactoryMethod`: `resolvePosition`, `resolveScale`, `resolvePivot`, `resolveAnchor`, `resolveUnknownKeys`, `resolveTexture`, `getErrorTexture`. | resolver functions |
-| `mixins/factory/registry.ts` | Lazy runtime lookup for `this.add.entity(id)`, backed by `globalThis.Caper.get('entityList')` (populated by Vite discovery). Static-import entities only; dynamic (code-split) entities are skipped. | `getEntityCtor`, `getRegisteredEntityIds`, `_resetEntityRegistry` (test-only) |
+| `mixins/factory/registry.ts` | Lazy runtime lookup for `this.add.entity(id)`, backed by `globalThis.Caper.get('entityList')` (populated by Vite discovery). Static-import entities only; dynamic (code-split) entities are skipped. | `getEntityCtor`, `getRegisteredEntityIds` (both public, exported from `@caperjs/core`), `_resetEntityRegistry` (test-only) |
 | `mixins/factory/ui-registry.ts` | Same pattern as `registry.ts`, for `this.add.ui(id)` against `globalThis.Caper.get('uiList')`. | `getUICtor`, `getRegisteredUIIds`, `_resetUIRegistry` (test-only) |
 | `mixins/factory/index.ts` | Barrel for the `factory/` subdirectory only (not `mixins/` as a whole). | re-exports of the files above |
 | `mixins/factory/Factory.test.ts` | Verifies per-class `extensions` don't leak into the shared default table. | — |
 | `mixins/factory/registry.test.ts` | Verifies entity-registry lazy population, inactive/dynamic filtering, caching. | — |
+| `mixins/factory/entity.test.ts` | Verifies `add.entity` builds Pixi `Container` classes only, and that `getEntityCtor` is public. | — |
 | `importOrder.*.test.ts` (6 files, package root) | Entry-order guard tests — see next section. | — |
 
 ## The import-cycle hazard
@@ -243,6 +249,13 @@ explanation in-repo.
   `globalThis.Caper.get('entityList' | 'uiList')`; the registry modules
   themselves don't know or care how that global gets populated (that's the
   Vite plugin's job, outside this subsystem).
+- **An entity factory for another scene graph** — `getEntityCtor(id)` and
+  `getRegisteredEntityIds()` are public so a plugin can build registry
+  entities that the 2D factory refuses. `@caperjs/plugin-3d` does this for
+  `view.add.entity`: it types its ids from `AppTypeOverrides['EntityClasses']`
+  filtered by its own base class, and checks `instanceof` before
+  constructing. Core knows nothing about the other graph; its only rule is
+  "2D `add.entity` builds Pixi `Container`s".
 
 ## Invariants & gotchas
 

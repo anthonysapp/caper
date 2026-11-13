@@ -68,7 +68,10 @@ upstream members, not a wrapper handle.
 | Surface | Role |
 | --- | --- |
 | `this.add.view3d(props)` / `this.make.view3d(props)` | Full-screen or fixed-size view on the 2D stage (`FactoryMethodOverrides.view3d`). |
-| `view.add.*` / `view.make.*` | `Factory3D` (`packages/plugin-3d/src/factory3d.ts`): `container`, `mesh`, `model`, `light`, `camera`, `existing`. |
+| `view.add.*` / `view.make.*` | `Factory3D` (`packages/plugin-3d/src/factory3d.ts`): `container`, `mesh`, `model`, `light`, `camera`, `existing`, `entity`, `material`. |
+| `view.add.entity(id, props)` | Builds a discovered entity whose class extends `Container3D` (usually `Entity3D`). `id` is typed as `Entity3DId`, props and return type come from the class. Placement keys (`position`, `rotation`, `scale`, `x`/`y`/`z`, `visible`, `lookAt`, `parent`) are applied to the node before it is parented; every other prop is the entity's own. |
+| `Entity3D` (`packages/plugin-3d/src/Entity3D.ts`) | `Container3D` + Caper lifecycle (`added` / `removed` / `update`, update on by default) + signals + its own `add` / `make` (same `Factory3D`, parented to the entity, resources owned by the view it is in). |
+| `view.make.material(props)` | A `Material3D` owned by the view (freed with it) to pass to many meshes. `color` is shorthand for `baseColor`; every other key is a raw `Material3DOptions` key. `add.material` is the same function: a material has no parent. |
 | `Model` (`packages/plugin-3d/src/Model.ts`) | `play(name, opts?)`, `stop()` on loaded glTF clips; players driven from `View3D.update`. |
 | `view.root` | Escape hatch to the full `@pixi/3d` scene graph. |
 
@@ -103,16 +106,18 @@ Pure function in `packages/plugin-3d/src/quality.ts`: maps `quality` + mobile de
 | --- | --- |
 | `src/Plugin3D.ts` | Pre-renderer `initialize` / `postInitialize`, factory registration, renderer guard. |
 | `src/View3D.ts` | Subclass, screen offset, `interactive` → `eventMode`, `Owned3D` tick + destroy. |
-| `src/factory3d.ts` | Builds `Container3D`, `Mesh3D`, `Model`, lights, cameras; shorthand props (`packages/plugin-3d/src/props.ts`). |
+| `src/factory3d.ts` | Builds `Container3D`, `Mesh3D`, `Model`, lights, cameras, view-owned materials, and registry entities; shorthand props and the `Entity3DId` types (`packages/plugin-3d/src/props.ts`). `createFactory3D(root, owned, parent)` serves both a view (`root` = `view.root`) and an entity (`root` = the entity). |
+| `src/Entity3D.ts` | Base class for 3D entities. Finds its view's tracker through `ownedByView` when `add` / `make` are first used. |
 | `src/Model.ts` | Animation API; `autoUpdate: false`, updated from view. |
-| `src/owned.ts` | Tracks factory-created geometry/materials and players; safe destroy. |
+| `src/owned.ts` | Tracks factory-created geometry/materials and players; safe destroy. `ownedByView` (package-internal `WeakMap`) maps a view to its tracker. |
 | `src/quality.ts` | `auto` / `low` / `high` → shadow and resolution defaults. |
 | `src/fit.ts` | `fitFov(fov, aspect, fitAspect?)` for portrait-safe framing on props cameras. |
 | `src/renderer.ts` | `assertRenderer3D` — Canvas, WebGL1, late `@pixi/3d` load. |
 | `src/index.ts` | Public exports; the factory type augmentation lives in `Plugin3D.ts`. |
 | `package.json` `caper.phase` | `"pre-renderer"` for discovery (`packages/core/build/internal/discovery.mjs`). |
 
-Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, assets in
+Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, the 3D entity
+`apps/kitchen-sink/src/entities/SpinCube.ts`, assets in
 `apps/kitchen-sink/assets/models{m}/`.
 
 ## Seams & extension points
@@ -126,20 +131,33 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, a
   and custom geometry stay upstream-shaped.
 - **`Owned3D`** — seam for “who destroys what”: only resources created by the factory are
   destroyed after the view's node tree is torn down.
-- **Deferred:** `Entity3D` + `view.add.entity`. It needs two core changes first (2D `add.entity` must
-  refuse 3D ids; the entity registry lookup must be public). Design: `plan/pixi3d.md`
-  ("Phase 4 design (as built)").
+- **Entities** — `defineEntity` + a default-exported class that extends `Entity3D` (or any `Container3D`).
+  Discovery is the ordinary entity discovery; the 2D / 3D split is a type (`EntityId` in core keeps Pixi
+  `Container` classes, `Entity3DId` here keeps `Container3D` classes) and a runtime `instanceof` check in each
+  factory. Core's part is in [mixins-and-factory.md](mixins-and-factory.md). Design: `plan/pixi3d.md`
+  ("3D entities and materials (as built)").
 
 ## Invariants & gotchas
 
-- **Spawning many meshes: pass one shared `material`.** `color` gives each mesh its own material
-  for the life of the view (kitchen-sink recolours one cube without affecting others). For a
-  spawner, build one `Material3D` and pass `material`; destroy it when the scene ends.
+- **Spawning many meshes: make one material and pass it.** `color` gives each mesh its own material
+  for the life of the view (kitchen-sink recolours one cube without affecting others). Materials are
+  never shared by colour behind your back. For a spawner, use `view.make.material`; the view frees it.
   ```ts
-  const red = new Material3D({ baseColor: 0xd9534f });
+  const red = view.make.material({ color: 0xd9534f });
   for (let i = 0; i < 200; i++) view.add.mesh({ geometry: 'box', material: red, x: i });
-  // on scene destroy: red.destroy();
   ```
+  Writing to `red` recolours every mesh that uses it. A `new Material3D(...)` you build yourself still
+  works and stays yours to destroy.
+- **Build an `Entity3D`'s parts in `added()`, not in the constructor.** `this.add` / `this.make` belong to
+  the view the entity is in, so they throw (plain message) until it has been added to one. `view.add.entity`
+  and `view.add.existing(entity)` both do that before `added()` runs. An entity added under a detached
+  `Container3D` gets `added()` while it still has no view. As in 2D, `added()` runs on every
+  reparent: an entity that gets moved should build its parts once (guard it).
+- **`Entity3D.update` runs every frame** from `app.ticker` while the entity has a parent, so it stops with
+  `app.pause()` like model clips. There is no `resize` wiring on an entity.
+- **3D entities are static imports**, like all entities, so an app with one loads `@caperjs/plugin-3d`
+  from its main graph. `this.add.entity('<3d id>')` on a 2D container is a type error and a runtime error;
+  so is `view.add.entity('<2d id>')`.
 
 - **Import order / silent blank view.** `@pixi/3d` must load before the renderer is created. If it
   loads late, `renderer.lighting3d` is missing, the view draws **nothing**, and there is **no error**
@@ -201,6 +219,39 @@ model.play('idle');
 
 Preload the bundle in the scene's `assets` like any other bundle. Asset name is the manifest alias
 (without path), e.g. `cesium-man` for `assets/models{m}/cesium-man.glb`.
+
+### Define a 3D entity
+
+```ts
+// src/entities/Car.ts
+import { defineEntity } from '@caperjs/core';
+import { Entity3D } from '@caperjs/plugin-3d';
+
+export const entity = defineEntity({ id: 'car' });
+
+export default class Car extends Entity3D<{ color?: number }> {
+  added() {
+    this.add.mesh({ geometry: 'box', color: this.props.color ?? 0xd9534f, scale: [2, 0.6, 1] });
+  }
+  update() {
+    this.rotation.y += 0.02 * this.app.ticker.deltaTime;
+  }
+}
+
+// any scene with a view
+const car = view.add.entity('car', { color: 0x4a90d9, x: -2, y: 0.3 });   // typed: id, props, instance
+```
+
+`view.make.entity` builds without parenting. Inside an entity, `this.add.entity('wheel')` nests another one.
+
+### Many meshes, one material
+
+```ts
+const red = view.make.material({ color: 0xd9534f, roughness: 0.6 });
+for (let i = 0; i < 200; i++) view.add.mesh({ geometry: 'box', material: red, x: i });
+```
+
+The view destroys `red` with itself. Inside an `Entity3D` use `this.make.material(...)`.
 
 ### Pickable mesh
 

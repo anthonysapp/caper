@@ -1,9 +1,9 @@
+import type SpinCube from '@/entities/SpinCube';
 import BaseScene from '@/scenes/BaseScene';
 import { FONT_BODY } from '@/utils/Constants';
 import { defineScene, type Button } from '@caperjs/core';
 import type { Model, View3D } from '@caperjs/plugin-3d';
-import type { Material3D, Mesh3D } from '@pixi/3d';
-import type { Text, Ticker } from 'pixi.js';
+import type { Text } from 'pixi.js';
 
 export const scene = defineScene({
   id: 'view-3d',
@@ -18,16 +18,13 @@ export const scene = defineScene({
   },
 });
 
-const COLORS = [0xd9534f, 0x4a90d9, 0x6fbf5c, 0xf0ad4e];
-
 export default class View3DScene extends BaseScene {
   protected readonly title = 'View 3D';
   protected readonly subtitle = 'Tap the cube to change its colour';
 
   view: View3D;
-  cube: Mesh3D;
+  cube: SpinCube;
   hero: Model;
-  taps = 0;
   buttonClicks = 0;
   private hudLabel: Text;
   private button: Button;
@@ -52,22 +49,7 @@ export default class View3DScene extends BaseScene {
       color: 0x7f8f6a,
     });
 
-    this.cube = this.view.add.mesh({
-      geometry: 'box',
-      color: COLORS[0],
-      x: -2,
-      y: 1.2,
-      scale: 1.5,
-      eventMode: 'static',
-      cursor: 'pointer',
-    });
-    const material = this.cube.material as Material3D;
-    let colorIndex = 0;
-    this.cube.on('pointertap', () => {
-      this.taps++;
-      colorIndex = (colorIndex + 1) % COLORS.length;
-      material.baseColor = COLORS[colorIndex];
-    });
+    this.cube = this.view.add.entity('spin-cube', { x: -2, y: 1.2, scale: 1.5 });
 
     this.hero = this.view.add.model({ asset: 'cesium-man', x: 1.5, scale: 2 });
     this.hero.play('anim_0');
@@ -96,14 +78,6 @@ export default class View3DScene extends BaseScene {
       this.buttonClicks++;
       this.hudLabel.text = `Button clicks: ${this.buttonClicks}`;
     });
-  }
-
-  update(_ticker?: Ticker) {
-    if (this.cube) {
-      const dt = this.app.ticker.deltaTime;
-      this.cube.rotation.y += 0.02 * dt;
-      this.cube.rotation.x += 0.01 * dt;
-    }
   }
 
   resize() {
