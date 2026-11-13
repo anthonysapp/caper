@@ -8,8 +8,8 @@ import type { Factory3D } from './factory3d';
 import { Owned3D } from './owned';
 import type { Vec3 } from './props';
 import { toVec3 } from './props';
+import type { IPlugin3D } from './Plugin3D';
 import { resolveQuality } from './quality';
-import type { Quality3D } from './quality';
 import { assertRenderer3D } from './renderer';
 
 type CameraProps = { position?: Vec3; lookAt?: Vec3; fov?: number; near?: number; far?: number };
@@ -28,7 +28,7 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
   constructor(props: View3DProps = {}) {
     const app = Application.getInstance();
     assertRenderer3D(app.renderer);
-    const plugin = app.getPlugin('3d') as { options: { quality: Quality3D } } | undefined;
+    const plugin = app.getPlugin<IPlugin3D>('3d');
     const { camera, interactive = true, ...viewProps } = props;
     const fillsScreen = props.width === undefined && props.height === undefined;
     const quality = resolveQuality(plugin?.options.quality ?? 'auto', {

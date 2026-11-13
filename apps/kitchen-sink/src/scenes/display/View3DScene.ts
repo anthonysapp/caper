@@ -99,8 +99,9 @@ export default class View3DScene extends BaseScene {
 
   update(_ticker?: Ticker) {
     if (this.cube) {
-      this.cube.rotation.y += 0.02;
-      this.cube.rotation.x += 0.01;
+      const dt = this.app.ticker.deltaTime;
+      this.cube.rotation.y += 0.02 * dt;
+      this.cube.rotation.x += 0.01 * dt;
     }
   }
 
