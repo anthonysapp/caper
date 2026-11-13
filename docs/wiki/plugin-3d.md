@@ -74,6 +74,9 @@ upstream members, not a wrapper handle.
 | `view.make.material(props)` | A `Material3D` owned by the view (freed with it) to pass to many meshes. `color` is shorthand for `baseColor`; every other key is a raw `Material3DOptions` key. `add.material` is the same function: a material has no parent. |
 | `Model` (`packages/plugin-3d/src/Model.ts`) | `play(name, opts?)`, `stop()` on loaded glTF clips; players driven from `View3D.update`. |
 | `view.root` | Escape hatch to the full `@pixi/3d` scene graph. |
+| `registerFactory3DMethods(methods)` + `Factory3DOverrides` | Add-on packages add methods to every 3D factory (`view.add.cameraRig`). See Seams. |
+| `view.own(part)` + `View3DPart` | Add-on lifecycle: the view updates the part each frame, tells it about resizes, destroys it with itself. |
+| `fitFov(fov, aspect, fitAspect?)` | The portrait-framing maths, exported for add-ons that write the camera's `fov` themselves. |
 
 **Screen cover.** With no `width` / `height`, Pixi `autoResize` tracks `app.screen` and the view
 positions itself at **`-app.size / 2`** on `added` and `resize` so a scene-centred origin still
@@ -105,8 +108,8 @@ Pure function in `packages/plugin-3d/src/quality.ts`: maps `quality` + mobile de
 | File | Responsibility |
 | --- | --- |
 | `src/Plugin3D.ts` | Pre-renderer `initialize` / `postInitialize`, factory registration, renderer guard. |
-| `src/View3D.ts` | Subclass, screen offset, `interactive` → `eventMode`, `Owned3D` tick + destroy. |
-| `src/factory3d.ts` | Builds `Container3D`, `Mesh3D`, `Model`, lights, cameras, view-owned materials, and registry entities; shorthand props and the `Entity3DId` types (`packages/plugin-3d/src/props.ts`). `createFactory3D(root, owned, parent)` serves both a view (`root` = `view.root`) and an entity (`root` = the entity). |
+| `src/View3D.ts` | Subclass, screen offset, `interactive` → `eventMode`, `Owned3D` tick + destroy, add-on parts (`own`). |
+| `src/factory3d.ts` | Holds the add-on method table (`registerFactory3DMethods`, `Factory3DOverrides`) and merges it into each factory it builds. Builds `Container3D`, `Mesh3D`, `Model`, lights, cameras, view-owned materials, and registry entities; shorthand props and the `Entity3DId` types (`packages/plugin-3d/src/props.ts`). `createFactory3D(root, owned, parent, view)` serves both a view (`root` = `view.root`) and an entity (`root` = the entity). |
 | `src/Entity3D.ts` | Base class for 3D entities. Finds its view's tracker through `ownedByView` when `add` / `make` are first used. |
 | `src/Model.ts` | Animation API; `autoUpdate: false`, updated from view. |
 | `src/owned.ts` | Tracks factory-created geometry/materials and players; safe destroy. `ownedByView` (package-internal `WeakMap`) maps a view to its tracker. |
@@ -127,6 +130,28 @@ Kitchen-sink reference: `apps/kitchen-sink/src/scenes/display/View3DScene.ts`, t
   [plugins-architecture.md](plugins-architecture.md).
 - **`registerFactoryMethods`** — this plugin contributes `view3d`; other plugins could add more
   pre-renderer factories without core changes ([mixins-and-factory.md](mixins-and-factory.md)).
+- **`registerFactory3DMethods(methods): () => void`** (`packages/plugin-3d/src/factory3d.ts`) — the mirror of
+  core's `registerFactoryMethods`, one level down. An add-on package adds methods to **every** 3D factory:
+  `view.add.<name>`, `view.make.<name>`, and an `Entity3D`'s `this.add` / `this.make`. Interface facts:
+  - **The method gets the view first**, then the call-site arguments: `(view, ...args)`. From an entity's
+    factory it is the view the entity is in.
+  - **`add` and `make` are the same function** for a registered method. Parenting is a node idea; a rig or
+    a physics world has no parent.
+  - **Timing.** A factory reads the table when it is built (a view in its constructor, an entity on first
+    `add` / `make` use). Register in a plugin's `initialize`. The disposer does not strip methods from
+    factories already built.
+  - **Collisions throw.** A built-in name throws. A name already registered with a different function
+    throws and names both functions. The same function again is a no-op. A call that throws registers
+    nothing. The disposer removes only what its call added.
+  - **Types** come from augmenting the empty `Factory3DOverrides` interface with the call-site shape
+    (`declare module '@caperjs/plugin-3d'`). `Factory3D` extends it. `Factory3DMethods` is the registered
+    shape (view first).
+- **`view.own(part)`** (`packages/plugin-3d/src/View3D.ts`) — the one lifecycle hook for add-ons.
+  `View3DPart` is `{ update?(ticker), resize?(size), destroy() }`. `update` runs after model clips on
+  `app.ticker` while the view is on the stage, so pause and `ticker.speed` apply. `resize` is called once
+  when owned (with the view's size) and on every view resize, after the view's own `fitAspect`. `destroy`
+  runs first in `view.destroy()`, while the camera and nodes are still alive. First user:
+  [plugin-klipp.md](plugin-klipp.md).
 - **Raw API** — every wrapped node exposes the underlying `@pixi/3d` instance; materials, passes,
   and custom geometry stay upstream-shaped.
 - **`Owned3D`** — seam for “who destroys what”: only resources created by the factory are
@@ -253,6 +278,39 @@ for (let i = 0; i < 200; i++) view.add.mesh({ geometry: 'box', material: red, x:
 
 The view destroys `red` with itself. Inside an `Entity3D` use `this.make.material(...)`.
 
+### Add a method to the 3D factory from an add-on
+
+```ts
+// my add-on package
+import { Plugin } from '@caperjs/core';
+import { registerFactory3DMethods } from '@caperjs/plugin-3d';
+import type { View3D, View3DPart } from '@caperjs/plugin-3d';
+
+class Wind implements View3DPart {
+  constructor(view: View3D, public strength = 1) {
+    view.own(this);                       // update / resize / destroy now come from the view
+  }
+  update(ticker) { /* ticker.deltaMS, every frame the view runs */ }
+  destroy() {}
+}
+
+declare module '@caperjs/plugin-3d' {
+  interface Factory3DOverrides { wind: (strength?: number) => Wind }   // call-site shape
+}
+
+const wind = (view: View3D, strength?: number) => new Wind(view, strength);   // one stable function
+
+export default class WindPlugin extends Plugin {
+  id = 'wind';
+  initialize() {
+    this.addDisposer(registerFactory3DMethods({ wind }));
+  }
+}
+```
+
+Declare `"caper": { "requires": ["3d"] }` in the add-on's `package.json`. A game then writes
+`view.add.wind(2)`. Keep the registered function a module-level constant so a re-run `initialize` is a no-op.
+
 ### Pickable mesh
 
 ```ts
@@ -316,3 +374,4 @@ including the `pixijs-3d` skill install command.
 - [Mixins & the Factory](mixins-and-factory.md) — `registerFactoryMethods`, `buildFactoryMethod`.
 - [Build: Vite Preset & Asset Pipeline](build-pipeline.md) — AssetPack pass-through for `.glb`.
 - [plugins-catalog.md](plugins-catalog.md) — built-in plugins (3D is first-party, not in core).
+- [Camera rig (`@caperjs/plugin-klipp`)](plugin-klipp.md) — the first add-on built on the two seams above.

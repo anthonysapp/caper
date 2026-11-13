@@ -115,4 +115,46 @@ describe('View3D', () => {
     fixed.destroy();
     fitted.destroy();
   });
+
+  it('resizes owned parts immediately with the screen or fixed view size and on later layout', () => {
+    const screen = new View3D();
+    const screenResize = vi.fn();
+    const screenPart = { resize: screenResize, destroy: vi.fn() };
+    expect(screen.own(screenPart)).toBe(screenPart);
+    expect(screenResize).toHaveBeenCalledExactlyOnceWith({ width: 800, height: 600 });
+    screen.resize();
+    screen.added();
+    expect(screenResize).toHaveBeenCalledTimes(3);
+    expect(screenResize).toHaveBeenLastCalledWith({ width: 800, height: 600 });
+    screen.destroy();
+
+    const fixed = new View3D({ width: 320, height: 240 });
+    const fixedResize = vi.fn();
+    fixed.own({ resize: fixedResize, destroy: vi.fn() });
+    expect(fixedResize).toHaveBeenCalledExactlyOnceWith({ width: 320, height: 240 });
+    fixed.resize();
+    expect(fixedResize).toHaveBeenLastCalledWith({ width: 320, height: 240 });
+    fixed.destroy();
+  });
+
+  it('updates owned parts after model players with the application ticker', () => {
+    const view = new View3D();
+    const order: string[] = [];
+    view.owned.player({ destroyed: false, update: () => { order.push('player'); } });
+    const update = vi.fn(() => { order.push('part'); });
+    view.own({ update, destroy: vi.fn() });
+    view.update();
+    expect(update).toHaveBeenCalledExactlyOnceWith(h.app.ticker);
+    expect(order).toEqual(['player', 'part']);
+    view.destroy();
+  });
+
+  it('destroys parts once while the view tree is still usable', () => {
+    const view = new View3D();
+    const destroy = vi.fn(() => { expect(view.destroyed).toBe(false); });
+    view.own({ destroy });
+    view.destroy();
+    view.destroy();
+    expect(destroy).toHaveBeenCalledTimes(1);
+  });
 });

@@ -32,10 +32,21 @@ export interface View3DProps extends Omit<View3DOptions, 'camera'> {
   interactive?: boolean;
 }
 
+/** Something an add-on attaches to a view. The view drives it; games never call these. */
+export interface View3DPart {
+  /** Every frame the view updates (on app.ticker), after model clips. */
+  update?(ticker: Ticker): void;
+  /** Once when owned with the current size, then on every view resize. */
+  resize?(size: Size): void;
+  /** Before the view frees its nodes and resources, while the view is still usable. */
+  destroy(): void;
+}
+
 export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
   readonly add: Factory3D;
   readonly make: Factory3D;
   private readonly owned = new Owned3D();
+  private readonly parts = new Set<View3DPart>();
   private readonly fillsScreen: boolean;
   private readonly fit?: { fov: number; aspect: number };
 
@@ -71,26 +82,36 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
       if (camera?.far !== undefined) this.camera.far = camera.far;
       if (camera?.fitAspect) this.fit = { fov: this.camera.fov, aspect: camera.fitAspect };
     }
-    this.add = createFactory3D(this.root, this.owned, true);
-    this.make = createFactory3D(this.root, this.owned, false);
+    this.add = createFactory3D(this.root, this.owned, true, this);
+    this.make = createFactory3D(this.root, this.owned, false, this);
     this.fitCamera();
   }
 
+  /** For add-ons: the view updates `part` every frame, tells it about resizes, and destroys it with itself. */
+  own<T extends View3DPart>(part: T): T {
+    this.parts.add(part);
+    part.resize?.(this.viewSize);
+    return part;
+  }
+
   added(): void {
-    this.placeFullScreen();
-    this.fitCamera();
+    this.resize();
   }
 
   resize(_size?: Size): void {
     this.placeFullScreen();
     this.fitCamera();
+    for (const part of this.parts) part.resize?.(this.viewSize);
   }
 
   update(_ticker?: Ticker | number): void {
     this.owned.update(this.app.ticker);
+    for (const part of this.parts) part.update?.(this.app.ticker);
   }
 
   destroy(_options?: Parameters<PixiView3D['destroy']>[0] | boolean): void {
+    for (const part of this.parts) part.destroy();
+    this.parts.clear();
     // glTF sources share materials; destroying them crashes the next visit.
     super.destroy({ children: true });
     this.owned.destroy();
@@ -98,8 +119,13 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
 
   private fitCamera(): void {
     if (!this.fit) return;
-    const { width, height } = this.fillsScreen ? this.app.size : this;
+    const { width, height } = this.viewSize;
     this.camera.fov = fitFov(this.fit.fov, width / height, this.fit.aspect);
+  }
+
+  private get viewSize(): Size {
+    const size = this.fillsScreen ? this.app.size : this;
+    return { width: size.width, height: size.height };
   }
 
   private placeFullScreen(): void {

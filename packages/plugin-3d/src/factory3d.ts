@@ -29,8 +29,19 @@ import type {
   Node3DProps,
 } from './props';
 import { resolveNodeOptions, toVec3 } from './props';
+import type { View3D } from './View3D';
 
-export interface Factory3D {
+/** Add-on methods on every 3D factory. Augment with the call-site shape:
+ * declare module '@caperjs/plugin-3d' { interface Factory3DOverrides { cameraRig: (props?: P) => CameraRig } } */
+export interface Factory3DOverrides {}
+
+/** Registered methods receive the view before their call-site arguments. */
+export type Factory3DMethods = {
+  [K in keyof Factory3DOverrides]: Factory3DOverrides[K] extends (...args: infer A) => infer R
+    ? (view: View3D, ...args: A) => R : never;
+};
+
+interface BuiltInFactory3D {
   container(props?: Node3DProps): Container3D;
   mesh(props?: Mesh3DProps): Mesh3D;
   /** A material owned by the view: freed with it. Pass it to many meshes. A material has no parent, so add.material and make.material are the same. */
@@ -40,6 +51,41 @@ export interface Factory3D {
   light(props?: Light3DProps): Light;
   camera(props?: Camera3DProps): Camera3D;
   existing<T extends Container3D>(node: T, props?: Node3DProps): T;
+}
+
+export interface Factory3D extends BuiltInFactory3D, Factory3DOverrides {}
+
+const BUILT_IN_METHODS = {
+  container: true, mesh: true, material: true, entity: true,
+  model: true, light: true, camera: true, existing: true,
+} satisfies Record<keyof BuiltInFactory3D, true>;
+const registered = new Map<string, (...args: any[]) => any>();
+
+/** Register methods for factories built afterwards. Register before creating views: a view builds its
+ * factories in its constructor, and an entity builds them on first add/make use. A disposer only affects
+ * future factories. Registered methods have the same behavior on add and make; neither parents their result.
+ */
+export function registerFactory3DMethods(methods: Partial<Factory3DMethods>): () => void {
+  const entries = Object.entries(methods) as Array<[string, (...args: any[]) => any]>;
+  for (const [name, method] of entries) {
+    if (Object.hasOwn(BUILT_IN_METHODS, name)) {
+      throw new Error(`[caper] registerFactory3DMethods: "${name}" is a built-in 3D factory method and cannot be replaced. Pick another name.`);
+    }
+    if (typeof method !== 'function') {
+      throw new Error(`[caper] registerFactory3DMethods: "${name}" must be a function.`);
+    }
+    const previous = registered.get(name);
+    if (previous && previous !== method) {
+      throw new Error(`[caper] registerFactory3DMethods: "${name}" is already registered (by function "${previous.name || 'anonymous'}"); cannot register function "${method.name || 'anonymous'}" under the same name.`);
+    }
+  }
+  const added = entries.filter(([name]) => !registered.has(name));
+  for (const [name, method] of added) registered.set(name, method);
+  return () => {
+    for (const [name, method] of added) {
+      if (registered.get(name) === method) registered.delete(name);
+    }
+  };
 }
 
 const BUILT_IN_GEOMETRY = {
@@ -52,7 +98,7 @@ const ENTITY_PLACEMENT = ['position', 'rotation', 'scale', 'x', 'y', 'z', 'visib
 
 const LIGHTS = { directional: DirectionalLight, point: PointLight, spot: SpotLight, ambient: AmbientLight };
 
-export function createFactory3D(root: Container3D, owned: Owned3D, parent: boolean): Factory3D {
+export function createFactory3D(root: Container3D, owned: Owned3D, parent: boolean, view: View3D): Factory3D {
   const options = <T extends Node3DProps>(props: T) => {
     const resolved = resolveNodeOptions(props);
     return parent && !resolved.parent ? { ...resolved, parent: root } : resolved;
@@ -69,7 +115,7 @@ export function createFactory3D(root: Container3D, owned: Owned3D, parent: boole
     return finish(node, props);
   };
 
-  return {
+  const builtIns: BuiltInFactory3D = {
     container(props = {}) {
       return finish(new Container3D(options(props)), props);
     },
@@ -129,4 +175,8 @@ export function createFactory3D(root: Container3D, owned: Owned3D, parent: boole
     },
     existing,
   };
+  const bound = Object.fromEntries(
+    [...registered].map(([name, method]) => [name, (...args: any[]) => method(view, ...args)]),
+  );
+  return Object.assign(builtIns, bound) as Factory3D;
 }
