@@ -175,7 +175,7 @@ export async function generateAssetTypes(manifest, assetsDir) {
 /**
  * Available 3D model names in the asset manifest
  * @example
- * const model: AssetModels = 'cesium-man';
+ * const model: AssetModels = '${types.models.find((name) => !/[/.]/.test(name)) ?? types.models[0]}';
  */
 export type AssetModels =
   | '${types.models.join("'\n  | '")}';

@@ -31,17 +31,12 @@ export default class Robot extends Entity3D<RobotProps> {
   loop(clip: string) {
     this.looping = clip;
     this.reacting = false;
-    // play() adds to whatever is playing, so stop first for a clean cut.
-    this.model.stop();
     this.model.play(clip);
   }
 
   /** Plays a clip once ('Jump', 'Wave', 'ThumbsUp', 'Punch'), then returns to the looping one. */
   react(clip: string) {
     this.reacting = true;
-    this.model.stop();
-    const state = this.model.play(clip, { loop: false, onComplete: () => this.loop(this.looping) });
-    // A one-shot clip that already finished would resume at its end: rewind it.
-    state.gotoAndPlay(0);
+    this.model.play(clip, { loop: false, onComplete: () => this.loop(this.looping) });
   }
 }

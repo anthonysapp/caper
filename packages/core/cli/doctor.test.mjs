@@ -390,6 +390,108 @@ ${END_MARKER}`;
     expect(find(checks, '3d-pixi').status).toBe('ok');
   });
 
+  it('emits no klipp rows when the app does not use klipp', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/core': '^1' } }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['firebase'] }\n", 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(checks.filter((c) => c.id.startsWith('klipp'))).toEqual([]);
+  });
+
+  it('fails klipp-plugin when the config lists klipp and the plugin is not installed', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ name: 'app' }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['3d', 'klipp'] }\n", 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'klipp-plugin')).toMatchObject({ status: 'fail', hint: 'npx caper add klipp' });
+    expect(find(checks, 'klipp-engine')).toBeUndefined();
+    expect(find(checks, 'klipp-config')).toMatchObject({ status: 'ok', label: "'klipp' is in plugins, after '3d'" });
+  });
+
+  it('reports a healthy klipp install', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/plugin-klipp': '0.7.7' } }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['3d', 'klipp'] }\n", 'utf-8');
+    writeInstalled(cwd, '@caperjs/plugin-klipp', { version: '0.7.7', peerDependencies: { '@pmndrs/klipp': '0.17.0' } });
+    writeInstalled(cwd, '@pmndrs/klipp', { version: '0.17.0' });
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'klipp-plugin')).toMatchObject({ status: 'ok', label: '@caperjs/plugin-klipp 0.7.7' });
+    expect(find(checks, 'klipp-engine')).toMatchObject({ status: 'ok', label: '@pmndrs/klipp 0.17.0' });
+    expect(find(checks, 'klipp-config')).toMatchObject({ status: 'ok', label: "'klipp' is in plugins, after '3d'" });
+  });
+
+  it('fails klipp-engine when @pmndrs/klipp is missing or a different version', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/plugin-klipp': '0.7.7' } }), 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['3d', 'klipp'] }\n", 'utf-8');
+    fs.writeFileSync(path.join(cwd, 'pnpm-lock.yaml'), '', 'utf-8');
+    writeInstalled(cwd, '@caperjs/plugin-klipp', { version: '0.7.7', peerDependencies: { '@pmndrs/klipp': '0.17.0' } });
+
+    const missing = await runChecks(cwd, { online: false });
+    expect(find(missing, 'klipp-engine')).toMatchObject({ status: 'fail', label: '@pmndrs/klipp not installed', hint: 'npx caper add klipp' });
+
+    writeInstalled(cwd, '@pmndrs/klipp', { version: '0.16.0' });
+    const different = await runChecks(cwd, { online: false });
+    expect(find(different, 'klipp-engine')).toMatchObject({
+      status: 'fail',
+      label: '@pmndrs/klipp 0.16.0, plugin needs 0.17.0',
+      hint: 'pnpm add @pmndrs/klipp@0.17.0',
+    });
+  });
+
+  it('warns when the plugin does not say which @pmndrs/klipp it needs', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/plugin-klipp': '0.7.7' } }), 'utf-8');
+    writeInstalled(cwd, '@caperjs/plugin-klipp', { version: '0.7.7', peerDependencies: {} });
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'klipp-engine').status).toBe('warn');
+    expect(find(checks, 'klipp-engine').label).toContain('@pmndrs/klipp');
+    expect(find(checks, 'klipp-engine').label).not.toMatch(/needs\s+[^\s]+/);
+    expect(find(checks, 'klipp-config')).toMatchObject({
+      status: 'warn',
+      label: "@caperjs/plugin-klipp installed but 'klipp' is not in plugins",
+      hint: 'npx caper add klipp',
+    });
+  });
+
+  it('warns about an unlisted klipp dependency even before the plugin is installed', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ devDependencies: { '@caperjs/plugin-klipp': '0.7.7' } }), 'utf-8');
+
+    const checks = await runChecks(cwd, { online: false });
+
+    expect(find(checks, 'klipp-config')).toMatchObject({ status: 'warn', hint: 'npx caper add klipp' });
+  });
+
+  it('fails klipp-config when klipp is listed without 3d or before it', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({ dependencies: { '@caperjs/plugin-klipp': '0.7.7' } }), 'utf-8');
+    writeInstalled(cwd, '@caperjs/plugin-klipp', { version: '0.7.7', peerDependencies: { '@pmndrs/klipp': '0.17.0' } });
+    writeInstalled(cwd, '@pmndrs/klipp', { version: '0.17.0' });
+
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['klipp'] }\n", 'utf-8');
+    const solo = await runChecks(cwd, { online: false });
+    expect(find(solo, 'klipp-config')).toMatchObject({
+      status: 'fail',
+      hint: "list '3d' before 'klipp' in plugins",
+    });
+
+    fs.writeFileSync(path.join(cwd, 'caper.config.ts'), "export default { plugins: ['klipp', '3d'] }\n", 'utf-8');
+    const reversed = await runChecks(cwd, { online: false });
+    expect(find(reversed, 'klipp-config')).toMatchObject({
+      status: 'fail',
+      hint: "list '3d' before 'klipp' in plugins",
+    });
+  });
+
   it('reports a linked package missing its build', async () => {
     const cwd = makeTempDir();
     const checkout = path.join(cwd, 'checkout');

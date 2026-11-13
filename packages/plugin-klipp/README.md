@@ -10,10 +10,21 @@ Needs [`@caperjs/plugin-3d`](../plugin-3d).
 ## Install
 
 ```bash
+npx caper add klipp
+```
+
+Then `npx caper doctor` (`klipp-plugin`, `klipp-engine`, `klipp-config` rows). The command sets up 3D
+first when needed, installs packages, adds `'klipp'` after `'3d'` in `caper.config.ts`, and creates
+`src/scenes/SampleCameraRigScene.ts` when missing.
+
+### By hand
+
+```bash
 pnpm add @caperjs/plugin-klipp @pmndrs/klipp@0.17.0
 ```
 
 Peers: `@caperjs/core`, `@caperjs/plugin-3d`, `pixi.js`, `@pixi/3d`, `@pmndrs/klipp@0.17.0` (exact).
+List `'3d'` before `'klipp'` in `plugins`.
 
 Two things to know before you install:
 
@@ -36,7 +47,7 @@ export default defineConfig({
 ```ts
 // any Scene
 const view = this.add.view3d();
-const hero = view.add.model({ asset: 'cesium-man' });
+const hero = view.add.model({ asset: 'robot' });
 
 const rig = view.add.cameraRig({ fitAspect: 16 / 9 });
 rig.add.shot('follow', { priority: 10, follow: hero, offset: [0, 3, -8], damping: 0.5, lookAt: hero });
@@ -44,7 +55,7 @@ rig.add.shot('overview', { position: [0, 12, 14], lookAt: [0, 0, 0] });
 
 rig.cut('overview', { blend: 1 });      // make it the live shot, blending over 1 s
 rig.shake({ amplitude: 0.3, duration: 0.3 });
-rig.orbit({ target: hero });            // drag to orbit, wheel to zoom; rig.orbit(false) turns it off
+rig.orbit({ target: hero });            // drag to orbit, pinch or wheel to zoom; rig.orbit(false) turns it off
 ```
 
 `view.add.cameraRig` is typed with no import once `'klipp'` is in `plugins`.
@@ -57,8 +68,8 @@ rig.orbit({ target: hero });            // drag to orbit, wheel to zoom; rig.orb
 | `rig.add.shot(name, props)` | A named shot. `follow` + `offset` + `damping`, **or** a fixed `position`. `lookAt` (defaults to the follow target), `priority` (highest is live), `fov`. Returns klipp's `VirtualCamera`. |
 | `rig.cut(name, { blend? })` | Make a shot live. `blend: 0` is a hard cut. |
 | `rig.shake({ amplitude?, duration? })` | Shake the picture. World units and seconds. |
-| `rig.orbit({ target?, distance? })` | User orbit from pointer input, starting where the camera is. `rig.orbit(false)` goes back to the previous shot. |
-| `rig.dragging` | True while an orbit drag is under way. |
+| `rig.orbit({ target?, distance? })` | User orbit: drag to turn, two-finger pinch or wheel to zoom (pinch never orbits). `rig.orbit(false)` goes back to the previous shot. |
+| `rig.dragging` | True during an orbit drag, a pinch, and briefly after release. |
 | `rig.klipp` | The raw `Klipp` instance, for everything else. |
 
 A target is a 3D node (tracked every frame) or a fixed `[x, y, z]`.
@@ -75,4 +86,4 @@ A target is a 3D node (tracked every frame) or a fixed `[x, y, z]`.
 - **You never call `update`, `resize` or `destroy`.** The view drives the rig and destroys it.
 - **Import only `@pmndrs/klipp`** in your own code, never `/dom`, `/three` or `/react`.
 
-Not included: spline dollies, sequences, gamepad, orthographic cameras, pinch zoom. Use `rig.klipp`.
+Not included: spline dollies, sequences, gamepad, orthographic cameras. Use `rig.klipp`.

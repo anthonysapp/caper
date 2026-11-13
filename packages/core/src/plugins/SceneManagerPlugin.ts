@@ -470,7 +470,13 @@ export class SceneManagerPlugin extends Plugin implements ISceneManagerPlugin {
   }
 
   private async _initializeCurrentScene(): Promise<void> {
-    await this.currentScene.initialize();
+    try {
+      await this.currentScene.initialize();
+    } catch (error) {
+      // The queue logs the error and carries on, so the scene is still added and entered half-built.
+      console.error(`[caper] Scene '${this.currentScene.id}' threw in initialize() and is left half-built:`, error);
+      throw error;
+    }
     // wait one tick so everything in the scene has had a chance to render before triggering the resize
     this.app.ticker.addOnce(() => {
       this.currentScene.resize(this.app.size);

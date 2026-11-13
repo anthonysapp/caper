@@ -51,18 +51,31 @@ export default defineConfig({
 const view = this.add.view3d({
   camera: { position: [0, 1.5, 4], lookAt: [0, 0, 0] },
 });
-const hero = view.add.model({ asset: 'cesium-man', y: 0 });
+const hero = view.add.model({ asset: 'robot', y: 0 });
 view.add.light({ type: 'directional', intensity: 2, castShadow: true });
 const cube = view.add.mesh({ geometry: 'box', color: 0xe85d5d, x: -1 });
-hero.play('anim_0');
+hero.play('Walking');
 ```
 
 Put self-contained `.glb` files in your assets folder (AssetPack pass-through). v1 supports
 **.glb only** — multi-file `.gltf` and `.hdr` are not tested.
 
+## Animation
+
+`model.play(name, options?)` replaces whatever is playing and restarts the clip from the start
+(unlike 0.7, which layered by default). Use `layer: true` to blend on purpose. Options
+(`loop`, `fade`, `onComplete`, …) do not carry over to the next call. A replaced clip does not run
+its previous `onComplete`.
+
+```ts
+model.play('Walking');
+model.play('Wave', { loop: false, fade: 0.2, onComplete: () => model.play('Walking') });
+```
+
 ## Entities
 
-Declare a 3D game object the way you declare any Caper entity, on the `Entity3D` base class:
+Declare a 3D game object the way you declare any Caper entity, on the `Entity3D` base class.
+Scaffold with `npx caper add entity <Name> --3d`.
 
 ```ts
 // src/entities/Car.ts
@@ -94,6 +107,8 @@ const car = view.add.entity('car', { color: 0x4a90d9, x: -2, y: 0.3 });
   in. What it creates is freed with that view, and its models' clips follow `app.ticker`.
 - `update()` runs every frame while the entity is in the scene, and stops with `app.pause()`.
 - `view.make.entity` builds without parenting; `this.add.entity(...)` inside an entity nests one.
+- `entity.on('pointertap', …)` opts the entity into picking on itself and passive parts (set
+  `eventMode = 'static'` yourself for property handlers).
 
 ## Many meshes: share one material
 
@@ -140,7 +155,10 @@ Per-view `shadowQuality` and `resolution` props override the global default.
   buttons and HUD **above** the view in the 2D tree.
 - `false` → `eventMode: 'none'`: taps pass through to 2D behind the view; no 3D picking.
 
-Do not use `'passive'`: it disables picking and still blocks taps to 2D behind the view.
+Do not use `'passive'` on the view: it disables picking and still blocks taps to 2D behind the view.
+
+`view.pin(2dNode, target3d, { offset? })` keeps a 2D node over a 3D point (updates each frame;
+the view owns `visible` while pinned).
 
 ## Boot cost
 
@@ -167,11 +185,6 @@ No import needed in scenes: with `'3d'` in `plugins` and this package installed,
 `this.add.view3d` typechecks. When AssetPack ships `.glb`/`.gltf` models, `caper-assets.d.ts`
 defines `AssetModels`; `view.add.model({ asset: '…' })` only accepts known manifest names or a
 loaded `Scene3DSource` (`asset: await Assets.load(url)`).
-
-## Not in v1 yet
-
-- **`caper add entity --3d`** — scaffold with `caper add entity`, then change the base class to
-  `Entity3D`.
 
 ## License
 

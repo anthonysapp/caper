@@ -1,8 +1,8 @@
-import { Camera3D, View3D as PixiView3D } from '@pixi/3d';
+import { Camera3D, Container3D, Vector3, View3D as PixiView3D } from '@pixi/3d';
 import type { View3DOptions } from '@pixi/3d';
 import { Application, bindAllMethods, isMobile, WithLifecycle, WithSignals } from '@caperjs/core';
 import type { Size } from '@caperjs/core';
-import type { Ticker } from 'pixi.js';
+import { Point, type Container, type Ticker } from 'pixi.js';
 import { fitFov } from './fit';
 import { createFactory3D } from './factory3d';
 import type { Factory3D } from './factory3d';
@@ -42,11 +42,17 @@ export interface View3DPart {
   destroy(): void;
 }
 
+const world = new Vector3();
+const screen = new Point();
+type Point3 = ReturnType<typeof toVec3>;
+type Pin = { target: Container3D | Point3; offset: Point3 };
+
 export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
   readonly add: Factory3D;
   readonly make: Factory3D;
   private readonly owned = new Owned3D();
   private readonly parts = new Set<View3DPart>();
+  private readonly pins = new Map<Container, Pin>();
   private readonly fillsScreen: boolean;
   private readonly fit?: { fov: number; aspect: number };
 
@@ -94,6 +100,18 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
     return part;
   }
 
+  /** Keeps a 2D node over a 3D point, hidden while the point is behind the camera. Returns the function that unpins it. */
+  pin(node: Container, target: Container3D | Vec3, options: { offset?: Vec3 } = {}): () => void {
+    const pin: Pin = { target: target instanceof Container3D ? target : toVec3(target), offset: toVec3(options.offset ?? [0, 0, 0]) };
+    this.pins.set(node, pin);
+    // A pin hides its node behind the camera, so a pin that ends shows it again.
+    return () => {
+      if (this.pins.get(node) !== pin) return;
+      this.pins.delete(node);
+      node.visible = true;
+    };
+  }
+
   added(): void {
     this.resize();
   }
@@ -107,9 +125,30 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
   update(_ticker?: Ticker | number): void {
     this.owned.update(this.app.ticker);
     for (const part of this.parts) part.update?.(this.app.ticker);
+    this.placePins();
+  }
+
+  private placePins(): void {
+    for (const [node, { target, offset }] of this.pins) {
+      const node3d = target instanceof Container3D ? target : null;
+      if (node.destroyed || node3d?.destroyed) {
+        this.pins.delete(node);
+        if (!node.destroyed) node.visible = true;
+        continue;
+      }
+      const at = node3d ? node3d.getGlobalPosition(world) : (target as Point3);
+      world.set(at.x + offset.x, at.y + offset.y, at.z + offset.z);
+      // null: the point is at or behind the camera.
+      const point = this.worldToScreen(world, screen);
+      node.visible = point !== null;
+      if (!point) continue;
+      if (node.parent) node.parent.toLocal(point, undefined, node.position);
+      else node.position.copyFrom(point);
+    }
   }
 
   destroy(_options?: Parameters<PixiView3D['destroy']>[0] | boolean): void {
+    this.pins.clear();
     for (const part of this.parts) part.destroy();
     this.parts.clear();
     // glTF sources share materials; destroying them crashes the next visit.

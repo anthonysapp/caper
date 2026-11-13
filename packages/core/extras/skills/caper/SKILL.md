@@ -36,6 +36,7 @@ sed -n '<start>,<end>p' node_modules/@caperjs/core/extras/llms.txt
 | drive the running app headlessly              | §17 Automation bridge              |
 | declare a view with JSX (`@caperjs/solid`)    | §18 Declarative layer              |
 | add or edit 3D (`this.add.view3d`, `caper add 3d`) | §13.1 3D                      |
+| a directed 3D camera (`view.add.cameraRig`, `caper add klipp`) | §13.2 Camera rig        |
 | look up one symbol                            | §19 API index (name → section)     |
 
 Engine source also ships: `node_modules/@caperjs/core/src/`. When the doc is
@@ -145,8 +146,10 @@ Reference: llms.txt §18, the package README, and the caper repo's kitchen-sink 
 Caper's wrappers are `this.add.view3d(...)` and the view's own factory
 (`view.add.model | mesh | light | camera | container | existing | entity | material`);
 read llms.txt §13.1 for them and their rules. A 3D game object is an `Entity3D`
-(`defineEntity` + `view.add.entity(id, props)`); many meshes share one
-`view.make.material(...)`. Everything past the wrappers (`view.root`,
+(`npx caper add entity <Name> --3d`, then `view.add.entity(id, props)`); many meshes
+share one `view.make.material(...)`. `model.play(name, { fade })` switches clips,
+`view.pin(node2d, target3d)` holds a 2D label over a 3D point, and a directed camera
+is `view.add.cameraRig()` (§13.2, `npx caper add klipp`). Everything past the wrappers (`view.root`,
 materials, cameras, picking, effects) is raw `@pixi/3d`: load the `pixijs-3d`
 skill before writing it. If it is missing, install it with
 `npx skills add https://github.com/pixijs/pixijs-skills --skill pixijs-3d`.

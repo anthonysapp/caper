@@ -212,7 +212,9 @@ subcommands run from the app root.
 | --- | --- |
 | `caper create [path] [--use-pnpm\|--use-yarn]` | Interactive scaffolder for a new Caper app. Also exposed as `create-caper`. |
 | `caper add scene \| plugin \| popup \| entity <Name> [--dir path]` | **Primary scaffolding entry.** Emits `src/<kind>s/<Name>.ts` with `defineX` wrapper + default class + the correct import shape. |
+| `caper add entity <Name> --3d` | Scaffolds an `Entity3D` subclass (§13.1) instead of the 2D entity. |
 | `caper add 3d` | **Opt in to 3D (experimental, §13.1).** Installs `@caperjs/plugin-3d` + the pinned `@pixi/3d`, adds `'3d'` to `plugins`, writes `src/scenes/Sample3DScene.ts` (id `sample-3d`). Says what it installs first; safe to re-run. |
+| `caper add klipp` | **Opt in to the camera rig (experimental, §13.2).** Runs the `add 3d` steps first when 3D is not set up, installs `@caperjs/plugin-klipp` + the pinned `@pmndrs/klipp`, adds `'klipp'` after `'3d'`, writes `src/scenes/SampleCameraRigScene.ts` (id `sample-camera-rig`). Safe to re-run. |
 | `vite` | Start the dev server. Caper is wired in through `caper()` in the app's own `vite.config.ts`. |
 | `vite build` | Production build. |
 | `vite build && vite preview` | Build then preview locally. |
@@ -1365,6 +1367,7 @@ to one exact version). Opt in with one command from the app root:
 ```bash
 npx caper add 3d      # installs, adds '3d' to plugins, writes src/scenes/Sample3DScene.ts
 npx caper doctor      # 3d-* rows: plugin, pinned @pixi/3d, pixi.js floor, config
+npx caper add entity Car --3d   # src/entities/Car.ts, an Entity3D subclass
 ```
 
 ```ts
@@ -1376,19 +1379,22 @@ const view = this.add.view3d({
   camera: { position: [0, 1.5, 4], lookAt: [0, 0, 0], fitAspect: 16 / 9 },
 });
 view.add.light({ type: 'directional', intensity: 3, castShadow: true });
-const cube = view.add.mesh({ geometry: 'box', color: 0xe85d5d, x: -1 });
+const cube = view.add.mesh({ geometry: 'box', color: 0xe85d5d, roughness: 0.5, x: -1 });
 const hero = view.add.model({ asset: 'hero', y: 0 });   // assets/models{m}/hero.glb
-hero.play('idle');
+hero.play('Idle');                                       // loops; replaces whatever was playing
+hero.play('Wave', { loop: false, fade: 0.2, onComplete: () => hero.play('Idle', { fade: 0.2 }) });
+view.pin(nameTag, hero, { offset: [0, 2, 0] });          // a 2D node that rides 2 units above the hero
 ```
 
 | Surface | What it is |
 | --- | --- |
 | `this.add.view3d(props)` / `this.make.view3d(props)` | Caper `View3D`: the raw `@pixi/3d` view plus Caper lifecycle. Full screen unless `width` / `height` are given (then the scene positions it). |
 | `view.add.*` / `view.make.*` | The 3D factory: `model`, `mesh`, `light`, `camera`, `container`, `existing`, `entity`, `material`. Returns raw `@pixi/3d` nodes. `position` / `rotation` / `scale` take `[x, y, z]`; `lookAt` is a prop. |
-| `mesh` | `geometry: 'box' \| 'plane' \| 'sphere'` (unit sized; size with `scale`) or a raw geometry; `color` (a private material for this mesh) or a `material`. |
+| `mesh` | `geometry: 'box' \| 'plane' \| 'sphere' \| 'cylinder'` (unit sized; size with `scale`) or a raw geometry; `color`, `roughness`, `metallic` (a private material for this mesh) or a `material`. |
 | `material` | `view.make.material({ color, ...Material3D options })`: one material owned and freed by the view, to pass to many meshes. |
 | `entity` | `view.add.entity(id, props)`: a discovered entity whose class extends `Entity3D`. Typed like `this.add.entity`; only 3D ids are accepted here and only 2D ids on `this.add.entity`. |
-| `model` | `asset` is the manifest name of a `.glb`. Returns `Model`: `play(name, opts?)`, `stop()`. Clips follow `app.ticker`, so pause and time scale apply. |
+| `model` | `asset` is the manifest name of a `.glb`. Returns `Model`. `play(name, opts?)` replaces what is playing and restarts the clip from its start; `opts`: `loop` (default `true`), `animationSpeed`, `weight`, `onComplete`, `onLoop`, `fade` (seconds of cross-fade), `layer: true` (keep the other clips playing and blend). Options apply to that call only. `stop()` stops every clip. Clips follow `app.ticker`, so pause and time scale apply. |
+| `view.pin(node2d, target, { offset? })` | Keeps a 2D node (label, health bar) over a 3D node or a fixed `[x, y, z]`, every frame. `offset` is in world units. The view hides the node while the point is behind the camera, and the pin ends with the view. Returns the unpin function. |
 | `camera.fitAspect` | The aspect (width / height) the scene is framed for. On a narrower view the field of view grows so the sides stay in frame. Omit it to keep `fov` fixed. |
 | `interactive` | `true` (default): 3D picking on, the view takes taps over its whole rectangle; add interactive 2D **after** the view. `false`: taps reach 2D behind it. |
 | `view.root`, `view.camera` | The raw `@pixi/3d` scene graph and camera. For that API load the `pixijs-3d` skill (`npx skills add https://github.com/pixijs/pixijs-skills --skill pixijs-3d`). |
@@ -1440,6 +1446,12 @@ source: `asset: await Assets.load(url)`.
   frees `red`; writing to it recolours every mesh that uses it.
 - **`Entity3D`: build parts in `added()`.** `this.add` / `this.make` work once
   the entity is in a view (they throw before). `update()` runs every frame.
+- **Taps: listen on the entity.** `entity.on('pointertap', fn)` makes the entity
+  the tap target for all its parts (`e.target3D` is the node that was hit). An
+  entity with no pointer listener is not a tap target and lets taps through to
+  what is behind it. A bare mesh needs `eventMode: 'static'` to be tapped.
+- **A view with `fog` or a `clearColor` covers 2D added before it.** Add HUD and
+  headers after the view.
 - **Boot cost.** About 160 KB gzip on every start of an app that lists `'3d'`,
   even on screens with no 3D. Apps without `'3d'` pay nothing.
 - **Experimental.** WebGL2 or WebGPU only. `.glb` only. The API can change with
@@ -1449,8 +1461,12 @@ source: `asset: await Assets.load(url)`.
 ### 13.2 Camera rig: `@caperjs/plugin-klipp` (experimental)
 
 Named shots, blended cuts, shake and user orbit for a 3D view, on `@pmndrs/klipp`
-(pinned exactly). Install `@caperjs/plugin-klipp @pmndrs/klipp@0.17.0`, then
-`plugins: ['3d', 'klipp']`.
+(pinned exactly). Opt in from the app root:
+
+```bash
+npx caper add klipp   # sets up 3D if needed, installs, lists 'klipp' after '3d', writes a sample scene
+npx caper doctor      # klipp-* rows: plugin, pinned @pmndrs/klipp, 'klipp' listed after '3d'
+```
 
 ```ts
 const view = this.add.view3d();
@@ -1461,7 +1477,7 @@ rig.add.shot('follow', { priority: 10, follow: hero, offset: [0, 3, -8], damping
 rig.add.shot('overview', { position: [0, 12, 14], lookAt: [0, 0, 0] });
 rig.cut('overview', { blend: 1 });        // live shot, blended over 1 s; blend: 0 is a hard cut
 rig.shake({ amplitude: 0.3, duration: 0.3 });
-rig.orbit({ target: hero });              // drag to orbit, wheel to zoom; rig.orbit(false) to stop
+rig.orbit({ target: hero });              // drag to orbit, wheel or pinch to zoom; rig.orbit(false) to stop
 ```
 
 - A shot has `follow` (+ `offset`, `damping`) **or** a fixed `position`; `lookAt`
@@ -1471,8 +1487,8 @@ rig.orbit({ target: hero });              // drag to orbit, wheel to zoom; rig.o
 - Pause and `ticker.speed` apply to motion, blends and shake. Never call
   `rig.update` / `resize` / `destroy`: the view does.
 - Put `fitAspect` on the rig, not on the view's `camera` props.
-- With orbit on, guard mesh taps: `if (rig.dragging) return;`. `orbit()` throws on a
-  view made with `interactive: false`.
+- With orbit on, guard mesh taps: `if (rig.dragging) return;` (true for a drag and for a
+  pinch). `orbit()` throws on a view made with `interactive: false`.
 - `rig.klipp` is the raw klipp instance. Import only `@pmndrs/klipp`, never its
   `/dom`, `/three` or `/react` entries.
 

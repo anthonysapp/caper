@@ -72,6 +72,10 @@ export default class View3DScene extends BaseScene {
       anchor: 0.5,
       style: { fontFamily: FONT_DISPLAY, fontSize: 11, fill: CaperColors.olive, letterSpacing: 2 },
     });
+    // Pin 2D to 3D: worldToScreen gives global pixels, then each parent converts them to local space.
+    // The tag follows the robot; the sun stays behind the cubes over the stage center.
+    this.view.pin(this.nameTag, this.robot, { offset: [0, 2, 0] });
+    this.view.pin(this.sun, [0, 2, 0]);
 
     this.ui = this.add.uiCanvas({ useAppSize: true });
     const hud = this.make.flexContainer({ flexDirection: 'column', alignItems: 'center', gap: 14, layout: { paddingBottom: 64 } });
@@ -106,13 +110,6 @@ export default class View3DScene extends BaseScene {
     const z = Math.cos(angle) * 2.1;
     this.robot.position.set(x, 0, z);
     this.robot.rotation.y = angle + Math.PI / 2;
-
-    // Pin 2D to 3D points. worldToScreen gives stage pixels (null behind the camera); toLocal brings
-    // them into this scene. The tag rides above the robot, the sun stays behind the cubes.
-    const head = this.view.worldToScreen({ x, y: 2, z });
-    if (head) this.toLocal(head, undefined, this.nameTag.position);
-    const middle = this.view.worldToScreen({ x: 0, y: 2, z: 0 });
-    if (middle) this.toLocal(middle, undefined, this.sun.position);
   }
 
   resize() {

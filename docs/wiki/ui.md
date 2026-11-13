@@ -197,8 +197,9 @@ the target container and calls `container.add.existing(child)`.
 
 **Effective padding** is `computeEffectivePadding(config.padding,
 resolveSafeArea(app.safeArea, useSafeArea))` (`UICanvas.ts:107-114`,
-pure function, covered by `UICanvas.test.ts`) — recomputed on every
-`resize()` and every `padding` setter call rather than cached, specifically
+pure function, covered by `UICanvas.test.ts`) — applied in the constructor,
+then recomputed on every `resize()` and every `padding` setter call rather
+than cached, specifically
 so it never compounds (adding the safe area to an already-safe-area-adjusted
 number). `app.safeArea` itself comes from `ResizerPlugin`'s CSS
 `env(safe-area-inset-*)` probe (`packages/core/src/plugins/ResizerPlugin.ts`),

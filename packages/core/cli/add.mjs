@@ -3,6 +3,7 @@ import { bold, cyan, green, red, yellow } from 'kleur/colors';
 import fs from 'node:fs';
 import path from 'node:path';
 import { add3dCommand } from './add3d.mjs';
+import { addKlippCommand } from './addKlipp.mjs';
 
 /**
  * `caper add <kind> <Name>` — scaffolds a single file under `src/<kind>s/`
@@ -117,6 +118,37 @@ export default class ${className} extends Container {
 }
 `,
 
+  entity3d: ({ className, id }) => `import { defineEntity } from '@caperjs/core';
+import { Entity3D } from '@caperjs/plugin-3d';
+import type { Mesh3D } from '@pixi/3d';
+
+export const entity = defineEntity({
+  id: '${id}',
+});
+
+export type ${className}Props = {
+  color?: number;
+};
+
+// Add it from a scene with a 3D view: view.add.entity('${id}', { color: 0x4a90d9, y: 1 })
+export default class ${className} extends Entity3D<${className}Props> {
+  private body?: Mesh3D;
+
+  added() {
+    // Build parts here, not in the constructor: this.add works once the entity is in a view.
+    // added() runs again when the entity is moved to a new parent, so build once.
+    if (this.body) return;
+    this.body = this.add.mesh({ geometry: 'box', color: this.props.color ?? 0xe85d5d });
+    // Taps: listen on the entity from a scene, e.g. entity.on('pointertap', ...). Listening makes it tappable.
+  }
+
+  update() {
+    // Runs every frame while the entity is in a view; stops with app.pause().
+    this.rotation.y += 0.02 * this.app.ticker.deltaTime;
+  }
+}
+`,
+
   popup: ({ className, id }) => `import { Container, definePopup, IPopup, Popup } from '@caperjs/core';
 
 export const popup = definePopup({
@@ -156,29 +188,44 @@ const SUFFIXES = {
   popup: 'Popup',
 };
 
+// `--3d` and `--dir <path>` may come before or after the name.
+function parseScaffoldArgs(tokens) {
+  let is3d = false;
+  let dir;
+  const positional = [];
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i] === '--3d') is3d = true;
+    else if (tokens[i] === '--dir' && tokens[i + 1]) dir = tokens[++i];
+    else positional.push(tokens[i]);
+  }
+  return { rawName: positional[0], is3d, dir };
+}
+
 export async function add(args) {
-  const [kind, rawName, ...rest] = args;
+  const [kind, ...afterKind] = args;
+  const { rawName, is3d, dir } = parseScaffoldArgs(afterKind);
 
-  if (kind === '3d') return add3dCommand(rest);
-
-  if (!kind || !KINDS.includes(kind)) {
-    console.error(red(`caper add: missing or unknown kind. Expected one of: ${[...KINDS, '3d'].join(', ')}`));
-    console.error(`Usage: caper add <${KINDS.join('|')}> <Name> [--dir path] or caper add 3d`);
+  if (is3d && kind !== 'entity') {
+    console.error(red('caper add: --3d is only valid with entity.'));
     process.exit(1);
   }
+
+  if (kind === '3d') return add3dCommand(afterKind);
+  if (kind === 'klipp') return addKlippCommand(afterKind);
+
+  if (!kind || !KINDS.includes(kind)) {
+    console.error(red(`caper add: missing or unknown kind. Expected one of: ${[...KINDS, '3d', 'klipp'].join(', ')}`));
+    console.error(`Usage: caper add <${KINDS.join('|')}> <Name> [--dir path], caper add entity <Name> --3d, or caper add 3d|klipp`);
+    process.exit(1);
+  }
+
   if (!rawName) {
     console.error(red(`caper add ${kind}: missing name. Usage: caper add ${kind} <Name>`));
     process.exit(1);
   }
 
   // Optional --dir override; defaults to the conventional discovery dir
-  let targetDir = DIRS[kind];
-  for (let i = 0; i < rest.length; i++) {
-    if (rest[i] === '--dir' && rest[i + 1]) {
-      targetDir = rest[i + 1];
-      i++;
-    }
-  }
+  const targetDir = dir ?? DIRS[kind];
 
   const { className, id } = normalizeName(rawName);
   const fileName = `${className}${SUFFIXES[kind]}.ts`;
@@ -190,11 +237,15 @@ export async function add(args) {
     process.exit(1);
   }
 
+  const template = is3d ? 'entity3d' : kind;
   fs.mkdirSync(fullDir, { recursive: true });
-  fs.writeFileSync(fullPath, TEMPLATES[kind]({ className, id }), 'utf-8');
+  fs.writeFileSync(fullPath, TEMPLATES[template]({ className, id }), 'utf-8');
 
   console.log(green(bold(`✓ Created ${kind}`)) + ` ${cyan(path.relative(process.cwd(), fullPath))}`);
   console.log(`  ${yellow('id:')}    ${id}`);
   console.log(`  ${yellow('class:')} ${className}${SUFFIXES[kind]}`);
+  if (is3d) {
+    console.log(`  ${yellow('note:')}  it needs the 3D plugin (npx caper add 3d).`);
+  }
   console.log(`\n  Discovery will pick this up on the next dev-server reload.`);
 }

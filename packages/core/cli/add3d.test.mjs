@@ -3,7 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { add3d, add3dToConfig, compareVersions, isPlainVersion, patchReleaseAgeExclude, read3dConfig } from './add3d.mjs';
+import { add3d } from './add3d.mjs';
+import { addPluginToConfig, compareVersions, isPlainVersion, patchReleaseAgeExclude, readPluginConfig } from './addPlugin.mjs';
+
+const read3dConfig = (text) => readPluginConfig(text, '3d');
+const add3dToConfig = (text) => addPluginToConfig(text, '3d');
 
 const dirs = [];
 afterEach(() => {

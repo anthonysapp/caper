@@ -53,7 +53,7 @@ export default class CameraRigScene extends BaseScene {
     for (let i = 0; i < 24; i++) {
       const angle = (i / 24) * Math.PI * 2;
       const [x, z] = [Math.cos(angle), Math.sin(angle)];
-      this.view.add.mesh({ material: paint, x: x * TRACK, y: 0.02, z: z * TRACK, rotation: [0, -angle, 0], scale: [0.16, 0.04, 0.7] });
+      this.view.add.mesh({ material: paint, castShadow: false, x: x * TRACK, y: 0.02, z: z * TRACK, rotation: [0, -angle, 0], scale: [0.16, 0.04, 0.7] });
       if (i % 2 === 0) continue;
       const height = 1 + (i % 3) * 0.9;
       this.view.add.mesh({ material: stone, x: x * 10, y: height / 2, z: z * 10, rotation: [0, -angle, 0], scale: [0.9, height, 0.9] });
