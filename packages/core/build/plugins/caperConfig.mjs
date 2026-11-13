@@ -47,6 +47,25 @@ export function pluginTypeImports(configObject, plugins) {
     .map((name) => `import type {} from '${name}';`);
 }
 
+const LIST_MODULE_IDS = ['scenes', 'plugins', 'popups', 'entities', 'uis'].map((name) => `\0virtual:caper-${name}`);
+
+/**
+ * Drop the discovered-list virtual modules from Vite's module graph so the next page load re-runs
+ * discovery. Their content comes from the file system, not from an import Vite can track, so a file
+ * added, removed or re-declared under `src/scenes` (etc.) would otherwise keep serving the old list.
+ */
+function invalidateListModules(server) {
+  const graphs = server.environments
+    ? Object.values(server.environments).map((environment) => environment.moduleGraph)
+    : [server.moduleGraph];
+  for (const graph of graphs) {
+    for (const id of LIST_MODULE_IDS) {
+      const mod = graph?.getModuleById(id);
+      if (mod) graph.invalidateModule(mod);
+    }
+  }
+}
+
 async function validateCaperConfig(server, root) {
   if (!server || typeof server.ssrLoadModule !== 'function') return true;
   const configPath = path.resolve(root, 'caper.config.ts');
@@ -504,6 +523,7 @@ declare module '@caperjs/core' {
                   : isLocale
                     ? 'Locale file changed'
                     : 'Config file changed';
+        invalidateListModules(server);
         await build(`${msg}, regenerating types...`, server);
       };
 

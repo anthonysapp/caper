@@ -251,8 +251,12 @@ none of these get a byte-identical file.
 **HMR behaviour.** `configureServer` (`caperConfig.mjs:439`) watches
 `caper.config.ts` plus `src/{scenes,plugins,popups,entities,ui,locales}`, so editing
 a UI file regenerates `caper-app.d.ts` the same as any other discovered kind.
-Any add/change/unlink of a watched path regenerates the dts, re-runs validation, and
-sends a **`full-reload`** (`caperConfig.mjs:412`), not an HMR update. The asset-types
+Any add/change/unlink of a watched path first invalidates the five list virtual modules
+(`virtual:caper-scenes`, `-plugins`, `-popups`, `-entities`, `-uis`; `invalidateListModules`
+in `caperConfig.mjs`), then regenerates the dts, re-runs validation, and sends a
+**`full-reload`**, not an HMR update. The invalidation is what makes a file added, removed or
+re-declared while the server runs show up without a restart: the lists are built from the
+file system, so Vite cannot tell on its own that they went stale. The asset-types
 plugin does the same on manifest change (`assetTypes.mjs:392`), and AssetPack's
 watcher sends one per completed rebuild batch (`assetpack.mjs:252`), because Vite
 does not reload for changes under `publicDir`.

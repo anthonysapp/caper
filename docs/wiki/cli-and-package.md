@@ -114,8 +114,8 @@ and prints next steps including the `pixijs-3d` skill install command. Safety ru
 version that reaches a command line must pass `isPlainVersion`; commands run without a shell
 (except on Windows, where package managers are `.cmd` shims: untested there); a symlinked
 `caper.config.ts`, `pnpm-workspace.yaml` or `src/scenes` is never written through, the step is
-printed instead. A new scene file needs a dev-server restart (see `KNOWN_BUGS.md`), and the
-command says so.
+printed instead. The command suggests restarting a running dev server, because it installs packages;
+a new scene file on its own is picked up without a restart.
 
 ### Native (Tauri)
 

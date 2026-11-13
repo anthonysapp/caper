@@ -37,16 +37,26 @@ function wire() {
   const plugin = caperConfigPlugin();
   const watched = [];
   const handlers = [];
+  const invalidated = [];
   const server = {
     watcher: {
       add: (target) => watched.push(target),
       on: (_event, handler) => handlers.push(handler),
     },
     ws: { send: () => {} },
+    // Every id is "loaded", so a test can see which modules a file event invalidates.
+    environments: {
+      client: {
+        moduleGraph: {
+          getModuleById: (id) => ({ id }),
+          invalidateModule: (mod) => invalidated.push(mod.id),
+        },
+      },
+    },
   };
   plugin.configResolved({ root });
   plugin.configureServer(server);
-  return { watched, handlers };
+  return { watched, handlers, invalidated };
 }
 
 describe('dev watcher', () => {
@@ -64,11 +74,25 @@ describe('dev watcher', () => {
     expect(info.mock.calls.flat().join('\n')).toContain('UI file changed');
   });
 
+  // Without this the reloaded page gets the old list: "Scene item not found" until the server restarts.
+  it.each(['scenes', 'plugins', 'popups', 'entities', 'ui'])(
+    'drops the cached list modules when a file under src/%s is added',
+    async (dir) => {
+      vi.spyOn(logger, 'info').mockImplementation(() => {});
+      const { handlers, invalidated } = wire();
+      await handlers[0](path.resolve(root, `src/${dir}/New.ts`));
+      expect(invalidated.sort()).toEqual(
+        ['entities', 'plugins', 'popups', 'scenes', 'uis'].map((name) => `\0virtual:caper-${name}`),
+      );
+    },
+  );
+
   it('ignores files outside the watched tree', async () => {
     const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
-    const { handlers } = wire();
+    const { handlers, invalidated } = wire();
     await handlers[0](path.resolve(root, 'src/other/Thing.ts'));
     expect(info).not.toHaveBeenCalled();
+    expect(invalidated).toEqual([]);
   });
 });
 
