@@ -77,7 +77,7 @@ There is **no repo-level test command** (root `test` script is a stub). Core che
 
 - **Application is the entry point.** Games extend [`Application`](packages/core/src/core/Application.ts) from `caper`. The framework auto-detects scenes and wires plugins/storage adapters through a registries system ([core/registries.ts](packages/core/src/core/registries.ts)) during bootstrap. Kitchen-sink's [`KitchenSinkApplication.ts`](apps/kitchen-sink/src/KitchenSinkApplication.ts) is the canonical example.
 - **Plugins and storage adapters are first-class.** They are registered via the app config (see `caper.config.ts`) and loaded during bootstrap — not imported ad-hoc. When adding features that touch third-party services (analytics, physics, networking, persistence), prefer creating/extending a plugin or adapter over inlining it in game code.
-- **PixiJS v8 peer dep.** The framework pins `pixi.js@8.22.0`, `@pixi/sound@^6`, and `gsap@^3.13` as peer deps. Plugins/adapters should follow the same peer-dep pattern, not bundle Pixi.
+- **PixiJS v8 peer dep.** The framework pins `pixi.js@8.23.0`, `@pixi/sound@^6`, and `gsap@^3.13` as peer deps. Plugins/adapters should follow the same peer-dep pattern, not bundle Pixi.
 - **Build tooling is a Vite preset.** `@caperjs/core/vite` exports `caper()`; an app's `vite.config.ts` is `plugins: [caper()]` and it runs plain `vite` / `vite build`. The preset lives in `packages/core/build/`. Shared `tsconfig.json` and prettier config are still exported from `config/`.
 - **Signals over events.** The framework uses `typed-signals` for cross-system communication (see `src/signals/`).
 
@@ -154,8 +154,10 @@ under the stub rather than guessing.
 ## Model delegation — plan at the frontier, implement downstream
 
 When a frontier model (Fable/Opus-tier) orchestrates work in this repo, it should
-**diagnose, spec, and review — not type**. Delegate implementation via the Agent tool
-with a model override (this repo has no `.claude/agents/`): `model: "sonnet"` for
+**diagnose, spec, and review — not type**. The repo has a team of lead agents in
+[.claude/agents/](.claude/agents/) (`product-lead`, `lead-engineer`, `design-lead`, `native-lead`, `qa-lead`,
+`docs-release-lead`); each lead hands typing to cheaper models through `delegate`. For a plain build step,
+delegate via the Agent tool with a model override: `model: "sonnet"` for
 mechanical, fully-specified changes (single-file edits, spec'd fixes, renames);
 `model: "opus"` for judgment-heavy work (package export surgery, build/bundling
 changes, anything spanning core + plugins or affecting the published API).
