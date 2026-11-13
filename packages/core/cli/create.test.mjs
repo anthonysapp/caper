@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { injectPluginsIntoConfig } from './create.mjs';
+import { injectPluginsIntoConfig, interactiveError } from './create.mjs';
 
 describe('injectPluginsIntoConfig', () => {
   it('inserts plugins into an empty array', () => {
@@ -32,5 +32,20 @@ describe('injectPluginsIntoConfig', () => {
     expect(result).toContain(`['existing', { autoLoad: false }]`);
     expect(result).toContain(`['rollbar', { autoLoad: false }]`);
     expect(result).toContain(`['rive', { autoLoad: false }]`);
+  });
+});
+
+// Without a terminal the first prompt used to crash with ERR_TTY_INIT_FAILED and a stack trace.
+describe('interactiveError', () => {
+  it('is null when both ends are a terminal', () => {
+    expect(interactiveError({ isTTY: true }, { isTTY: true })).toBeNull();
+  });
+
+  it.each([
+    [{ isTTY: false }, { isTTY: true }],
+    [{ isTTY: true }, { isTTY: false }],
+    [{}, {}],
+  ])('explains itself when stdin or stdout is not a terminal', (stdin, stdout) => {
+    expect(interactiveError(stdin, stdout)).toMatch(/needs a terminal/);
   });
 });

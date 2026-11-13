@@ -108,6 +108,8 @@ guards). Each thin entry passes a spec: plugin id, plugin package, engine packag
 and template, the `manualPlugins` snippet to print when the config cannot be edited, optional
 `extraInstalls` (3d may upgrade `pixi.js` to core's pin), optional `autoLoadFalse` warning. Idempotent: announces packages and
 the install command before running it.
+Under npm the pinned specs (`name@version`) go in a second `npm install --save-exact`, because npm saves
+`^version` even for an explicit version and a pinned beta engine must not drift (`installCommands`).
 
 **`caper add 3d`** installs `@caperjs/plugin-3d` and `@pixi/3d@<pin>`, may upgrade `pixi.js` when
 older than core's pin, appends `'3d'` to `plugins` (or prints the line when there is no `plugins`
@@ -333,7 +335,8 @@ device; hint `caper native ios --team <ID>`), `native-ios-plist`
 
 **`caper create [path] [--use-yarn|--use-pnpm]`**
 (`packages/core/cli/create.mjs`; `create-caper.mjs` is a thin wrapper around
-it) is the interactive project scaffolder. It:
+it) is the interactive project scaffolder. Without a terminal on stdin and stdout it stops with a
+plain message (`interactiveError`) instead of crashing at the first prompt. It:
 1. Lists `templates/app/*` via `fs.readdirSync` (`create.mjs:264-276`) and
    reads each dir's `.meta.json` (`{title, description}`) to build the
    template-choice prompt.

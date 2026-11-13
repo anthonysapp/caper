@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { add3d } from './add3d.mjs';
-import { addPluginToConfig, compareVersions, isPlainVersion, patchReleaseAgeExclude, readPluginConfig } from './addPlugin.mjs';
+import { addPluginToConfig, compareVersions, installCommands, isPlainVersion, patchReleaseAgeExclude, readPluginConfig } from './addPlugin.mjs';
 
 const read3dConfig = (text) => readPluginConfig(text, '3d');
 const add3dToConfig = (text) => addPluginToConfig(text, '3d');
@@ -98,7 +98,7 @@ describe('add3d', () => {
     installed(cwd, '@caperjs/plugin-3d', { version: '0.7.7', peerDependencies: { '@pixi/3d': '0.1.1' } });
     const d = deps();
     await add3d(cwd, {}, d);
-    expect(d.run).toHaveBeenCalledWith('npm', ['install', '@pixi/3d@0.1.1'], { cwd, shell: false });
+    expect(d.run).toHaveBeenCalledWith('npm', ['install', '--save-exact', '@pixi/3d@0.1.1'], { cwd, shell: false });
     expect(d.exec).not.toHaveBeenCalledWith('npm', expect.anything(), expect.anything());
   });
 
@@ -325,5 +325,21 @@ describe('add3d file safety', () => {
 
     expect(result.config).toBe('manual');
     expect(fs.readFileSync(real, 'utf-8')).toBe(before);
+  });
+});
+
+describe('installCommands', () => {
+  it('uses one command for package managers that save an explicit version as given', () => {
+    expect(installCommands('pnpm', ['@caperjs/plugin-3d', '@pixi/3d@0.1.0'])).toEqual([
+      { cmd: 'pnpm', args: ['add', '@caperjs/plugin-3d', '@pixi/3d@0.1.0'] },
+    ]);
+  });
+
+  it('splits pinned specs into an exact install under npm, which would otherwise save ^', () => {
+    expect(installCommands('npm', ['@caperjs/plugin-3d', '@pixi/3d@0.1.0', 'pixi.js@8.23.0'])).toEqual([
+      { cmd: 'npm', args: ['install', '@caperjs/plugin-3d'] },
+      { cmd: 'npm', args: ['install', '--save-exact', '@pixi/3d@0.1.0', 'pixi.js@8.23.0'] },
+    ]);
+    expect(installCommands('npm', ['@caperjs/plugin-3d'])).toEqual([{ cmd: 'npm', args: ['install', '@caperjs/plugin-3d'] }]);
   });
 });
