@@ -210,7 +210,7 @@ subcommands run from the app root.
 
 | Command | Purpose |
 | --- | --- |
-| `caper create [path] [--use-pnpm\|--use-yarn]` | Interactive scaffolder for a new Caper app. Also exposed as `create-caper`. |
+| `caper create [path] [--yes] [--use-pnpm\|--use-yarn]` | Scaffolder for a new Caper app. Interactive by default and needs a terminal. `--yes` (`-y`) asks nothing: default template, no plugins, name from the folder, and it refuses a non-empty folder. Agents and scripts use `npx -p @caperjs/core caper create my-game --yes`. Also exposed as `create-caper`. |
 | `caper add scene \| plugin \| popup \| entity <Name> [--dir path]` | **Primary scaffolding entry.** Emits `src/<kind>s/<Name>.ts` with `defineX` wrapper + default class + the correct import shape. |
 | `caper add entity <Name> --3d` | Scaffolds an `Entity3D` subclass (§13.1) instead of the 2D entity. |
 | `caper add 3d` | **Opt in to 3D (experimental, §13.1).** Installs `@caperjs/plugin-3d` + the pinned `@pixi/3d`, adds `'3d'` to `plugins`, writes `src/scenes/Sample3DScene.ts` (id `sample-3d`). Says what it installs first; safe to re-run. |

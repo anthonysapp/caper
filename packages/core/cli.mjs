@@ -83,6 +83,7 @@ switch (args[0]) {
   case 'create': {
     let packageManager = 'npm'; // Default to npm
     let projectPath = '.'; // Default to current directory
+    let yes = false; // --yes / -y: take every default, ask nothing
 
     // Parse arguments
     for (let i = 1; i < args.length; i++) {
@@ -90,11 +91,13 @@ switch (args[0]) {
         packageManager = 'yarn';
       } else if (args[i] === '--use-pnpm') {
         packageManager = 'pnpm';
-      } else if (!args[i].startsWith('--')) {
+      } else if (args[i] === '--yes' || args[i] === '-y') {
+        yes = true;
+      } else if (!args[i].startsWith('-')) {
         projectPath = args[i];
       }
     }
-    await create(projectPath, packageManager);
+    await create(projectPath, packageManager, { yes });
     break;
   }
   case 'update':
