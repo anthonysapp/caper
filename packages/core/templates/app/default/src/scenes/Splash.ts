@@ -1,12 +1,11 @@
 import { COLOR_GREEN } from '@/utils/Constants';
 import { FlexContainer, SceneTransition } from '@caperjs/core';
 import { gsap } from 'gsap';
-import { Sprite, Text } from 'pixi.js';
+import { Text } from 'pixi.js';
 
 export class Splash extends SceneTransition {
   private _labelPercent: Text;
   private _textContainer: FlexContainer;
-  private _bg: Sprite;
   private _percent: number = 0;
 
   constructor() {
@@ -14,7 +13,7 @@ export class Splash extends SceneTransition {
   }
 
   added() {
-    this._bg = this.addColoredBackground({
+    this.addColoredBackground({
       color: COLOR_GREEN,
     });
 

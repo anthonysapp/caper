@@ -278,7 +278,21 @@ async function write_template_files(cwd, template, applicationNameForPkg, applic
   }
 }
 
+/** `caper create` asks questions, so it needs a real terminal on both ends. */
+export function interactiveError(stdin = process.stdin, stdout = process.stdout) {
+  if (stdin.isTTY && stdout.isTTY) return null;
+  return (
+    'caper create is interactive and needs a terminal: it asks which template and plugins you want.\n' +
+    'Run it in a terminal window (not through a pipe, a script or an agent without a TTY).'
+  );
+}
+
 export async function create(cwd = '.', packageManagerOverride) {
+  const notInteractive = interactiveError();
+  if (notInteractive) {
+    console.error(notInteractive);
+    process.exit(1);
+  }
   if (packageManagerOverride) {
     packageManager = packageManagerOverride;
   }

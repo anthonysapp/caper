@@ -5,6 +5,22 @@ import { commandsFor, defaultExec, defaultRun, missingDeps, packageManagerFor } 
 
 const VERSION_RE = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 
+/**
+ * The install commands for `specs` (`name` or `name@version`). pnpm, yarn and bun save an explicit
+ * version as given. npm saves `^version` instead, which would let a pinned beta engine drift, so under
+ * npm the pinned specs get their own `--save-exact` install and the rest keep their normal range.
+ */
+export function installCommands(pm, specs) {
+  const { add } = commandsFor(pm, 0);
+  if (pm !== 'npm') return [add(...specs)];
+  const pinned = specs.filter((spec) => spec.lastIndexOf('@') > 0);
+  const ranged = specs.filter((spec) => !pinned.includes(spec));
+  return [
+    ...(ranged.length ? [add(...ranged)] : []),
+    ...(pinned.length ? [{ cmd: 'npm', args: ['install', '--save-exact', ...pinned] }] : []),
+  ];
+}
+
 /** Read an installed package while walking upward through workspace node_modules. */
 export function readInstalledPackage(cwd, name) {
   let current = path.resolve(cwd);
@@ -289,9 +305,9 @@ export async function addPlugin(cwd, spec, { run = defaultRun, exec = defaultExe
   }
 
   if (installed.length) {
-    const { cmd, args } = commandsFor(pm, 0).add(...installed);
-    log(`Installing ${installed.join(', ')} (${[cmd, ...args].join(' ')})`);
-    run(cmd, args, spawnOpts);
+    const commands = installCommands(pm, installed);
+    log(`Installing ${installed.join(', ')} (${commands.map(({ cmd, args }) => [cmd, ...args].join(' ')).join(' && ')})`);
+    for (const { cmd, args } of commands) run(cmd, args, spawnOpts);
   }
 
   const configFile = path.join(cwd, 'caper.config.ts');

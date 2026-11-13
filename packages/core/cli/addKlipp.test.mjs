@@ -48,7 +48,9 @@ describe('addKlipp', () => {
     const result = await addKlipp(cwd, {}, d);
     expect(result.installed).toEqual(['@caperjs/plugin-klipp', '@pmndrs/klipp@0.17.0']);
     expect(d.events.findIndex(([type, line]) => type === 'log' && line.includes('Installing '))).toBeLessThan(d.events.findIndex(([type]) => type === 'run'));
-    expect(d.run).toHaveBeenCalledWith('npm', ['install', '@caperjs/plugin-klipp', '@pmndrs/klipp@0.17.0'], { cwd, shell: false });
+    // npm saves `^` even for an explicit version, so the pinned engine gets its own exact install.
+    expect(d.run).toHaveBeenCalledWith('npm', ['install', '@caperjs/plugin-klipp'], { cwd, shell: false });
+    expect(d.run).toHaveBeenCalledWith('npm', ['install', '--save-exact', '@pmndrs/klipp@0.17.0'], { cwd, shell: false });
     expect(read(cwd, 'caper.config.ts')).toContain("['3d', 'klipp']");
     expect(read(cwd, 'src/scenes/SampleCameraRigScene.ts')).toContain("id: 'sample-camera-rig'");
   });
@@ -57,12 +59,14 @@ describe('addKlipp', () => {
     const cwd = app({ plugins: '[]', deps: {} });
     const d = deps();
     const result = await addKlipp(cwd, {}, d);
-    expect(d.run.mock.calls.map((call) => call[1][1])).toEqual(['@caperjs/plugin-3d', '@caperjs/plugin-klipp']);
+    // npm: each step is a ranged install of the plugin, then an exact install of its pinned engine.
+    expect(d.run.mock.calls.map((call) => call[1][1])).toEqual(['@caperjs/plugin-3d', '--save-exact', '@caperjs/plugin-klipp', '--save-exact']);
     const installs = d.events.filter(([type, line]) => type === 'log' && line.includes('Installing '));
     const runs = d.events.filter(([type]) => type === 'run');
     expect(installs).toHaveLength(2);
     expect(d.events.indexOf(installs[0])).toBeLessThan(d.events.indexOf(runs[0]));
-    expect(d.events.indexOf(installs[1])).toBeLessThan(d.events.indexOf(runs[1]));
+    expect(d.events.indexOf(installs[1])).toBeGreaterThan(d.events.indexOf(runs[1]));
+    expect(d.events.indexOf(installs[1])).toBeLessThan(d.events.indexOf(runs[2]));
     expect(read(cwd, 'caper.config.ts')).toContain("['3d', 'klipp']");
     expect(read(cwd, 'src/scenes/Sample3DScene.ts')).toContain("id: 'sample-3d'");
     expect(result.add3d).toBeTruthy();
@@ -133,7 +137,8 @@ describe('addKlipp', () => {
     const d = deps();
     const result = await addKlipp(cwd, {}, d);
     expect(result.add3d.installed).toEqual(['@pixi/3d@0.1.0']);
-    expect(d.events.filter(([kind]) => kind === 'run')).toHaveLength(2);
+    // One exact install for 3D's engine, then klipp's ranged and exact installs.
+    expect(d.events.filter(([kind]) => kind === 'run')).toHaveLength(3);
   });
 
   it('leaves a config without plugins and an existing scene untouched', async () => {
