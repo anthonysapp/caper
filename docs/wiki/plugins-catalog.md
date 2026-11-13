@@ -437,3 +437,18 @@ Loaded after the defaults when `?caper-screen-debug=1` or `true` is present, or 
 been persisted in same-origin local storage. It reports viewport, safe-area, canvas, renderer, and
 resizer measurements with a short resize timeline and visible-bottom/canvas-bottom marker lines;
 `?caper-screen-debug=0` or `false` disables it and clears the persisted choice.
+
+---
+
+## First-party npm plugins
+
+Built-in plugins above ship inside `@caperjs/core`. Optional capabilities live in separate
+`@caperjs/plugin-*` packages and register through the same `plugins: [...]` pipeline
+([plugins-architecture.md](plugins-architecture.md)).
+
+| Package | Wiki |
+| --- | --- |
+| `@caperjs/plugin-3d` | [plugin-3d.md](plugin-3d.md) — experimental 3D via `@pixi/3d` (`phase: 'pre-renderer'`) |
+
+Other first-party plugins (Tauri, Firebase, Rive, …) are documented on their package READMEs and in
+topic pages such as [native-tauri.md](native-tauri.md).

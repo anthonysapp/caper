@@ -1,0 +1,83 @@
+import { Camera3D, View3D as PixiView3D } from '@pixi/3d';
+import type { View3DOptions } from '@pixi/3d';
+import { Application, bindAllMethods, isMobile, WithLifecycle, WithSignals } from '@caperjs/core';
+import type { Size } from '@caperjs/core';
+import type { Ticker } from 'pixi.js';
+import { createFactory3D } from './factory3d';
+import type { Factory3D } from './factory3d';
+import { Owned3D } from './owned';
+import type { Vec3 } from './props';
+import { toVec3 } from './props';
+import type { IPlugin3D } from './Plugin3D';
+import { resolveQuality } from './quality';
+import { assertRenderer3D } from './renderer';
+
+type CameraProps = { position?: Vec3; lookAt?: Vec3; fov?: number; near?: number; far?: number };
+
+export interface View3DProps extends Omit<View3DOptions, 'camera'> {
+  camera?: Camera3D | CameraProps;
+  interactive?: boolean;
+}
+
+export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
+  readonly add: Factory3D;
+  readonly make: Factory3D;
+  private readonly owned = new Owned3D();
+  private readonly fillsScreen: boolean;
+
+  constructor(props: View3DProps = {}) {
+    const app = Application.getInstance();
+    assertRenderer3D(app.renderer);
+    const plugin = app.getPlugin<IPlugin3D>('3d');
+    const { camera, interactive = true, ...viewProps } = props;
+    const fillsScreen = props.width === undefined && props.height === undefined;
+    const quality = resolveQuality(plugin?.options.quality ?? 'auto', {
+      isMobile,
+      resolution: app.renderer.resolution,
+    });
+    super({
+      ...quality,
+      environment: { skyColor: 0xbcd4f0, groundColor: 0x6b6250, intensity: 0.7 },
+      autoResize: fillsScreen,
+      // 'static' picks 3D and takes taps over the whole view; 'none' lets them reach 2D behind it.
+      // Never 'passive': it turns picking off and still blocks.
+      eventMode: interactive ? 'static' : 'none',
+      ...viewProps,
+      ...(camera instanceof Camera3D ? { camera } : {}),
+    });
+    this.fillsScreen = fillsScreen;
+    bindAllMethods(this);
+    this._initLifecycle({ autoResize: true, autoUpdate: true });
+    if (!(camera instanceof Camera3D)) {
+      this.camera.position = toVec3(camera?.position ?? [0, 1.5, 4]);
+      this.camera.lookAt(toVec3(camera?.lookAt ?? [0, 0, 0]));
+      if (camera?.fov !== undefined) this.camera.fov = camera.fov;
+      if (camera?.near !== undefined) this.camera.near = camera.near;
+      if (camera?.far !== undefined) this.camera.far = camera.far;
+    }
+    this.add = createFactory3D(this, this.owned, true);
+    this.make = createFactory3D(this, this.owned, false);
+  }
+
+  added(): void {
+    this.placeFullScreen();
+  }
+
+  resize(_size?: Size): void {
+    this.placeFullScreen();
+  }
+
+  update(_ticker?: Ticker | number): void {
+    this.owned.update(this.app.ticker);
+  }
+
+  destroy(_options?: Parameters<PixiView3D['destroy']>[0] | boolean): void {
+    // glTF sources share materials; destroying them crashes the next visit.
+    super.destroy({ children: true });
+    this.owned.destroy();
+  }
+
+  private placeFullScreen(): void {
+    if (this.fillsScreen) this.position.set(-this.app.size.width / 2, -this.app.size.height / 2);
+  }
+}

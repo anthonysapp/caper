@@ -23,6 +23,7 @@ type AppScenes =
   | 'music'
   | 'animated-sprites'
   | 'spine'
+  | 'view-3d'
   | 'assets'
   | 'level'
   | 'pause'
@@ -41,6 +42,7 @@ type AppScenes =
 
 // Plugins
 type AppPlugins = 
+  | '3d'
   | 'crunch'
   | 'firebase'
   | 'google-analytics'
@@ -81,6 +83,7 @@ type AppSceneClasses = {
   "music": typeof import('@/scenes/audio/MusicScene').default;
   "animated-sprites": typeof import('@/scenes/display/AnimatedSpriteScene').default;
   "spine": typeof import('@/scenes/display/SpineScene').default;
+  "view-3d": typeof import('@/scenes/display/View3DScene').default;
   "assets": typeof import('@/scenes/framework/AssetScene').default;
   "level": typeof import('@/scenes/framework/LevelScene').default;
   "pause": typeof import('@/scenes/framework/PauseScene').default;

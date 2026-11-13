@@ -1,0 +1,49 @@
+{
+  "name": "@caperjs/plugin-3d",
+  "description": "Experimental 3D for Caper, built on @pixi/3d",
+  "keywords": [
+    "3d",
+    "gltf",
+    "@pixi/3d",
+    "@caperjs/core",
+    "caper"
+  ],
+  "version": "0.7.7",
+  "files": [
+    "lib",
+    "src",
+    "!src/**/*.test.ts"
+  ],
+  "main": "lib/caper-plugin-3d.mjs",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./lib/caper-plugin-3d.mjs",
+      "types": "./lib/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "caper": {
+    "phase": "pre-renderer"
+  },
+  "scripts": {
+    "build": "pnpm run generate-version && vite build",
+    "test": "vitest run",
+    "generate-version": "node generateVersion.mjs"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@caperjs/core": "workspace:^",
+    "@pixi/3d": "0.1.0",
+    "happy-dom": "^15",
+    "vite": "^8.0.7",
+    "vite-plugin-dts": "^4.5.3",
+    "vitest": "^3"
+  },
+  "peerDependencies": {
+    "@caperjs/core": "^0.7.7",
+    "@pixi/3d": "0.1.0",
+    "pixi.js": "8.23.0"
+  }
+}
