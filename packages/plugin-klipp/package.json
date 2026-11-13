@@ -8,7 +8,7 @@
     "@caperjs/core",
     "caper"
   ],
-  "version": "0.7.7",
+  "version": "0.8.0",
   "files": [
     "lib",
     "src",
@@ -46,8 +46,8 @@
     "vitest": "^3"
   },
   "peerDependencies": {
-    "@caperjs/core": "^0.7.7",
-    "@caperjs/plugin-3d": "^0.7.7",
+    "@caperjs/core": "^0.8.0",
+    "@caperjs/plugin-3d": "^0.8.0",
     "@pixi/3d": "0.1.0",
     "@pmndrs/klipp": "0.17.0",
     "pixi.js": "8.23.0"
