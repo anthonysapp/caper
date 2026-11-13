@@ -212,6 +212,7 @@ subcommands run from the app root.
 | --- | --- |
 | `caper create [path] [--use-pnpm\|--use-yarn]` | Interactive scaffolder for a new Caper app. Also exposed as `create-caper`. |
 | `caper add scene \| plugin \| popup \| entity <Name> [--dir path]` | **Primary scaffolding entry.** Emits `src/<kind>s/<Name>.ts` with `defineX` wrapper + default class + the correct import shape. |
+| `caper add 3d` | **Opt in to 3D (experimental, §13.1).** Installs `@caperjs/plugin-3d` + the pinned `@pixi/3d`, adds `'3d'` to `plugins`, writes `src/scenes/Sample3DScene.ts` (id `sample-3d`). Says what it installs first; safe to re-run. |
 | `vite` | Start the dev server. Caper is wired in through `caper()` in the app's own `vite.config.ts`. |
 | `vite build` | Production build. |
 | `vite build && vite preview` | Build then preview locally. |
@@ -1335,6 +1336,7 @@ Each is a separate npm package. Install → list in `plugins: [...]` → use via
 | `@caperjs/plugin-google-analytics` | `google-analytics` | GA event tracking. Generic `IGoogleAnalyticsPlugin<Events>` for typed events. |
 | `@caperjs/plugin-crunch` | `crunch` | Crunch 2D rigid-body physics. |
 | `@caperjs/plugin-rollbar` | `rollbar` | Rollbar error tracking. |
+| `@caperjs/plugin-3d` | `3d` | **Experimental.** 3D views on `@pixi/3d`: `this.add.view3d()`. See §13.1. |
 
 Install via pnpm/npm, then register in `caper.config.ts plugins: [...]`.
 Deep API lives in each plugin's own README on npm.
@@ -1354,6 +1356,64 @@ plugins: [
 ]
 ```
 
+### 13.1 3D: `@caperjs/plugin-3d` (experimental)
+
+A lit 3D scene inside a normal Caper scene, on PixiJS's `@pixi/3d` (beta, pinned
+to one exact version). Opt in with one command from the app root:
+
+```bash
+npx caper add 3d      # installs, adds '3d' to plugins, writes src/scenes/Sample3DScene.ts
+npx caper doctor      # 3d-* rows: plugin, pinned @pixi/3d, pixi.js floor, config
+```
+
+```ts
+// caper.config.ts
+plugins: ['3d'],                       // or ['3d', { options: { quality: 'low' } }]
+
+// any Scene. No import needed: caper-app.d.ts pulls the plugin's types in.
+const view = this.add.view3d({
+  camera: { position: [0, 1.5, 4], lookAt: [0, 0, 0], fitAspect: 16 / 9 },
+});
+view.add.light({ type: 'directional', intensity: 3, castShadow: true });
+const cube = view.add.mesh({ geometry: 'box', color: 0xe85d5d, x: -1 });
+const hero = view.add.model({ asset: 'hero', y: 0 });   // assets/models{m}/hero.glb
+hero.play('idle');
+```
+
+| Surface | What it is |
+| --- | --- |
+| `this.add.view3d(props)` / `this.make.view3d(props)` | Caper `View3D`: the raw `@pixi/3d` view plus Caper lifecycle. Full screen unless `width` / `height` are given (then the scene positions it). |
+| `view.add.*` / `view.make.*` | The 3D factory: `model`, `mesh`, `light`, `camera`, `container`, `existing`. Returns raw `@pixi/3d` nodes. `position` / `rotation` / `scale` take `[x, y, z]`; `lookAt` is a prop. |
+| `mesh` | `geometry: 'box' \| 'plane' \| 'sphere'` (unit sized; size with `scale`) or a raw geometry; `color` or a raw `material`. |
+| `model` | `asset` is the manifest name of a `.glb`. Returns `Model`: `play(name, opts?)`, `stop()`. Clips follow `app.ticker`, so pause and time scale apply. |
+| `camera.fitAspect` | The aspect (width / height) the scene is framed for. On a narrower view the field of view grows so the sides stay in frame. Omit it to keep `fov` fixed. |
+| `interactive` | `true` (default): 3D picking on, the view takes taps over its whole rectangle; add interactive 2D **after** the view. `false`: taps reach 2D behind it. |
+| `view.root`, `view.camera` | The raw `@pixi/3d` scene graph and camera. For that API load the `pixijs-3d` skill (`npx skills add https://github.com/pixijs/pixijs-skills --skill pixijs-3d`). |
+
+**Model assets.** Put a self-contained `.glb` in an assets folder and preload its
+bundle in the scene's `assets`. Once a model is in the manifest,
+`caper-assets.d.ts` gains `AssetModels` and `asset` accepts only those names
+(regenerate with `npx caper types`). A model loaded by hand is passed as its
+source: `asset: await Assets.load(url)`.
+
+**Rules.**
+
+- **`'3d'` loads before the renderer.** Keep it a plain `plugins` entry: no
+  `autoLoad: false`, no scene-level `plugins: ['3d']`. A blank view with no error
+  means `'3d'` is missing from `plugins`.
+- **Leave materials to the view.** Destroy a view or model with the scene (Caper
+  does it); never pass `material: true` to a destroy call. glTF models share
+  materials through the asset cache and the next visit to the scene crashes.
+- **Spawning many meshes: build one material and pass it.** `color` makes a new
+  material per mesh, kept until the view is destroyed.
+  `const red = new Material3D({ baseColor: 0xff0000 })` then
+  `view.add.mesh({ geometry: 'box', material: red })`; destroy `red` yourself.
+- **Boot cost.** About 160 KB gzip on every start of an app that lists `'3d'`,
+  even on screens with no 3D. Apps without `'3d'` pay nothing.
+- **Experimental.** WebGL2 or WebGPU only. `.glb` only. The API can change with
+  `@pixi/3d`; `caper doctor` fails when the installed `@pixi/3d` is not the
+  pinned one.
+
 ---
 
 ## 14. Generated types & virtual modules
@@ -1370,6 +1430,7 @@ Augments `AppTypeOverrides` with unions derived from disk:
 | --- | --- |
 | `AppScenes` | `src/scenes/*` `defineScene.id` values |
 | `AppPlugins` | `src/plugins/*` `definePlugin.id` ∪ discovered `@caperjs/plugin-*` |
+| `import type {} from '@caperjs/plugin-x'` | One line per npm plugin that is listed in `plugins` and installed with types, so its factory methods (`this.add.view3d`) are typed with no import in app code |
 | `AppPopups` | `src/popups/*` `definePopup.id` |
 | `AppEntities` | `src/entities/*` `defineEntity.id` |
 | `AppActions` | keys of `defineActions` in `caper.config.ts` |
@@ -1396,6 +1457,7 @@ type AssetTextures = 'caper' | 'hero' | 'button/default' | /* ... */ ;
 type AssetTexturesIn<'game'> = /* textures in the 'game' bundle only */ ;
 type AssetAudio = 'music/main' | 'sfx/jump' | /* ... */ ;
 type AssetSpine = 'spine/spineboy-pro' | /* ... */ ;
+type AssetModels = 'hero' | 'models/hero' | /* ... */ ;   // only when a .glb / .gltf exists
 ```
 
 `this.add.sprite({ asset: 'caper' })` narrows `asset` against `AssetTextures`.

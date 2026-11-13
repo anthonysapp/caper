@@ -3,6 +3,7 @@ import type { View3DOptions } from '@pixi/3d';
 import { Application, bindAllMethods, isMobile, WithLifecycle, WithSignals } from '@caperjs/core';
 import type { Size } from '@caperjs/core';
 import type { Ticker } from 'pixi.js';
+import { fitFov } from './fit';
 import { createFactory3D } from './factory3d';
 import type { Factory3D } from './factory3d';
 import { Owned3D } from './owned';
@@ -12,7 +13,19 @@ import type { IPlugin3D } from './Plugin3D';
 import { resolveQuality } from './quality';
 import { assertRenderer3D } from './renderer';
 
-type CameraProps = { position?: Vec3; lookAt?: Vec3; fov?: number; near?: number; far?: number };
+type CameraProps = {
+  position?: Vec3;
+  lookAt?: Vec3;
+  /** Vertical field of view in degrees. */
+  fov?: number;
+  near?: number;
+  far?: number;
+  /**
+   * The aspect ratio (width / height) the scene is framed for, e.g. `16 / 9`. On a narrower view (a phone
+   * held upright) the field of view grows so the sides stay in frame. Leave it out to keep `fov` fixed.
+   */
+  fitAspect?: number;
+};
 
 export interface View3DProps extends Omit<View3DOptions, 'camera'> {
   camera?: Camera3D | CameraProps;
@@ -24,6 +37,7 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
   readonly make: Factory3D;
   private readonly owned = new Owned3D();
   private readonly fillsScreen: boolean;
+  private readonly fit?: { fov: number; aspect: number };
 
   constructor(props: View3DProps = {}) {
     const app = Application.getInstance();
@@ -54,17 +68,21 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
       if (camera?.fov !== undefined) this.camera.fov = camera.fov;
       if (camera?.near !== undefined) this.camera.near = camera.near;
       if (camera?.far !== undefined) this.camera.far = camera.far;
+      if (camera?.fitAspect) this.fit = { fov: this.camera.fov, aspect: camera.fitAspect };
     }
     this.add = createFactory3D(this, this.owned, true);
     this.make = createFactory3D(this, this.owned, false);
+    this.fitCamera();
   }
 
   added(): void {
     this.placeFullScreen();
+    this.fitCamera();
   }
 
   resize(_size?: Size): void {
     this.placeFullScreen();
+    this.fitCamera();
   }
 
   update(_ticker?: Ticker | number): void {
@@ -75,6 +93,12 @@ export class View3D extends WithLifecycle(WithSignals(PixiView3D)) {
     // glTF sources share materials; destroying them crashes the next visit.
     super.destroy({ children: true });
     this.owned.destroy();
+  }
+
+  private fitCamera(): void {
+    if (!this.fit) return;
+    const { width, height } = this.fillsScreen ? this.app.size : this;
+    this.camera.fov = fitFov(this.fit.fov, width / height, this.fit.aspect);
   }
 
   private placeFullScreen(): void {

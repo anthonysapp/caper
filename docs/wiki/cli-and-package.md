@@ -69,15 +69,15 @@ banner unless the subcommand is `version`/absent, then switches on `args[0]`:
 | `install` | `installPeerDeps()` (`cli/install-peerdeps.mjs`) | installs the peer deps listed above into the consumer project |
 | `version` | (banner only) | no-op past the version print |
 | `dev`/`start`/`build`/`preview` | rejected, exit 1 (`cli.mjs:57-67`) | removed in 0.2.0; kept as named cases purely to print "run vite directly" instead of "unknown subcommand" |
-| `add` | `add(args.slice(1))` (`cli/add.mjs`) | scaffold one scene/plugin/entity/popup file |
-| `agent init [--dir <skillsDir>]` | `agent(args.slice(1))` (`cli/agent.mjs`) | copies the shipped `caper` agent skill into the app (default `.claude/skills/`) and upserts a marker-delimited pointer block into `AGENTS.md`/`CLAUDE.md` |
+| `add` | `add(args.slice(1))` (`cli/add.mjs`) | scaffold one scene/plugin/entity/popup file, or `add 3d` to opt into 3D (`cli/add3d.mjs`) |
+| `agent init [--dir <skillsDir>]` | `agent(args.slice(1))` (`cli/agent.mjs`) | copies the shipped `caper` agent skill into the app (default `.claude/skills/`) and upserts a marker-delimited pointer block into `AGENTS.md`/`CLAUDE.md`; when the app depends on `@caperjs/plugin-3d`, prints the `pixijs-3d` skill install command (`npx skills add … --skill pixijs-3d`) without running it |
 | `native init [--title <name>] [--identifier <id>] [--port <n>] [--icon <png>]` | `native(args.slice(1))` (`cli/native.mjs`) | one-shot Tauri v2 scaffolding — see [Native (Tauri)](#native-tauri) below |
 | `native plugin` | `native(args.slice(1))` (`cli/native.mjs`) | wires an already-`native init`'d app up for `@caperjs/plugin-tauri` — see [Native (Tauri)](#native-tauri) below |
 | `native android` | `native(args.slice(1))` (`cli/native.mjs`) | sets an already-`native init`'d app up for Android builds; `native android dev|build [...tauri args]` runs `tauri android dev|build` with the resolved Android env; see [Native (Tauri)](#native-tauri) below |
 | `native ios [--team <ID>]` | `native(args.slice(1))` (`cli/native.mjs`) | sets an already-`native init`'d app up for iOS builds (macOS only); `native ios dev|build [...tauri args]` runs `tauri ios dev|build` with the resolved iOS env; see [Native (Tauri)](#native-tauri) below |
 | `agent probe <url> [opts]` | `probe(args)` (`cli/probe.mjs`, via `cli/agent.mjs`) | launches the app's own `playwright` Chromium, waits for `Caper.__readyApps`, sends `--action`s, optional `--until` predicate via `Caper.automation[id].waitFor`, returns context/state/log/errors (+ `--screenshot`); exit 1 on boot/until timeout or page errors, 2 if playwright is missing |
 | `types [--no-assets]` | `types(args)` (`cli/types.mjs`) | `vite.resolveConfig` on the app's own `vite.config`, then calls the `api` seams: `vite-plugin-assetpack.api.runOnce()` → `vite-plugin-caper-config.api.generateTypes()` → `vite-plugin-asset-types.api.generateTypes()`; same output as a dev-server start, no server |
-| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri`, six `native-android-*` rows once `src-tauri/gen/android/` exists, and six `native-ios-*` rows on macOS once `src-tauri/gen/apple/` exists, see [Native (Tauri)](#native-tauri); exit 1 on any `fail` |
+| `doctor [--offline] [--json]` | `doctor(args)` (`cli/doctor.mjs`) | installed vs npm latest, registry vs linked engine (+ stale `lib/` vs `src/` mtimes), `caper-app.d.ts` present/fresh vs `caper.config.ts` + `src/{scenes,plugins,popups,entities,ui,locales}`, asset dts + manifest, agent pointer block + skill file + version, peer deps, solid tsconfig (`jsx`/`jsxFactory`/`types` — only when the app depends on `@caperjs/solid`), caches, native (Tauri) toolchain — only when `src-tauri/` exists, plus a `native-plugin` row when the app also depends on `@caperjs/plugin-tauri`, six `native-android-*` rows once `src-tauri/gen/android/` exists, and six `native-ios-*` rows on macOS once `src-tauri/gen/apple/` exists, see [Native (Tauri)](#native-tauri); when the app depends on `@caperjs/plugin-3d` or lists `'3d'` in `plugins`, also `3d-plugin`, `3d-engine`, `3d-pixi`, and `3d-config` (fail if `autoLoad: false`; warn when installed but not listed); exit 1 on any `fail` |
 | `create` | `create(projectPath, packageManager)` (`cli/create.mjs`) | parses `--use-yarn`/`--use-pnpm` and a positional path before delegating |
 | `update` | `update()` (`cli/update.mjs`) | installs `@caperjs/core@latest` |
 | `vo generate [inputDir] [csvDir]` | `generateVoiceoverCSV()` (`cli/voiceover/`) | |
@@ -94,10 +94,28 @@ casing ("my cool scene", "MyCoolScene") into a PascalCase class name plus a
 kebab-case `id`. `DIRS` maps kind → conventional directory
 (`src/scenes`, `src/plugins`, `src/entities`, `src/popups`); `SUFFIXES`
 appends `Plugin`/`Popup` to the class and file name. Refuses to overwrite an
-existing file. Critically, `add()` never touches `caper.config.ts` or any
+existing file. For the four file kinds, `add()` never touches `caper.config.ts` or any
 registry — the new file is inert until the app's Vite-plugin discovery
 (outside this page's scope) picks it up on the next dev reload, and for a
 plugin, until it's also added to `caper.config.ts`'s `plugins` array.
+
+**`caper add 3d`** (`packages/core/cli/add3d.mjs`, routed from `add.mjs`) is the one `add` kind
+that edits app config. Idempotent: resolves the package manager from the lockfile, pins
+`@pixi/3d` from the plugin's peer (or `npm view` when the plugin is not installed yet), installs
+`@caperjs/plugin-3d`, `@pixi/3d@<pin>`, and `pixi.js` at core's pinned version only when the installed copy is
+older than that pin; on pnpm ≥ 10.16 may append `'@pixi/3d@<pin>'` to
+`minimumReleaseAgeExclude` in `pnpm-workspace.yaml`. It prints the exact packages and install
+command **before** running install. It appends `'3d'` to `plugins` with its own `add3dToConfig`
+(comment- and string-aware; `create.mjs`'s `injectPluginsIntoConfig` miscounts a `]` inside a
+comment, which is fine for the fresh template but not for a user's file), re-reads the result,
+and prints the line to add when there is no `plugins` array. It writes
+`src/scenes/Sample3DScene.ts` (`sample-3d`, built-in shapes only) when that file does not exist,
+and prints next steps including the `pixijs-3d` skill install command. Safety rules: every
+version that reaches a command line must pass `isPlainVersion`; commands run without a shell
+(except on Windows, where package managers are `.cmd` shims: untested there); a symlinked
+`caper.config.ts`, `pnpm-workspace.yaml` or `src/scenes` is never written through, the step is
+printed instead. A new scene file needs a dev-server restart (see `KNOWN_BUGS.md`), and the
+command says so.
 
 ### Native (Tauri)
 
@@ -393,6 +411,8 @@ not general logic.
   this list is the wizard's only source of truth for "plugins that exist."
 - **New CLI subcommand**: add a `case` to the switch in `cli.mjs` and a
   module under `cli/`.
+- **New "opt in to a plugin" command**: follow `add3d.mjs` — I/O core with injected `run` /
+  `exec` / `log`, thin CLI printing wrapper, tests with temp dirs.
 
 ## Invariants & gotchas
 

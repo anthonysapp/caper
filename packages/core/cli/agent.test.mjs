@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -100,5 +100,78 @@ describe('agentInit', () => {
     const end = second.indexOf('<!-- caper:agent-end -->') + '<!-- caper:agent-end -->'.length;
     const regenerated = second.slice(start, end);
     expect(regenerated).toBe(first.trimEnd());
+  });
+
+  it('does not log 3D guidance or return uses3d when plugin-3d is absent', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(
+      path.join(cwd, 'package.json'),
+      JSON.stringify({ name: 'no-3d-app', dependencies: { '@caperjs/core': '1.0.0' } }),
+      'utf-8',
+    );
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const result = await agentInit(cwd);
+
+    expect(logSpy).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      skillFile: result.skillFile,
+      contextFile: result.contextFile,
+    });
+    expect(result).not.toHaveProperty('uses3d');
+
+    logSpy.mockRestore();
+  });
+
+  it('logs 3D guidance and returns uses3d when @caperjs/plugin-3d is in dependencies', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(
+      path.join(cwd, 'package.json'),
+      JSON.stringify({
+        name: 'app-3d',
+        dependencies: { '@caperjs/core': '1.0.0', '@caperjs/plugin-3d': '1.0.0' },
+      }),
+      'utf-8',
+    );
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const result = await agentInit(cwd);
+
+    expect(logSpy).toHaveBeenCalledTimes(3);
+    const thirdMessage = String(logSpy.mock.calls[2].join(' '));
+    expect(thirdMessage).toBe(
+      'This app uses 3D. Add the PixiJS 3D skill for the raw @pixi/3d API: npx skills add https://github.com/pixijs/pixijs-skills --skill pixijs-3d',
+    );
+    expect(result.uses3d).toBe(true);
+
+    const context = fs.readFileSync(result.contextFile, 'utf-8');
+    const skill = fs.readFileSync(result.skillFile, 'utf-8');
+    expect(context).not.toContain('pixijs-3d');
+    expect(skill).toBe(fs.readFileSync(shippedSkill, 'utf-8'));
+
+    logSpy.mockRestore();
+  });
+
+  it('logs 3D guidance when @caperjs/plugin-3d is only in devDependencies', async () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(
+      path.join(cwd, 'package.json'),
+      JSON.stringify({
+        name: 'app-3d-dev',
+        devDependencies: { '@caperjs/plugin-3d': '1.0.0' },
+      }),
+      'utf-8',
+    );
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const result = await agentInit(cwd);
+
+    expect(logSpy).toHaveBeenCalledTimes(3);
+    expect(result.uses3d).toBe(true);
+
+    logSpy.mockRestore();
   });
 });

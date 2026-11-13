@@ -225,8 +225,7 @@ function readInstalledPackageJson(root, packageName) {
   return null;
 }
 
-function readNpmPluginCaperMetadata(root, packageName) {
-  const pkg = readInstalledPackageJson(root, packageName);
+function readNpmPluginCaperMetadata(pkg) {
   if (!pkg || typeof pkg.caper !== 'object' || pkg.caper === null) {
     return { phase: undefined, requires: [] };
   }
@@ -256,7 +255,10 @@ export function discoverNpmPlugins(root) {
     .filter((dep) => dep.startsWith('@caperjs/plugin-'))
     .map((packageName) => {
       const id = packageName.replace('@caperjs/plugin-', '');
-      const { phase, requires } = readNpmPluginCaperMetadata(root, packageName);
+      const pkg = readInstalledPackageJson(root, packageName);
+      const { phase, requires } = readNpmPluginCaperMetadata(pkg);
+      const hasTypes = !!pkg && [pkg.types, pkg.typings, pkg.exports?.['.']?.types]
+        .some((value) => typeof value === 'string');
       return {
         id,
         name: packageName,
@@ -267,6 +269,7 @@ export function discoverNpmPlugins(root) {
           isFunction: true,
         },
         active: true,
+        hasTypes,
         phase,
         requires,
       };

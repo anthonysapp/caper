@@ -13,7 +13,7 @@ import { ASSET_DTS_FILE_NAME, debounce, delay, env, logger } from '../internal/u
 
 export { loadManifestBundleNames };
 
-async function generateAssetTypes(manifest, assetsDir) {
+export async function generateAssetTypes(manifest, assetsDir) {
   // Flat totals per category (back-compat: AssetTextures, AssetAudio, etc.)
   const assetsByType = {
     textures: new Set(),
@@ -27,6 +27,7 @@ async function generateAssetTypes(manifest, assetsDir) {
     json: new Set(),
     spine: new Set(),
     rive: new Set(),
+    models: new Set(),
   };
 
   // Per-bundle breakdown so we can narrow e.g. AssetTexturesIn<'menu'> → only
@@ -42,6 +43,7 @@ async function generateAssetTypes(manifest, assetsDir) {
     json: {},
     spine: {},
     rive: {},
+    models: {},
   };
   const addToBundle = (category, bundleName, alias) => {
     if (!byBundle[category][bundleName]) byBundle[category][bundleName] = new Set();
@@ -143,6 +145,11 @@ async function generateAssetTypes(manifest, assetsDir) {
           assetsByType.rive.add(alias);
           addToBundle('rive', bundle.name, alias);
         });
+      } else if (['.glb', '.gltf'].includes(ext)) {
+        aliases.forEach((alias) => {
+          assetsByType.models.add(alias);
+          addToBundle('models', bundle.name, alias);
+        });
       }
     }
   }
@@ -161,6 +168,23 @@ async function generateAssetTypes(manifest, assetsDir) {
     const lines = entries.map(([name, arr]) => `    ${name}: '${arr.join("' | '")}';`);
     return `{\n${lines.join('\n')}\n  }`;
   };
+
+  const hasModels = types.models.length > 0;
+  const modelsSection = hasModels
+    ? `
+/**
+ * Available 3D model names in the asset manifest
+ * @example
+ * const model: AssetModels = 'cesium-man';
+ */
+export type AssetModels =
+  | '${types.models.join("'\n  | '")}';
+
+export type AssetModelsByBundle = ${emitByBundleMap('models')};
+export type AssetModelsIn<B extends AssetBundles> = B extends keyof AssetModelsByBundle ? AssetModelsByBundle[B] : never;
+
+`
+    : '';
 
   return `// This file is auto-generated. Do not edit.
 import type { ResolvedAsset, Texture, Spritesheet } from 'pixi.js';
@@ -251,7 +275,7 @@ export type AssetSpine = ${types.spine.length ? `\n  | '${types.spine.join("'\n 
  * const rive: AssetRive = 'static/marty';
  */
 export type AssetRive = ${types.rive.length ? `\n  | '${types.rive.join("'\n  | '")}'` : 'never'};
-
+${modelsSection}
 /**
  * Available font family names
  * @example
@@ -280,7 +304,7 @@ export type AssetAlias =
   | AssetAudio 
   | AssetJson
   | AssetSpine
-  | AssetRive;
+  | AssetRive${hasModels ? '\n  | AssetModels' : ''};
 
 /**
  * Type-safe manifest structure
@@ -305,7 +329,7 @@ export interface AssetTypes {
   audio: Record<AssetAudio, HTMLAudioElement>;
   json: Record<AssetJson, any>;
   spine: Record<AssetSpine, any>;
-  rive: Record<AssetRive, any>;
+  rive: Record<AssetRive, any>;${hasModels ? '\n  models: Record<AssetModels, any>;' : ''}
   fontFamilies: Record<AssetFontFamilies, any>;
   bitmapFonts: Record<AssetBitmapFonts, any>;
   bitmapFontFamilies: Record<AssetBitmapFontFamilies, any>;
@@ -325,7 +349,7 @@ export type AssetTypeOf<T extends AssetAlias> =
   T extends AssetAudio ? HTMLAudioElement :
   T extends AssetJson ? any :
   T extends AssetSpine ? any :
-  T extends AssetRive ? any :
+  T extends AssetRive ? any :${hasModels ? '\n  T extends AssetModels ? any :' : ''}
   T extends AssetFontFamilies ? any :
   T extends AssetBitmapFontFamilies ? any :
   never;
@@ -349,7 +373,7 @@ declare module '@caperjs/core' {
     SpineData: AssetSpine;
     Audio: AssetAudio;
     FontFamily: AssetFontFamilies;
-    BitmapFontFamily: AssetBitmapFontFamilies;
+    BitmapFontFamily: AssetBitmapFontFamilies;${hasModels ? '\n    Model: AssetModels;' : ''}
     Bundles: AssetBundles;
   }
 }

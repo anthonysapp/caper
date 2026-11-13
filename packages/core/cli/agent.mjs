@@ -72,6 +72,23 @@ function upsertContext(cwd, dir) {
   return contextPath;
 }
 
+function appUses3d(cwd) {
+  const pkgPath = path.join(cwd, 'package.json');
+  if (!fs.existsSync(pkgPath)) {
+    return false;
+  }
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const merged = { ...pkg.dependencies, ...pkg.devDependencies };
+    return Object.prototype.hasOwnProperty.call(merged, '@caperjs/plugin-3d');
+  } catch {
+    return false;
+  }
+}
+
+const USES_3D_MESSAGE =
+  'This app uses 3D. Add the PixiJS 3D skill for the raw @pixi/3d API: npx skills add https://github.com/pixijs/pixijs-skills --skill pixijs-3d';
+
 export async function agentInit(cwd, { dir = '.claude/skills' } = {}) {
   const skillSource = resolveModuleRelative('../extras/skills/caper/SKILL.md');
   const skillDir = path.resolve(cwd, dir, 'caper');
@@ -84,6 +101,12 @@ export async function agentInit(cwd, { dir = '.claude/skills' } = {}) {
 
   console.log(green(bold('✓ Created caper skill')) + ` ${cyan(path.relative(cwd, skillFile).replace(/\\/g, '/'))}`);
   console.log(green(bold('✓ Updated agent context')) + ` ${cyan(path.relative(cwd, contextFile).replace(/\\/g, '/'))}`);
+
+  const uses3d = appUses3d(cwd);
+  if (uses3d) {
+    console.log(USES_3D_MESSAGE);
+    return { skillFile, contextFile, uses3d: true };
+  }
 
   return { skillFile, contextFile };
 }

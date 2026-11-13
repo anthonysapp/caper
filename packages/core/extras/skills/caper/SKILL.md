@@ -35,6 +35,7 @@ sed -n '<start>,<end>p' node_modules/@caperjs/core/extras/llms.txt
 | generated types, virtual modules              | §14                                |
 | drive the running app headlessly              | §17 Automation bridge              |
 | declare a view with JSX (`@caperjs/solid`)    | §18 Declarative layer              |
+| add or edit 3D (`this.add.view3d`, `caper add 3d`) | §13.1 3D                      |
 | look up one symbol                            | §19 API index (name → section)     |
 
 Engine source also ships: `node_modules/@caperjs/core/src/`. When the doc is
@@ -139,7 +140,17 @@ Reference: llms.txt §18, the package README, and the caper repo's kitchen-sink 
 `src/scenes/SolidJsxScene.ts` (JSX-free scene) with `src/solid-demo/View.tsx`,
 `HealthBar.tsx` and `Orbiter.ts`.
 
-## 5. Gotchas that cost agents the most time
+## 5. 3D (`@caperjs/plugin-3d`): only when `'3d'` is in `plugins`
+
+Caper's wrappers are `this.add.view3d(...)` and the view's own factory
+(`view.add.model | mesh | light | camera | container | existing`); read llms.txt
+§13.1 for them and their rules. Everything past the wrappers (`view.root`,
+materials, cameras, picking, effects) is raw `@pixi/3d`: load the `pixijs-3d`
+skill before writing it. If it is missing, install it with
+`npx skills add https://github.com/pixijs/pixijs-skills --skill pixijs-3d`.
+To opt an app in, run `npx caper add 3d`.
+
+## 6. Gotchas that cost agents the most time
 
 - Out-of-context actions are **dropped by the ActionsPlugin**. That is the
   phase guard; do not add `if (phase !== …)` checks around `sendAction`.

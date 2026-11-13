@@ -100,4 +100,19 @@ describe('View3D', () => {
     h.app.renderer = { name: 'webgpu', lighting3d: undefined as any, resolution: 3 };
     expect(() => new View3D()).toThrow(/@pixi\/3d was loaded after the renderer was created/);
   });
+
+  it('widens the camera on a portrait screen only when fitAspect is set', () => {
+    h.app.size = { width: 1600, height: 900 };
+    const fixed = new View3D({ camera: { fov: 50 } });
+    const fitted = new View3D({ camera: { fov: 50, fitAspect: 16 / 9 } });
+    expect(fitted.camera.fov).toBe(50);
+    h.app.size = { width: 600, height: 1100 };
+    fixed.resize();
+    fitted.resize();
+    expect(fixed.camera.fov).toBe(50);
+    expect(fitted.camera.fov).toBeGreaterThan(100);
+    h.app.size = { width: 800, height: 600 };
+    fixed.destroy();
+    fitted.destroy();
+  });
 });

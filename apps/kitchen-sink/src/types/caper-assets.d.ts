@@ -462,6 +462,23 @@ export type AssetSpine =
 export type AssetRive = never;
 
 /**
+ * Available 3D model names in the asset manifest
+ * @example
+ * const model: AssetModels = 'cesium-man';
+ */
+export type AssetModels =
+  | 'cesium-man'
+  | 'cesium-man.glb'
+  | 'models/cesium-man'
+  | 'models/cesium-man.glb';
+
+export type AssetModelsByBundle = {
+    models: 'cesium-man' | 'cesium-man.glb' | 'models/cesium-man' | 'models/cesium-man.glb';
+  };
+export type AssetModelsIn<B extends AssetBundles> = B extends keyof AssetModelsByBundle ? AssetModelsByBundle[B] : never;
+
+
+/**
  * Available font family names
  * @example
  * const fontFamily: AssetFontFamilies = 'Space Grotesk';
@@ -493,7 +510,8 @@ export type AssetAlias =
   | AssetAudio 
   | AssetJson
   | AssetSpine
-  | AssetRive;
+  | AssetRive
+  | AssetModels;
 
 /**
  * Type-safe manifest structure
@@ -519,6 +537,7 @@ export interface AssetTypes {
   json: Record<AssetJson, any>;
   spine: Record<AssetSpine, any>;
   rive: Record<AssetRive, any>;
+  models: Record<AssetModels, any>;
   fontFamilies: Record<AssetFontFamilies, any>;
   bitmapFonts: Record<AssetBitmapFonts, any>;
   bitmapFontFamilies: Record<AssetBitmapFontFamilies, any>;
@@ -539,6 +558,7 @@ export type AssetTypeOf<T extends AssetAlias> =
   T extends AssetJson ? any :
   T extends AssetSpine ? any :
   T extends AssetRive ? any :
+  T extends AssetModels ? any :
   T extends AssetFontFamilies ? any :
   T extends AssetBitmapFontFamilies ? any :
   never;
@@ -563,6 +583,7 @@ declare module '@caperjs/core' {
     Audio: AssetAudio;
     FontFamily: AssetFontFamilies;
     BitmapFontFamily: AssetBitmapFontFamilies;
+    Model: AssetModels;
     Bundles: AssetBundles;
   }
 }

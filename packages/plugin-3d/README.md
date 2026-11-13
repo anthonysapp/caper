@@ -11,14 +11,27 @@ view draws on top and receives taps first.
 ## Install
 
 ```bash
+npx caper add 3d
+```
+
+Then `npx caper doctor`. The command:
+
+- Installs `@caperjs/plugin-3d`, `@pixi/3d` at the pin this package expects, and `pixi.js` only if
+  yours is older than the version Caper pins; announces packages and the install command before running it.
+- Adds `'3d'` to `plugins` in `caper.config.ts` (or prints the line if there is no `plugins` array).
+- Creates `src/scenes/Sample3DScene.ts` when missing (never overwrites).
+- On pnpm ≥ 10.16, may add `@pixi/3d` to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`.
+
+### By hand
+
+```bash
 pnpm add @caperjs/plugin-3d @pixi/3d@0.1.0
 ```
 
-Peers: `@caperjs/core` (requires `pixi.js@8.23.0`), `pixi.js`, `@pixi/3d@0.1.0` (exact).
-
-On **pnpm 11**, the workspace may add `minimumReleaseAgeExclude: ['@pixi/3d@0.1.0']` to
-`pnpm-workspace.yaml` because the package is newer than the default release-age policy.
-`caper add 3d` should do the same when that command lands.
+Peers: `@caperjs/core` (requires `pixi.js@8.23.0`), `pixi.js`, `@pixi/3d@0.1.0` (exact). Add `'3d'`
+to `plugins` in `caper.config.ts`. On **pnpm 11**, you may need
+`minimumReleaseAgeExclude: ['@pixi/3d@0.1.0']` in `pnpm-workspace.yaml`; `caper add 3d` adds it when
+needed.
 
 ## Use
 
@@ -46,6 +59,29 @@ hero.play('anim_0');
 
 Put self-contained `.glb` files in your assets folder (AssetPack pass-through). v1 supports
 **.glb only** — multi-file `.gltf` and `.hdr` are not tested.
+
+## Many meshes: share one material
+
+`color` gives each mesh its own material for the life of the view. For a spawner, build one
+`Material3D` and pass `material`; destroy it when the scene ends.
+
+```ts
+import { Material3D } from '@pixi/3d';
+const red = new Material3D({ baseColor: 0xd9534f });
+for (let i = 0; i < 200; i++) view.add.mesh({ geometry: 'box', material: red, x: i });
+// on scene destroy: red.destroy();
+```
+
+## Portrait screens
+
+Optional `camera.fitAspect` on props cameras (not a raw `Camera3D`) is the width/height ratio you
+frame for (e.g. `16 / 9`). On a narrower view, vertical FOV grows so the same width stays in frame.
+
+```ts
+const view = this.add.view3d({
+  camera: { position: [0, 1.5, 4], lookAt: [0, 0, 0], fitAspect: 16 / 9 },
+});
+```
 
 ## Quality
 
@@ -89,14 +125,16 @@ are freed when the view is destroyed, so do not keep such a node alive past its 
 
 ## Types
 
-Import the package somewhere in the app (or list `@caperjs/plugin-3d` in `tsconfig`
-`types`) so its `FactoryMethodOverrides` augmentation makes `this.add.view3d` typecheck.
+No import needed in scenes: with `'3d'` in `plugins` and this package installed, regenerated
+`src/types/caper-app.d.ts` includes `import type {} from '@caperjs/plugin-3d'` so
+`this.add.view3d` typechecks. When AssetPack ships `.glb`/`.gltf` models, `caper-assets.d.ts`
+defines `AssetModels`; `view.add.model({ asset: '…' })` only accepts known manifest names or a
+loaded `Scene3DSource` (`asset: await Assets.load(url)`).
 
 ## Not in v1 yet
 
 - **`Entity3D` / `view.add.entity(id)`** — deferred until build-side discovery can tell 3D
   entities from 2D.
-- **Field-of-view aspect policy** — set `view.camera.fov` in `resize` for now.
 
 ## License
 

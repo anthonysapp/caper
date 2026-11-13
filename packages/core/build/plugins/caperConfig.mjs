@@ -22,6 +22,31 @@ import { caperConfigSchema } from '../internal/schema.mjs';
 import { cwd, DTS_FILE_NAME, logger } from '../internal/util.mjs';
 import { runBuildTimeValidation } from '../internal/validate.mjs';
 
+/** Type-only imports for configured npm plugins that ship declarations. */
+export function pluginTypeImports(configObject, plugins) {
+  if (configObject?.type !== AST_NODE_TYPES.ObjectExpression) return [];
+  const property = configObject.properties.find(
+    (p) => p.type === AST_NODE_TYPES.Property && p.key?.name === 'plugins',
+  );
+  let list = property?.value;
+  while (['TSAsExpression', 'TSSatisfiesExpression', 'ParenthesizedExpression'].includes(list?.type)) {
+    list = list.expression;
+  }
+  if (list?.type !== AST_NODE_TYPES.ArrayExpression) return [];
+
+  const listedIds = new Set();
+  for (const entry of list.elements) {
+    const id = entry?.type === AST_NODE_TYPES.ArrayExpression ? entry.elements[0] : entry;
+    if (id?.type === AST_NODE_TYPES.Literal && typeof id.value === 'string') listedIds.add(id.value);
+  }
+
+  return [...new Set(plugins
+    .filter((p) => p.isLocal === false && p.active !== false && p.hasTypes && listedIds.has(p.id))
+    .map((p) => p.name))]
+    .sort()
+    .map((name) => `import type {} from '${name}';`);
+}
+
 async function validateCaperConfig(server, root) {
   if (!server || typeof server.ssrLoadModule !== 'function') return true;
   const configPath = path.resolve(root, 'caper.config.ts');
@@ -304,6 +329,7 @@ export function caperConfigPlugin(isProject = true, manifestUrl = 'assets.json')
     if (appClassName !== 'Application') {
       imports.push(`import type { ${appClassName} } from '${relativeAppPath}';`);
     }
+    imports.push(...pluginTypeImports(configObject, plugins));
 
     return {
       types: `

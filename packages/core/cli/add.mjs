@@ -2,6 +2,7 @@ import { bold, cyan, green, red, yellow } from 'kleur/colors';
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { add3dCommand } from './add3d.mjs';
 
 /**
  * `caper add <kind> <Name>` — scaffolds a single file under `src/<kind>s/`
@@ -158,9 +159,11 @@ const SUFFIXES = {
 export async function add(args) {
   const [kind, rawName, ...rest] = args;
 
+  if (kind === '3d') return add3dCommand(rest);
+
   if (!kind || !KINDS.includes(kind)) {
-    console.error(red(`caper add: missing or unknown kind. Expected one of: ${KINDS.join(', ')}`));
-    console.error(`Usage: caper add <${KINDS.join('|')}> <Name> [--dir path]`);
+    console.error(red(`caper add: missing or unknown kind. Expected one of: ${[...KINDS, '3d'].join(', ')}`));
+    console.error(`Usage: caper add <${KINDS.join('|')}> <Name> [--dir path] or caper add 3d`);
     process.exit(1);
   }
   if (!rawName) {

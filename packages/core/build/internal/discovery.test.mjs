@@ -63,6 +63,7 @@ describe('discoverNpmPlugins', () => {
     expect(plugin.id).toBe('foo');
     expect(plugin.phase).toBe('pre-renderer');
     expect(plugin.requires).toEqual(['firebase']);
+    expect(plugin.hasTypes).toBe(false);
   });
 
   it('defaults phase and requires when caper is absent', () => {
@@ -83,6 +84,7 @@ describe('discoverNpmPlugins', () => {
 
     expect(plugin.phase).toBeUndefined();
     expect(plugin.requires).toEqual([]);
+    expect(plugin.hasTypes).toBe(false);
   });
 
   it('does not throw when the installed package is missing', () => {
@@ -97,6 +99,21 @@ describe('discoverNpmPlugins', () => {
     const [plugin] = discoverNpmPlugins(dir);
     expect(plugin.phase).toBeUndefined();
     expect(plugin.requires).toEqual([]);
+    expect(plugin.hasTypes).toBe(false);
+  });
+
+  it.each([
+    [{ types: './index.d.ts' }, true],
+    [{ typings: './index.d.ts' }, true],
+    [{ exports: { '.': { types: './index.d.ts' } } }, true],
+    [{ exports: { '.': { default: './index.js' } } }, false],
+  ])('detects installed package type declarations in %j', (fields, expected) => {
+    const pkgName = '@caperjs/plugin-typed';
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ dependencies: { [pkgName]: '1.0.0' } }));
+    fs.mkdirSync(path.join(dir, 'node_modules', pkgName), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'node_modules', pkgName, 'package.json'), JSON.stringify({ name: pkgName, ...fields }));
+
+    expect(discoverNpmPlugins(dir)[0].hasTypes).toBe(expected);
   });
 });
 
