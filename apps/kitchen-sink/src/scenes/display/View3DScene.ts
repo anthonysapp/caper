@@ -1,9 +1,10 @@
-import type SpinCube from '@/entities/SpinCube';
+import type Robot from '@/entities/Robot';
 import BaseScene from '@/scenes/BaseScene';
-import { FONT_BODY } from '@/utils/Constants';
-import { defineScene, type Button } from '@caperjs/core';
-import type { Model, View3D } from '@caperjs/plugin-3d';
-import type { Text } from 'pixi.js';
+import { CaperColors } from '@/theme';
+import { FONT_BODY, FONT_DISPLAY } from '@/utils/Constants';
+import { defineScene, type Container, type UICanvas } from '@caperjs/core';
+import type { View3D } from '@caperjs/plugin-3d';
+import type { Graphics, Text } from 'pixi.js';
 
 export const scene = defineScene({
   id: 'view-3d',
@@ -20,70 +21,106 @@ export const scene = defineScene({
 
 export default class View3DScene extends BaseScene {
   protected readonly title = 'View 3D';
-  protected readonly subtitle = 'Tap the cube to change its colour';
+  protected readonly subtitle = '2D art behind, a 3D stage, 2D UI on top. Tap a cube.';
 
   view: View3D;
-  cube: SpinCube;
-  hero: Model;
-  buttonClicks = 0;
-  private hudLabel: Text;
-  private button: Button;
+  robot: Robot;
+  taps = 0;
+  private sun: Graphics;
+  private nameTag: Container;
+  private ui: UICanvas;
+  private score: Text;
+  private walk = 0;
 
   public async initialize() {
     await super.initialize();
 
-    const behind = this.add.graphics();
-    behind.circle(0, 0, 220).fill({ color: 0xffcc00, alpha: 1 });
-    behind.label = 'View 3D behind circle';
+    // 1. 2D behind: anything added before the view draws under it.
+    this.sun = this.add.graphics().circle(0, 0, 100).fill(CaperColors.olive);
 
+    // 2. The 3D stage. The view is see-through, so the sun and the scene background show around it.
     this.view = this.add.view3d({
-      // fitAspect: on a screen narrower than 16:9 the camera widens so the sides stay in frame.
-      camera: { position: [0, 4, 9], lookAt: [0, 1, 0], fitAspect: 16 / 9 },
+      // fitAspect: on a screen narrower than this the camera widens, so the stage never crops.
+      camera: { position: [10, 8.5, 10], lookAt: [0, -0.5, 0], fov: 36, fitAspect: 1 },
+      environment: { skyColor: 0xdfe8d0, groundColor: 0x6b7558, intensity: 0.8 },
+      shadowFilter: 'pcf-high',
     });
-
     this.view.add.mesh({
-      geometry: 'plane',
-      rotation: [-Math.PI / 2, 0, 0],
-      scale: 20,
+      geometry: 'box',
+      scale: [6, 0.4, 6],
+      y: -0.2,
       castShadow: false,
-      color: 0x7f8f6a,
+      material: this.view.make.material({ color: 0xd9dccf, roughness: 0.9 }),
     });
+    this.view.add.light({ color: 0xfff2dc, intensity: 2.6, castShadow: true, position: [-3, 8, 5], lookAt: [0, 0, 0] });
 
-    this.cube = this.view.add.entity('spin-cube', { x: -2, y: 1.2, scale: 1.5 });
+    this.robot = this.view.add.entity('robot', { clip: 'Walking' });
+    for (const [x, y, z] of [[-0.8, 1.1, -0.6], [0.7, 1.8, -0.7], [0, 0.9, 0.8]]) {
+      const cube = this.view.add.entity('spin-cube', { x, y, z, scale: 0.7 });
+      cube.on('pointertap', () => {
+        cube.pop();
+        this.robot.react('ThumbsUp');
+        this.score.text = `${++this.taps}`;
+      });
+    }
 
-    this.hero = this.view.add.model({ asset: 'cesium-man', x: 1.5, scale: 2 });
-    this.hero.play('anim_0');
-
-    this.view.add.light({ type: 'directional', intensity: 3, castShadow: true });
-
-    this.hudLabel = this.add.text({
-      text: 'Caper 2D text over 3D',
-      style: { fontFamily: FONT_BODY, fontSize: 28, fill: 0xffffff },
+    // 3. 2D on top: anything added after the view draws over it and wins taps.
+    this.nameTag = this.add.container();
+    this.nameTag.add.graphics().roundRect(-44, -13, 88, 26, 13).fill({ color: CaperColors.ink, alpha: 0.85 });
+    this.nameTag.add.text({
+      text: 'SCOUT',
       anchor: 0.5,
-      label: 'View 3D label',
+      style: { fontFamily: FONT_DISPLAY, fontSize: 11, fill: CaperColors.olive, letterSpacing: 2 },
     });
-    this.button = this.add.button({
+
+    this.ui = this.add.uiCanvas({ useAppSize: true });
+    const hud = this.make.flexContainer({ flexDirection: 'column', alignItems: 'center', gap: 14, layout: { paddingBottom: 64 } });
+    this.ui.addElement(hud, { align: 'bottom' });
+    const readout = hud.add.flexContainer({ alignItems: 'center', gap: 10 });
+    readout.add.text({
+      text: 'CUBES TAPPED',
+      style: { fontFamily: FONT_DISPLAY, fontSize: 12, fill: CaperColors.textDim, letterSpacing: 2 },
+    });
+    this.score = readout.add.text({
+      text: '0',
+      style: { fontFamily: FONT_BODY, fontWeight: 'bold', fontSize: 26, fill: CaperColors.text },
+    });
+    const button = hud.add.button({
       textures: { default: 'btn/blue', hover: 'btn/yellow' },
-      layout: { height: 91, width: 332 },
-      scale: 0.65,
+      scale: 0.4,
+      layout: { width: 205, height: 56 },
+      cursor: 'pointer',
       label: 'View 3D button',
     });
-    this.button.addLabel({
-      type: 'text',
-      text: 'Caper Button',
-      anchor: 0.5,
-      style: { fontSize: 50, fill: 0xffffff },
-    });
-    this.button.onClick.connect(() => {
-      this.buttonClicks++;
-      this.hudLabel.text = `Button clicks: ${this.buttonClicks}`;
-    });
+    button.addLabel({ type: 'text', text: 'Wave', anchor: 0.5, style: { fontFamily: FONT_BODY, fontSize: 48, fill: CaperColors.ink } });
+    button.onClick.connect(() => this.robot.react('Wave'));
+    this.resize();
+  }
+
+  update() {
+    if (!this.robot) return;
+    // Walk a circle around the cubes, facing along it; stand still while waving.
+    if (!this.robot.reacting) this.walk += this.app.ticker.deltaMS / 1000;
+    const angle = this.walk * 0.45;
+    const x = Math.sin(angle) * 2.1;
+    const z = Math.cos(angle) * 2.1;
+    this.robot.position.set(x, 0, z);
+    this.robot.rotation.y = angle + Math.PI / 2;
+
+    // Pin 2D to 3D points. worldToScreen gives stage pixels (null behind the camera); toLocal brings
+    // them into this scene. The tag rides above the robot, the sun stays behind the cubes.
+    const head = this.view.worldToScreen({ x, y: 2, z });
+    if (head) this.toLocal(head, undefined, this.nameTag.position);
+    const middle = this.view.worldToScreen({ x: 0, y: 2, z: 0 });
+    if (middle) this.toLocal(middle, undefined, this.sun.position);
   }
 
   resize() {
     super.resize();
-    const h = this.app.size.height;
-    if (this.hudLabel) this.hudLabel.position.set(0, h * 0.5 - 160);
-    if (this.button) this.button.position.set(-this.button.width * 0.5, h * 0.5 - 110);
+    if (!this.sun) return;
+    const { width, height } = this.app.size;
+    this.sun.scale.set(Math.min(width * 0.38, height * 0.25) / 100);
+    // On a tall screen aim the camera higher, which lowers the stage toward the controls.
+    this.view.camera.lookAt({ x: 0, y: width < height ? 0.8 : -0.5, z: 0 });
   }
 }

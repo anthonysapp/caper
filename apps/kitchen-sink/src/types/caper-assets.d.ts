@@ -467,13 +467,13 @@ export type AssetRive = never;
  * const model: AssetModels = 'cesium-man';
  */
 export type AssetModels =
-  | 'cesium-man'
-  | 'cesium-man.glb'
-  | 'models/cesium-man'
-  | 'models/cesium-man.glb';
+  | 'models/robot'
+  | 'models/robot.glb'
+  | 'robot'
+  | 'robot.glb';
 
 export type AssetModelsByBundle = {
-    models: 'cesium-man' | 'cesium-man.glb' | 'models/cesium-man' | 'models/cesium-man.glb';
+    models: 'models/robot' | 'models/robot.glb' | 'robot' | 'robot.glb';
   };
 export type AssetModelsIn<B extends AssetBundles> = B extends keyof AssetModelsByBundle ? AssetModelsByBundle[B] : never;
 
