@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { generatePluginList, sortPluginsByRequires } from './config';
+import { generatePluginList, getPreRendererPlugins, sortPluginsByRequires } from './config';
 
 // `generatePluginList` reads `globalThis.Caper.get('pluginsList')` — normally
 // populated by the caper-runtime virtual module the Vite plugin injects. In
@@ -26,8 +26,16 @@ describe('generatePluginList', () => {
 
     const result = await generatePluginList(['audio' as never]);
     expect(result).toEqual([
-      { id: 'audio', path: 'audio', module: expect.any(Function), requires: [], options: undefined, autoLoad: true },
+      { id: 'audio', path: 'audio', module: expect.any(Function), requires: [], phase: undefined, options: undefined, autoLoad: true },
     ]);
+  });
+
+  it('passes the discovered plugin phase through', async () => {
+    (globalThis as unknown as { Caper: { get: (key: string) => unknown } }).Caper = {
+      get: () => [{ id: '3d', path: '3d', module: () => Promise.resolve({}), phase: 'pre-renderer' }],
+    };
+
+    expect((await generatePluginList(['3d' as never]))[0].phase).toBe('pre-renderer');
   });
 
   // A bare string entry must match on the whole id. Indexing `plugin[0]` on a
@@ -46,6 +54,41 @@ describe('generatePluginList', () => {
 
     const result = await generatePluginList(['audio' as never]);
     expect(result.map((p) => p.id)).toEqual(['audio']);
+  });
+});
+
+describe('getPreRendererPlugins', () => {
+  const item = (id: string, phase?: 'pre-renderer', requires: string[] = [], autoLoad = true) => ({
+    id,
+    module: () => Promise.resolve({}),
+    phase,
+    requires,
+    autoLoad,
+  });
+
+  it('returns only pre-renderer plugins in config order', () => {
+    const items = [item('first', 'pre-renderer'), item('normal'), item('second', 'pre-renderer')];
+    expect(getPreRendererPlugins(items).map((p) => p.id)).toEqual(['first', 'second']);
+  });
+
+  it('rejects a pre-renderer plugin marked autoLoad: false', () => {
+    expect(() => getPreRendererPlugins([item('3d', 'pre-renderer', [], false)])).toThrow(/Plugin '3d'.*autoLoad: false/);
+  });
+
+  it('rejects a pre-renderer plugin listed in a scene', () => {
+    expect(() => getPreRendererPlugins([item('3d', 'pre-renderer')], [{ id: 'game', plugins: ['3d'] }])).toThrow(/Plugin '3d'.*scene 'game'/);
+  });
+
+  it('rejects a pre-renderer dependency on a normal plugin', () => {
+    expect(() => getPreRendererPlugins([item('3d', 'pre-renderer', ['physics']), item('physics')])).toThrow(/Plugin '3d'.*requires 'physics'/);
+  });
+
+  it('reports all problems in one error', () => {
+    expect(() => getPreRendererPlugins([item('3d', 'pre-renderer', ['physics'], false), item('physics')])).toThrow(/autoLoad: false[\s\S]*requires 'physics'/);
+  });
+
+  it('allows a normal plugin to require a pre-renderer plugin', () => {
+    expect(() => getPreRendererPlugins([item('3d', 'pre-renderer'), item('physics', undefined, ['3d'])])).not.toThrow();
   });
 });
 
@@ -75,5 +118,9 @@ describe('sortPluginsByRequires', () => {
     const items = [item('a', ['nonsense']), item('b')];
 
     expect(() => sortPluginsByRequires(items, new Set(['audio']))).toThrow(/nonsense/);
+  });
+
+  it('checks missing requirements even when there is only one plugin', () => {
+    expect(() => sortPluginsByRequires([item('3d', ['missing'])])).toThrow(/missing/);
   });
 });

@@ -32,7 +32,7 @@ flowchart TB
 
 1. **Build time.** The `caper()` Vite preset ([build/index.mjs](../../packages/core/build/index.mjs)) *parses* (never imports) app source with an AST scanner, finds `defineScene`/`defineEntity`/`definePopup`/`defineUI`/`definePlugin` markers, and emits `virtual:caper-*` list modules plus a generated `caper-app.d.ts` for literal-typed ids. It injects a `caper-runtime` module import into `index.html`, so apps need no entry file.
 2. **`create(config)`** ([src/core/create.ts](../../packages/core/src/core/create.ts)) prepares the browser environment and instantiates the app class (`config.application`, default `Application`, a Pixi `Application` subclass).
-3. **Phase 1 — `preInitialize`**: pre-renderer plugins (dev tools, GSAP, store).
+3. **Phase 1 — `preInitialize`**: the built-in early plugins (dev tools, GSAP, store), then the config-declared **pre-renderer plugins** (`phase: 'pre-renderer'`). All before the renderer exists.
 4. **Phase 2 — `initialize`**: Pixi renderer init → the 16 default plugins in the fixed order of [plugins/defaults.ts](../../packages/core/src/plugins/defaults.ts) → stage assembly → config-declared plugins, topologically sorted by their `requires` lists → default scene load via SceneManagerPlugin.
 5. **Phase 3 — `postInitialize`**: every plugin's `postInitialize`, PWA/visibility wiring, then the app's own overridable hook.
 6. `globals.ts` registers the app on `window.Caper` (`apps`, `ready()`, and — when gated on — the `automation` facade). It reads no browser global at module load, because the built entry is also evaluated in Node during SSR config loading.

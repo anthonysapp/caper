@@ -2,6 +2,9 @@ import { gsap } from 'gsap';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Application } from './Application';
+import './config';
+import '../mixins/factory/const';
+import { registerFactoryMethods } from '../mixins/factory/defaults';
 
 /**
  * `pause`/`resume`/`destroy` are plain instance methods that only touch a
@@ -164,5 +167,70 @@ describe('Application#destroy', () => {
     expect(() => app.destroy()).not.toThrow();
 
     vi.restoreAllMocks();
+  });
+});
+
+describe('Application plugin phases', () => {
+  it('initializes pre-renderer plugins before the renderer, normal plugins after, and post-initializes both', async () => {
+    const app = makeApp();
+    const calls: string[] = [];
+    app.config = { scenes: [] };
+    app.plugins = [
+      { id: '3d', phase: 'pre-renderer', module: () => Promise.resolve({}), autoLoad: true },
+      { id: 'normal', module: () => Promise.resolve({}), autoLoad: true, requires: ['3d'] },
+    ];
+    app.loadPlugin = vi.fn(async (p: { id: string }) => {
+      calls.push(`initialize:${p.id}`);
+      app._plugins.set(p.id, { id: p.id, postInitialize: () => calls.push(`postInitialize:${p.id}`) });
+    });
+    app._connectPwaSignals = vi.fn();
+    app._webEventsManager = { onVisibilityChanged: { connect: vi.fn() } };
+    app.postInitialize = vi.fn();
+
+    await app.registerPreRendererPlugins();
+    calls.push('renderer:init');
+    // a default plugin registers after the renderer, before config plugins
+    app._plugins.set('input', { id: 'input', postInitialize: () => calls.push('postInitialize:input') });
+    await app.registerPlugins();
+    await app._postInitialize();
+
+    expect(calls).toEqual([
+      'initialize:3d', 'renderer:init', 'initialize:normal', 'postInitialize:input', 'postInitialize:3d', 'postInitialize:normal',
+    ]);
+    expect(app.loadPlugin).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Application pre-renderer validation', () => {
+  it('fails bootstrap when a discovered scene lists a pre-renderer plugin', async () => {
+    const app = makeApp();
+    app.plugins = [{ id: '3d', phase: 'pre-renderer', module: () => Promise.resolve({}), autoLoad: true }];
+    app.loadPlugin = vi.fn();
+    const g = globalThis as any;
+    const previous = g.Caper;
+    g.Caper = { get: (key: string) => (key === 'sceneList' ? [{ id: 'game', plugins: ['3d'] }] : undefined) };
+    try {
+      await expect(app.registerPreRendererPlugins()).rejects.toThrow(/'3d'.*scene 'game'/s);
+    } finally {
+      g.Caper = previous;
+    }
+    expect(app.loadPlugin).not.toHaveBeenCalled();
+  });
+});
+
+describe('Application#make', () => {
+  it('rebuilds its cached methods after registration and disposal', () => {
+    const app = makeApp();
+    const original = app.make;
+    const widget = () => ({ id: 'widget' }) as never;
+    const dispose = registerFactoryMethods({ widget });
+    try {
+      expect(app.make).not.toBe(original);
+      expect(app.make).toBe(app.make);
+      expect(app.make.widget()).toEqual({ id: 'widget' });
+    } finally {
+      dispose();
+    }
+    expect(app.make.widget).toBeUndefined();
   });
 });

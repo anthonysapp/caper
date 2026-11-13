@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 // Evaluating the table registers it into ./defaults; Factory() reads it lazily.
 import './const';
 import { Factory } from './Factory';
-import { getDefaultFactoryMethods } from './defaults';
+import { getDefaultFactoryMethods, registerFactoryMethods } from './defaults';
+
+declare module './defaults' {
+  interface FactoryMethodOverrides {
+    widget: () => PIXIContainer;
+  }
+}
 
 describe('Factory extensions', () => {
   it('does not leak extensions into the shared default table', () => {
@@ -18,6 +24,29 @@ describe('Factory extensions', () => {
     const plain = new Plain() as any;
     expect(plain.make.customThing).toBeUndefined();
     expect(typeof plain.make.container).toBe('function');
+  });
+
+  it('adds newly registered methods to new instances without leaking class extensions', () => {
+    const Extended = Factory({ customThing: () => new PIXIContainer() } as any);
+    new Extended();
+    const dispose = registerFactoryMethods({ widget: () => new PIXIContainer() });
+    try {
+      const extended = new Extended();
+      const widget: () => PIXIContainer = extended.add.widget;
+      expect(typeof widget).toBe('function');
+      const added = extended.add.widget();
+      expect(added.parent).toBe(extended);
+      const made = extended.make.widget();
+      expect(made.parent).toBeNull();
+      expect(typeof (extended.make as any).customThing).toBe('function');
+
+      const plain = new (Factory())();
+      expect(typeof plain.add.widget).toBe('function');
+      expect((plain.make as any).customThing).toBeUndefined();
+    } finally {
+      dispose();
+    }
+    expect((new Extended().add as any).widget).toBeUndefined();
   });
 });
 

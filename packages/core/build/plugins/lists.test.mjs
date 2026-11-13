@@ -44,6 +44,42 @@ describe('createClassListPlugin identifier collisions', () => {
   });
 });
 
+describe('pluginListPlugin phase metadata', () => {
+  it('emits phase on entries in the generated pluginsList module', async () => {
+    discoverPluginsMock.mockResolvedValueOnce([
+      {
+        id: 'pre',
+        name: 'PrePlugin',
+        isLocal: true,
+        active: true,
+        requires: [],
+        phase: 'pre-renderer',
+        module: { toString: () => "() => import('@/plugins/Pre.ts')", isFunction: true },
+        importPath: '@/plugins/Pre.ts',
+      },
+      {
+        id: 'normal',
+        name: 'NormalPlugin',
+        isLocal: false,
+        active: true,
+        requires: [],
+        phase: undefined,
+        module: { toString: () => "() => import('@caperjs/plugin-normal')", isFunction: true },
+        importPath: '@caperjs/plugin-normal',
+      },
+    ]);
+
+    const plugin = pluginListPlugin(true);
+    plugin.configResolved({ root: '/proj' });
+
+    const source = await plugin.load('\0virtual:caper-plugins');
+
+    expect(source).toContain("phase: 'pre-renderer'");
+    expect(source).toContain('phase: undefined');
+    expect(() => parse(source)).not.toThrow();
+  });
+});
+
 describe('pluginListPlugin identifier collisions', () => {
   it('gives two same-basename local plugins distinct import identifiers', async () => {
     discoverPluginsMock.mockResolvedValueOnce([

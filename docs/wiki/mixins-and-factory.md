@@ -91,7 +91,7 @@ passthrough to instance properties (`alpha`, `visible`, `label`,
 | `mixins/signals.ts` | Gives a class a `signalConnections: SignalConnections` bag and `addSignalConnection`/`connectSignal`/`connectAction`, auto-disconnected in `destroy()`. | `WithSignals`, `ISignalContainer` |
 | `mixins/factory/Factory.ts` | The mixin itself: builds per-instance `add`/`make` tables from the (lazily-read) default method table plus any per-class `extensions`. | `Factory`, `IFactory` |
 | `mixins/factory/const.ts` | The `defaultFactoryMethods` table — one entry per display/UI type. Imports every concrete display/ui class (the "table" side of the cycle). Pushes the table into `defaults.ts` at module-evaluation time. | `defaultFactoryMethods` |
-| `mixins/factory/defaults.ts` | The import-free registration slot that breaks the cycle — see below. Zero imports, by design. | `setDefaultFactoryMethods`, `getDefaultFactoryMethods` |
+| `mixins/factory/defaults.ts` | The import-free registration slot that breaks the cycle — see below. Zero imports, by design. Also holds plugin-contributed methods, apart from the built-ins, and hands out the merged table. | `setDefaultFactoryMethods`, `getDefaultFactoryMethods` (internal); `registerFactoryMethods`, `FactoryMethodOverrides` (public) |
 | `mixins/factory/methods.ts` | Turns a method map into the actual `add`/`make` callable table, injecting the `addChild` side effect. | `createFactoryMethods` |
 | `mixins/factory/schema.ts` | `buildFactoryMethod({build, applies, exclude})` — the helper most `const.ts` entries are built from; centralizes the position/scale/pivot/anchor-then-unknown-keys pipeline. | `buildFactoryMethod`, `FactorySchema`, `FactoryApply` |
 | `mixins/factory/props.ts` | Prop-shape interfaces for every factory method (`SpriteProps`, `TextProps`, `ContainerProps`, etc.) — the types that drive `this.add.sprite({...})` autocomplete. | `*Props` interfaces |
@@ -203,6 +203,27 @@ explanation in-repo.
   than writing the position/scale/pivot/anchor/unknown-keys plumbing by
   hand. Add a matching `*Props` interface to `props.ts` for the DX/type
   surface at the call site.
+- **Plugin-contributed factory methods** — `registerFactoryMethods(methods)`
+  (`packages/core/src/mixins/factory/defaults.ts`) adds methods for **every**
+  container: `this.add.<name>`, `this.make.<name>` and `app.make.<name>`. It
+  returns a function that removes exactly what the call added. Interface facts a
+  caller must know:
+  - **Timing.** A container reads the merged table in its constructor. Containers
+    built after the call have the method; containers built before never get it.
+    Register in a pre-renderer plugin's `initialize` (see
+    [plugins-architecture.md](plugins-architecture.md)), when no Caper container
+    exists yet. `app.make` rebuilds itself when the table changes.
+  - **Collisions throw.** A built-in name, or a name an earlier call registered
+    with a different function, throws and says which. The same function again is
+    a no-op. A call that throws registers nothing.
+  - **Types** come from augmenting the empty `FactoryMethodOverrides` interface
+    (`declare module '@caperjs/core'`). `IFactory['add']` is
+    `typeof defaultFactoryMethods & FactoryMethodOverrides`.
+  - `buildFactoryMethod` / `FactorySchema` / `FactoryApply` are exported from
+    `@caperjs/core` so contributed methods get the standard
+    position/scale/pivot/unknown-keys pipeline. A plain `(props) => node` works too.
+  - Built-ins (`defaultFactoryMethods`) are never mutated; contributions live in
+    their own map inside the slot, which keeps `defaults.ts` import-free.
 - **Per-instance/per-subclass factory extensions** — `Factory<T>(extensions?)`
   takes a `Partial<T>` of extra methods, merged into a **copy** of the
   shared default table per class (`packages/core/src/mixins/factory/Factory.ts:26`,
@@ -241,12 +262,11 @@ explanation in-repo.
   silently skipped, by design (`registry.ts:38-42`). There is no async
   factory variant — a project needing code-split entities must fall back to
   `this.add.existing(new Foo(...))` with a manual `import()`.
-- **`Factory()`'s `extensions` parameter is mutated internally** — `Factory.ts:26`
-  reassigns the `extensions` parameter binding itself
-  (`extensions = Object.assign({}, ...)`) rather than declaring a new
-  `const`. It's contained to the constructor's local scope so it isn't a
-  functional bug, but a reviewer skimming the diff may misread it as
-  mutating the caller's object.
+- **The method table is merged per instance, at construct time**
+  (`Object.assign({}, getDefaultFactoryMethods(), extensions)` into a local in
+  `Factory.ts`). Nothing is cached per class, so a method registered or removed
+  with `registerFactoryMethods` applies to the next container built — and never
+  to one that already exists.
 - **Props objects are widely typed as `any` internally.** `resolveUnknownKeys`,
   `createFactoryMethods`, and most resolver functions in `utils.ts` take
   `any`/`entity: any`. The type safety callers see (`this.add.sprite({...})`
@@ -279,6 +299,19 @@ explanation in-repo.
 5. Verify: run the six `importOrder.*.test.ts` files
    (`pnpm --filter caper vitest run importOrder`) — they'll catch it if the
    new import accidentally creates a fresh eager edge back into `Factory`.
+
+**Add a factory method from a plugin (e.g. `this.add.gauge(...)` in every container):**
+
+1. Make the plugin pre-renderer: `definePlugin({ id, phase: 'pre-renderer' })`
+   (npm package: `"caper": { "phase": "pre-renderer" }` in its `package.json`).
+2. In `initialize`, call
+   `this.addDisposer(registerFactoryMethods({ gauge: buildFactoryMethod<GaugeProps, Gauge>({ build: (props) => new Gauge(props) }) }))`.
+3. Type it once, next to the plugin:
+   `declare module '@caperjs/core' { interface FactoryMethodOverrides { gauge: (props?: GaugeProps) => Gauge } }`.
+4. Pick a name no built-in uses; a clash throws at registration.
+5. Do not add the method to `const.ts` and do not import display/ui classes into
+   `defaults.ts`. Full sample: [plugins-architecture.md](plugins-architecture.md)
+   recipe "Write a pre-renderer plugin".
 
 **Use the signals mixin (`WithSignals`) in a custom class:**
 

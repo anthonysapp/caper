@@ -171,6 +171,7 @@ export function pluginListPlugin(isProject = true) {
         id: '${plugin.id}',
         isLocal: ${plugin.isLocal},
         active: ${plugin.active},
+        phase: ${plugin.phase === 'pre-renderer' ? "'pre-renderer'" : 'undefined'},
         requires: ${JSON.stringify(plugin.requires || [])},
         module: ${moduleExpr}
       }`;

@@ -175,6 +175,7 @@ export async function discoverLocalPlugins(server, root) {
                 isFunction: true,
               },
         active: exports.active === false ? false : true,
+        phase: exports.phase === 'pre-renderer' ? 'pre-renderer' : undefined,
         requires: Array.isArray(exports.requires) ? exports.requires.filter((r) => typeof r === 'string') : [],
       });
     } catch (e) {
@@ -201,6 +202,42 @@ export async function discoverLocalPlugins(server, root) {
 }
 
 /**
+ * Reads an installed package's `package.json` by walking up from `root`
+ * through `node_modules/<packageName>/package.json`. Used for npm plugin
+ * metadata only — the plugin module is never imported at build time.
+ */
+function readInstalledPackageJson(root, packageName) {
+  let dir = root;
+  for (;;) {
+    const pkgPath = path.join(dir, 'node_modules', packageName, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      try {
+        return JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      } catch (e) {
+        logger.error(`Could not read ${pkgPath}, so its caper.phase / caper.requires are ignored: ${e.message}`);
+        return null;
+      }
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+function readNpmPluginCaperMetadata(root, packageName) {
+  const pkg = readInstalledPackageJson(root, packageName);
+  if (!pkg || typeof pkg.caper !== 'object' || pkg.caper === null) {
+    return { phase: undefined, requires: [] };
+  }
+  const phase = pkg.caper.phase === 'pre-renderer' ? 'pre-renderer' : undefined;
+  const requires = Array.isArray(pkg.caper.requires)
+    ? pkg.caper.requires.filter((r) => typeof r === 'string')
+    : [];
+  return { phase, requires };
+}
+
+/**
  * Discovers npm packages prefixed with `@caperjs/plugin-` in the host
  * project's `package.json`. Always emitted as dynamic imports.
  */
@@ -219,6 +256,7 @@ export function discoverNpmPlugins(root) {
     .filter((dep) => dep.startsWith('@caperjs/plugin-'))
     .map((packageName) => {
       const id = packageName.replace('@caperjs/plugin-', '');
+      const { phase, requires } = readNpmPluginCaperMetadata(root, packageName);
       return {
         id,
         name: packageName,
@@ -229,10 +267,8 @@ export function discoverNpmPlugins(root) {
           isFunction: true,
         },
         active: true,
-        // npm plugins can declare `requires` on the class itself
-        // (`public readonly requires = ['firebase']`); the runtime topo-sort
-        // reads from the live instance, so empty here is fine.
-        requires: [],
+        phase,
+        requires,
       };
     });
 }

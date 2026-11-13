@@ -53,6 +53,8 @@ export interface AssetTypeOverrides {}
 
 export type ImportListItemModule<T> = (() => Promise<any>) | Promise<any> | Constructor<T> | T;
 
+export type PluginPhase = 'pre-renderer';
+
 /**+
  * A type that represents an item in an import list.
  * @template T The type of the instance that the constructor creates.
@@ -65,6 +67,7 @@ export type ImportListItem<T = any> = {
   autoLoad?: boolean;
   /** IDs this item must be initialized after. Used by plugin topo-sort. */
   requires?: string[];
+  phase?: PluginPhase;
 };
 
 export type AssetExtension =

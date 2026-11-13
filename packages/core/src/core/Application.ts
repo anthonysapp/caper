@@ -9,7 +9,7 @@ import type {
   ICoreSignals,
   PauseConfig,
 } from '.';
-import { coreFunctionRegistry, coreSignalRegistry, generatePluginList, sortPluginsByRequires } from '.';
+import { coreFunctionRegistry, coreSignalRegistry, generatePluginList, getPreRendererPlugins, sortPluginsByRequires } from '.';
 import type {
   ActionSignal,
   AppScenes,
@@ -54,7 +54,7 @@ import { triggerViteError } from '../utils/vite';
 // Type-only — the value is read lazily in the `make` getter via the import-free
 // registration slot, so Application never pulls the factory table (and with it
 // every ui/display class) into its own module graph. See mixins/factory/defaults.
-import type { defaultFactoryMethods } from '../mixins/factory/const';
+import type { FactoryMethods } from '../mixins/factory/Factory';
 import { getDefaultFactoryMethods } from '../mixins/factory/defaults';
 import { createFactoryMethods } from '../mixins/factory/methods';
 import type { IActionsPlugin } from '../plugins/actions';
@@ -218,18 +218,21 @@ export class Application extends PIXIPApplication implements IApplication {
   protected _actions: ActionSignal;
 
   protected _env: Record<string, string> = (import.meta as any).env || {};
-  protected _makeFactory: typeof defaultFactoryMethods;
+  protected _makeFactory: FactoryMethods;
+  protected _makeFactorySource: ReturnType<typeof getDefaultFactoryMethods>;
 
   protected _isFullScreen: boolean = false;
   protected _fullScreenElement: HTMLElement | Window | null = null;
 
-  get make(): typeof defaultFactoryMethods {
-    if (!this._makeFactory) {
+  get make(): FactoryMethods {
+    const methods = getDefaultFactoryMethods();
+    if (!this._makeFactory || this._makeFactorySource !== methods) {
       this._makeFactory = createFactoryMethods(
-        getDefaultFactoryMethods() as typeof defaultFactoryMethods,
+        methods as FactoryMethods,
         this,
         false,
       );
+      this._makeFactorySource = methods;
     }
     return this._makeFactory;
   }
@@ -727,6 +730,8 @@ export class Application extends PIXIPApplication implements IApplication {
     }
 
     await this.boot(this.config);
+    this.plugins = await generatePluginList(this.config.plugins || []);
+    await this.registerPreRendererPlugins();
     await this.initAssets();
 
     // initialize the pixi application
@@ -756,8 +761,6 @@ export class Application extends PIXIPApplication implements IApplication {
 
     // internal setup
     await this._setup();
-
-    this.plugins = await generatePluginList(this.config.plugins || []);
 
     // register the applications custom plugins (storage-capable or not — one pipeline)
     await this.registerPlugins();
@@ -1048,9 +1051,30 @@ export class Application extends PIXIPApplication implements IApplication {
     }
   }
 
+  protected async registerPreRendererPlugins() {
+    // Scenes come from the discovered list (the same source SceneManagerPlugin
+    // reads), not `config.scenes` — that plugin does not exist yet.
+    const scenes = (globalThis as any).Caper?.get?.('sceneList') ?? [];
+    const pre = getPreRendererPlugins(this.plugins, scenes);
+    for (const p of sortPluginsByRequires(pre, new Set(this._plugins.keys()))) {
+      await this.loadPlugin(p);
+    }
+  }
+
   protected async registerPlugins() {
     if (!this.plugins?.length) {
       return;
+    }
+
+    // `_postInitialize` walks `_plugins` in insertion order. Move the pre-renderer
+    // plugins behind the default plugins so their `postInitialize` runs at the
+    // normal time — after the built-ins wired up, before the other config plugins.
+    const preRendererIds = new Set(this.plugins.filter((p) => p.phase === 'pre-renderer').map((p) => p.id));
+    for (const [id, plugin] of [...this._plugins]) {
+      if (preRendererIds.has(id)) {
+        this._plugins.delete(id);
+        this._plugins.set(id, plugin);
+      }
     }
 
     // Topologically sort by `requires` so a plugin's dependencies always
@@ -1060,7 +1084,10 @@ export class Application extends PIXIPApplication implements IApplication {
     // the single source of truth for active plugins, not auto-resolve).
     // The already-registered built-ins are passed along so `requires: ['audio']`
     // and friends resolve instead of failing bootstrap.
-    const sorted = sortPluginsByRequires(this.plugins, new Set(this._plugins.keys()));
+    const sorted = sortPluginsByRequires(
+      this.plugins.filter((p) => !preRendererIds.has(p.id)),
+      new Set(this._plugins.keys()),
+    );
 
     for (const p of sorted) {
       if (p.autoLoad) {

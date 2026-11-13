@@ -374,7 +374,7 @@ Returns the config object unchanged. Use it as the **default export** of
 | Helper | File location | Purpose |
 | --- | --- | --- |
 | `defineScene({ id, active?, dynamic?, assets?, plugins?, debug? })` | `src/scenes/<X>.ts` | Scene metadata |
-| `definePlugin({ id, active?, dynamic?, requires? })` | `src/plugins/<X>.ts` | Plugin metadata |
+| `definePlugin({ id, active?, dynamic?, requires?, phase? })` | `src/plugins/<X>.ts` | Plugin metadata |
 | `definePopup({ id, active?, dynamic? })` | `src/popups/<X>.ts` | Popup metadata |
 | `defineEntity({ id, active?, dynamic? })` | `src/entities/<X>.ts` | Entity metadata |
 | `defineUI({ id, active?, dynamic? })` | `src/ui/<X>.ts` | UI component metadata (optional; for `this.add.ui(id)`) |
@@ -385,6 +385,8 @@ Shared fields:
 - `dynamic` — whether to code-split: `defineScene` defaults `true`,
   `definePlugin`/`definePopup`/`defineEntity` default `false`.
 - `requires` (plugin only) — array of plugin IDs; topologically sorted at boot.
+- `phase` (plugin only) — `'pre-renderer'` initializes the plugin before the Pixi
+  renderer is created (§9.8). Omit it for the normal phase.
 
 Canonical scene file shape:
 
@@ -763,9 +765,14 @@ const c = new MyContainer();
 c.add.customBadge({ /* ... */ });
 ```
 
+That adds the method to one class. To add a method to **every** container
+(`this.add.x`, `this.make.x`, `app.make.x`), a plugin calls
+`registerFactoryMethods` — see §9.8.
+
 **Source references:** [src/mixins/factory/const.ts](../src/mixins/factory/const.ts),
 [src/mixins/factory/props.ts](../src/mixins/factory/props.ts),
-[src/mixins/factory/Factory.ts](../src/mixins/factory/Factory.ts).
+[src/mixins/factory/Factory.ts](../src/mixins/factory/Factory.ts),
+[src/mixins/factory/defaults.ts](../src/mixins/factory/defaults.ts).
 
 ---
 
@@ -1021,6 +1028,60 @@ whole boot; it doesn't hide anything from the user.
 **Source references:** [src/plugins/Plugin.ts](../src/plugins/Plugin.ts),
 [src/plugins/defaults.ts](../src/plugins/defaults.ts),
 [src/core/registries.ts](../src/core/registries.ts).
+
+### 9.8 Pre-renderer plugins and plugin factory methods
+
+Some libraries must be imported before the Pixi renderer exists. A plugin opts in
+with a **phase**:
+
+```ts
+// local plugin
+export const plugin = definePlugin({ id: 'shapes', phase: 'pre-renderer' });
+```
+
+```jsonc
+// npm plugin: in the package's own package.json (definePlugin is not read for npm packages)
+{ "caper": { "phase": "pre-renderer", "requires": [] } }
+```
+
+Rules:
+
+- It initializes at bootstrap before the renderer, in `plugins: []` order, sorted by
+  `requires` among pre-renderer plugins.
+- In `initialize`: no `app.renderer`, `app.stage`, `app.canvas`, no default plugins
+  (`app.assets`, `app.scenes`, ...), no normal-phase plugins. Use `postInitialize`
+  for those; it runs at the normal time.
+- Bootstrap throws if it is marked `autoLoad: false`, listed in a scene's `plugins`,
+  or `requires` a normal-phase plugin.
+
+A plugin adds factory methods for every container with `registerFactoryMethods`.
+Call it in a pre-renderer `initialize`, so it lands before any container is built:
+
+```ts
+import { buildFactoryMethod, Plugin, registerFactoryMethods } from '@caperjs/core';
+
+declare module '@caperjs/core' {
+  interface FactoryMethodOverrides {
+    gauge: (props?: GaugeProps) => Gauge;
+  }
+}
+
+export default class ShapesPlugin extends Plugin {
+  async initialize() {
+    this.addDisposer(
+      registerFactoryMethods({
+        gauge: buildFactoryMethod<GaugeProps, Gauge>({ build: (props) => new Gauge(props) }),
+      }),
+    );
+  }
+}
+// then anywhere: this.add.gauge({ x: 10 })  /  this.make.gauge()  /  app.make.gauge()
+```
+
+- `add` parents, `make` does not, same as built-ins.
+- A name that clashes with a built-in or an earlier registration throws.
+- Containers built before the call do not get the method.
+- `registerFactoryMethods` returns a function that removes what it added.
 
 ---
 

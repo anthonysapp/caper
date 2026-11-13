@@ -10,8 +10,10 @@ The ubiquitous language of `packages/core`. Grouped by area; use these terms exa
 |---|---|
 | **Core registry** | Two flat module-level maps (`coreSignalRegistry`, `coreFunctionRegistry`) plugins publish into; surfaced as `app.signal` and `app.func`/`app.exec`. |
 | **Default plugin** | One of the 16 built-ins wired by `plugins/defaults.ts`, loaded in fixed array order, invisible to `requires`. |
-| **`requires`** | A plugin's declared init-order dependencies; topologically sorts *config-declared* plugins only. |
-| **ImportListItem** | `{ id, module, namedExport?, options?, autoLoad?, requires? }` — the loadable descriptor form of a plugin/scene entry; `module` may be a class, promise, or import thunk. |
+| **`requires`** | A plugin's declared init-order dependencies; topologically sorts *config-declared* plugins only, within one plugin phase. |
+| **Plugin phase** | When a config-declared plugin initializes relative to the Pixi renderer. Default: after it. `'pre-renderer'`: before `this.init()`, declared via `definePlugin({ phase })` (local) or `caper.phase` in the package's `package.json` (npm). |
+| **Pre-renderer plugin** | A config-declared plugin in the `'pre-renderer'` phase. Always loaded at bootstrap (never `autoLoad: false`, never scene-scoped); its `postInitialize` runs at the normal time. Distinct from the built-in `preInitialize` plugins (GSAP, Layout, Spine, DevTools), which are not config-declared. |
+| **ImportListItem** | `{ id, module, namedExport?, options?, autoLoad?, requires?, phase? }` — the loadable descriptor form of a plugin/scene entry; `module` may be a class, promise, or import thunk. |
 | **Storage-capable** | Any plugin duck-typed with `save`/`load`; replaces the old separate "storage adapter" type. |
 | **Automation facade** | `ICaperAutomation` at `Caper.automation[id]` (`action`/`getState`/`waitFor`/log); gated on dev env, `config.automation`, or `VITE_CAPER_AUTOMATION`. |
 | **Runtime-managed** | `Caper.__runtimeManaged`: tells `create()` the Vite runtime module will signal readiness after `main.ts` runs. |
@@ -22,7 +24,7 @@ The ubiquitous language of `packages/core`. Grouped by area; use these terms exa
 |---|---|
 | **Plugin** | App-scoped capability object extending `Plugin<Options>`, keyed by `id`, with `initialize` → `postInitialize` → `destroy` lifecycle. |
 | **Disposer** | A cleanup callback registered on a plugin via `addDisposer` (or implicitly by `listen`/`addTickerCallback`); the base `destroy()` runs them LIFO, error-isolated. |
-| **`definePlugin`** | Build-time marker carrying `id`/`requires`/`active`/`dynamic` into discovery. |
+| **`definePlugin`** | Build-time marker carrying `id`/`requires`/`phase`/`active`/`dynamic` into discovery. |
 | **Action** | A named command (`'jump'`, `'pause'`) dispatched via `app.action(id, data)` and consumed by signal listeners. |
 | **Action context** | The single current string on ActionsPlugin (`'default'`, `'menu'`, …) gating which actions may dispatch. |
 | **Action detail** | The `{ id, context, data }` payload emitted on the per-action signal and `onActionDispatched`. |
@@ -54,6 +56,8 @@ The ubiquitous language of `packages/core`. Grouped by area; use these terms exa
 | **Factory method table** | `defaultFactoryMethods` in `mixins/factory/const.ts` — one entry per constructible type. |
 | **FactorySchema** | A `{ build, applies, exclude }` spec that `buildFactoryMethod` turns into a full factory method. |
 | **Registration slot** | `mixins/factory/defaults.ts`: a zero-import module decoupling table creation from consumption (the cycle defuser). |
+| **Contributed factory method** | A factory method a plugin adds with `registerFactoryMethods({...})`; kept apart from the built-in table in the registration slot and merged on read, so every container built afterwards has it on `add`/`make`. Typed by augmenting `FactoryMethodOverrides`. |
+| **FactoryMethodOverrides** | Empty interface plugins augment (`declare module '@caperjs/core'`) to type their contributed factory methods; same pattern as `AppTypeOverrides`. |
 | **Concrete import** | Importing a mixin's own file directly instead of the `mixins` barrel — mandatory inside display/ui/factory code. |
 | **Entry-order guard test** | An `importOrder.*.test.ts` that pins which module is imported first, to catch cycle regressions. |
 
