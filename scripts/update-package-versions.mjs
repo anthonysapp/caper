@@ -55,11 +55,12 @@ function updatePackageJson(packageJsonPath) {
     }
     // Caret range: an exact peer pin would force consumers to match every
     // patch release. Never touch workspace: links (dev-time monorepo wiring).
-    if (
-      packageJson.peerDependencies['@caperjs/core'] &&
-      !packageJson.peerDependencies['@caperjs/core'].includes('workspace')
-    ) {
-      packageJson.peerDependencies['@caperjs/core'] = `^${caperVersion}`;
+    // Every @caperjs/* peer, not only core: all packages publish at one version, so a
+    // plugin that builds on another plugin (plugin-klipp on plugin-3d) must move with it.
+    for (const [dep, range] of Object.entries(packageJson.peerDependencies)) {
+      if (dep.startsWith('@caperjs/') && !range.includes('workspace')) {
+        packageJson.peerDependencies[dep] = `^${caperVersion}`;
+      }
     }
     if (packageJson.peerDependencies['vite']) {
       packageJson.peerDependencies['vite'] = viteVersion;

@@ -31,7 +31,14 @@ If you're new to PixiJS, learn that first — Caper assumes you know how contain
 
 ## Status
 
-This is **a personal fork in active development**. The package is not yet published to npm under `@caperjs/core` — that happens in Phase 7. Until then, the recommended way to use it is to clone this repo, run the kitchen-sink, and either fork it as a starter or vendor `packages/core` into your own project.
+This is **a personal fork in active development**, published on npm under the `@caperjs` scope:
+`@caperjs/core`, the `@caperjs/plugin-*` packages and `@caperjs/solid`. Start a new game with
+`npx -p @caperjs/core caper create my-game`, or clone this repo and run the kitchen-sink to see
+everything working.
+
+Experimental in 0.8: 3D through `@caperjs/plugin-3d` (built on PixiJS's `@pixi/3d` beta) and a directed
+camera through `@caperjs/plugin-klipp`. Add them to an existing game with `npx caper add 3d` and
+`npx caper add klipp`.
 
 The original `dill-pixel` package on npm still works for projects that don't want to follow this fork — see [`MIGRATION_GUIDE.md`](./MIGRATION_GUIDE.md) for what changed.
 
@@ -41,6 +48,8 @@ The original `dill-pixel` package on npm still works for projects that don't wan
 packages/
   core/                       → @caperjs/core (the framework)
   plugin-crunch/              → @caperjs/plugin-crunch (Crunch physics)
+  plugin-3d/                  → @caperjs/plugin-3d (experimental 3D on @pixi/3d)
+  plugin-klipp/               → @caperjs/plugin-klipp (experimental camera rig, needs plugin-3d)
   plugin-rive/                → @caperjs/plugin-rive
   plugin-firebase/            → @caperjs/plugin-firebase
   plugin-google-analytics/    → @caperjs/plugin-google-analytics
