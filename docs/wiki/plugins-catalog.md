@@ -449,6 +449,7 @@ Built-in plugins above ship inside `@caperjs/core`. Optional capabilities live i
 | Package | Wiki |
 | --- | --- |
 | `@caperjs/plugin-3d` | [plugin-3d.md](plugin-3d.md) — experimental 3D via `@pixi/3d` (`phase: 'pre-renderer'`) |
+| `@caperjs/plugin-klipp` | [plugin-klipp.md](plugin-klipp.md) — experimental directed camera for 3D views via `@pmndrs/klipp` (`requires: ['3d']`) |
 
 Other first-party plugins (Tauri, Firebase, Rive, …) are documented on their package READMEs and in
 topic pages such as [native-tauri.md](native-tauri.md).

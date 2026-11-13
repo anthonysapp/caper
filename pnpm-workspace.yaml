@@ -4,6 +4,9 @@ packages:
 
 overrides:
   pixi.js: 8.23.0
+  # klipp's optional React peer (>=19.2) is never used here (core entry only). Accept the React
+  # already in the tree, so installing klipp does not add a second React and re-point @pixi/layout.
+  '@pmndrs/klipp>react': '*'
 
 peerDependencyRules:
   allowedVersions:

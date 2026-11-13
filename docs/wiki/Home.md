@@ -22,6 +22,7 @@ Start with [Architecture Overview](architecture-overview.md) if you're new. Term
 | [CLI, Templates & Package Surface](cli-and-package.md) | `create-caper`, `caper add`, templates, exports map, peer deps | `cli/`, `templates/`, `package.json` |
 | [Native builds (Tauri): desktop & Android](native-tauri.md) | preset awareness, `caper native init`/`plugin`, `@caperjs/plugin-tauri`, the Android steps, gotchas | `build/`, `cli/native.mjs`, `packages/plugin-tauri` |
 | [3D (`@caperjs/plugin-3d`)](plugin-3d.md) | pre-renderer `@pixi/3d`, `View3D`, 3D factory, assets, quality, interaction, destroy rules (experimental) | `packages/plugin-3d` |
+| [Camera rig (`@caperjs/plugin-klipp`)](plugin-klipp.md) | `view.add.cameraRig`, shots, cut, shake, user orbit on `@pmndrs/klipp` (experimental, exact pin) | `packages/plugin-klipp` |
 
 ## Maintaining this wiki
 

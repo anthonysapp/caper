@@ -1,0 +1,55 @@
+{
+  "name": "@caperjs/plugin-klipp",
+  "description": "Experimental directed camera for Caper 3D views, built on @pmndrs/klipp",
+  "keywords": [
+    "camera",
+    "klipp",
+    "3d",
+    "@caperjs/core",
+    "caper"
+  ],
+  "version": "0.7.7",
+  "files": [
+    "lib",
+    "src",
+    "!src/**/*.test.ts"
+  ],
+  "main": "lib/caper-plugin-klipp.mjs",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./lib/caper-plugin-klipp.mjs",
+      "types": "./lib/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "caper": {
+    "requires": [
+      "3d"
+    ]
+  },
+  "scripts": {
+    "build": "pnpm run generate-version && vite build",
+    "test": "vitest run",
+    "generate-version": "node generateVersion.mjs"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@caperjs/core": "workspace:^",
+    "@caperjs/plugin-3d": "workspace:^",
+    "@pixi/3d": "0.1.0",
+    "@pmndrs/klipp": "0.17.0",
+    "happy-dom": "^15",
+    "vite": "^8.0.7",
+    "vite-plugin-dts": "^4.5.3",
+    "vitest": "^3"
+  },
+  "peerDependencies": {
+    "@caperjs/core": "^0.7.7",
+    "@caperjs/plugin-3d": "^0.7.7",
+    "@pixi/3d": "0.1.0",
+    "@pmndrs/klipp": "0.17.0",
+    "pixi.js": "8.23.0"
+  }
+}

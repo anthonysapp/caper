@@ -6,6 +6,7 @@ import type {} from '@caperjs/plugin-3d';
 import type {} from '@caperjs/plugin-crunch';
 import type {} from '@caperjs/plugin-firebase';
 import type {} from '@caperjs/plugin-google-analytics';
+import type {} from '@caperjs/plugin-klipp';
 import type {} from '@caperjs/plugin-rive';
 import type {} from '@caperjs/plugin-tauri';
 // Data
@@ -28,6 +29,7 @@ type AppScenes =
   | 'audio'
   | 'music'
   | 'animated-sprites'
+  | 'camera-rig'
   | 'spine'
   | 'view-3d'
   | 'assets'
@@ -51,6 +53,7 @@ type AppPlugins =
   | '3d'
   | 'crunch'
   | 'firebase'
+  | 'klipp'
   | 'google-analytics'
   | 'rive'
   | 'rollbar'
@@ -89,6 +92,7 @@ type AppSceneClasses = {
   "audio": typeof import('@/scenes/audio/AudioScene').default;
   "music": typeof import('@/scenes/audio/MusicScene').default;
   "animated-sprites": typeof import('@/scenes/display/AnimatedSpriteScene').default;
+  "camera-rig": typeof import('@/scenes/display/CameraRigScene').default;
   "spine": typeof import('@/scenes/display/SpineScene').default;
   "view-3d": typeof import('@/scenes/display/View3DScene').default;
   "assets": typeof import('@/scenes/framework/AssetScene').default;
