@@ -1,3 +1,19 @@
 packages:
   - 'packages/*'
   - 'apps/kitchen-sink'
+
+overrides:
+  pixi.js: 8.23.0
+
+peerDependencyRules:
+  allowedVersions:
+    'vite-plugin-pwa>vite': ^8.0.0
+
+# pnpm 11 runs install scripts only for packages listed here.
+allowBuilds:
+  esbuild: true
+  sharp: true
+  '@ffmpeg-installer/darwin-arm64': true
+  '@ffmpeg-installer/linux-x64': true
+  cpu-features: false
+  protobufjs: false

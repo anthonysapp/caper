@@ -57,7 +57,7 @@ Workspaces are declared in [pnpm-workspace.yaml](pnpm-workspace.yaml); Turbo tas
 
 ## Common commands
 
-Run from the repo root (package manager is **pnpm@9.3.0**):
+Run from the repo root (package manager is **pnpm@11.18.0**):
 
 - `pnpm kitchen-sink:dev` — run the kitchen-sink demo app (turbo-filtered).
 - `pnpm kitchen-sink:build` — build the kitchen-sink app.

@@ -20,6 +20,7 @@ import { Signal } from '../../signals';
 import type { IDataAdapter } from '../../plugins/DataAdapter';
 import type { IStore } from '../../store';
 import type { AppTypeOverrides, Eases, Size } from '../../utils';
+import type { defaultFactoryMethods } from '../../mixins/factory/const';
 import type { AppConfig, PauseConfig } from '../types';
 import type { ICoreFunctions } from './ICoreFunctions';
 import { ICoreSignals } from './ICoreSignals';
@@ -81,6 +82,12 @@ export interface IApplication extends PIXIPApplication {
    * ```
    */
   readonly config: Partial<AppConfig>;
+
+  /**
+   * The app-level `make` factory: builds display objects without parenting them
+   * (same method table as `container.make`).
+   */
+  readonly make: typeof defaultFactoryMethods;
 
   /**
    * A top-level container for debug overlays, rendered above all other stage children.
