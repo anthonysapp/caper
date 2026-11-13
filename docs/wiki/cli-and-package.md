@@ -333,10 +333,13 @@ device; hint `caper native ios --team <ID>`), `native-ios-plist`
 `native-ios-orientation` (like the Android row, comparing
 `readPlistOrientation` of `Info.ios.plist`).
 
-**`caper create [path] [--use-yarn|--use-pnpm]`**
+**`caper create [path] [--yes] [--use-yarn|--use-pnpm]`**
 (`packages/core/cli/create.mjs`; `create-caper.mjs` is a thin wrapper around
 it) is the interactive project scaffolder. Without a terminal on stdin and stdout it stops with a
-plain message (`interactiveError`) instead of crashing at the first prompt. It:
+plain message (`interactiveError`) instead of crashing at the first prompt. `--yes` / `-y` skips every
+prompt for scripts and agents: path as given, the `default` template, no plugins, the name derived from
+the folder, plain log lines instead of the spinner, and a non-empty folder is refused, never written
+into. It:
 1. Lists `templates/app/*` via `fs.readdirSync` (`create.mjs:264-276`) and
    reads each dir's `.meta.json` (`{title, description}`) to build the
    template-choice prompt.

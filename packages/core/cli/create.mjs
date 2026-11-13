@@ -100,10 +100,7 @@ function getFiles(dirPath) {
 export function injectPluginsIntoConfig(configContents, pluginConfigs) {
   // Empty array: replace it wholesale with the new entries.
   if (/plugins:\s*\[\s*\]/.test(configContents)) {
-    return configContents.replace(
-      /plugins:\s*\[\s*\]/,
-      `plugins: [\n    ${pluginConfigs.join(',\n    ')}\n  ]`,
-    );
+    return configContents.replace(/plugins:\s*\[\s*\]/, `plugins: [\n    ${pluginConfigs.join(',\n    ')}\n  ]`);
   }
 
   // Non-empty array: find the `plugins:` array's matching brackets (which may
@@ -283,12 +280,18 @@ export function interactiveError(stdin = process.stdin, stdout = process.stdout)
   if (stdin.isTTY && stdout.isTTY) return null;
   return (
     'caper create is interactive and needs a terminal: it asks which template and plugins you want.\n' +
-    'Run it in a terminal window (not through a pipe, a script or an agent without a TTY).'
+    'Run it in a terminal window, or pass --yes to take the defaults with no questions:\n' +
+    '  caper create my-game --yes'
   );
 }
 
-export async function create(cwd = '.', packageManagerOverride) {
-  const notInteractive = interactiveError();
+/**
+ * `yes` takes every default with no prompt (path as given, the default template, no plugins, the name
+ * from the folder), so scripts and agents can scaffold. It refuses a non-empty folder rather than
+ * guess. `install: false` skips the dependency install (tests).
+ */
+export async function create(cwd = '.', packageManagerOverride, { yes = false, install = true } = {}) {
+  const notInteractive = yes ? null : interactiveError();
   if (notInteractive) {
     console.error(notInteractive);
     process.exit(1);
@@ -298,11 +301,9 @@ export async function create(cwd = '.', packageManagerOverride) {
   }
   const dir = dist(``);
   const pkg = JSON.parse(fs.readFileSync(`${dir}/package.json`, 'utf-8'));
-  p.intro(
-    `Caper Create (v${pkg.version}) - This utility will walk you through creating a new Caper project.`,
-  );
+  p.intro(`Caper Create (v${pkg.version}) - This utility will walk you through creating a new Caper project.`);
 
-  if (cwd === '.') {
+  if (cwd === '.' && !yes) {
     const dir = await p.text({
       message: 'Where should we create your project?',
       placeholder: '(Enter to use current directory)',
@@ -319,6 +320,12 @@ export async function create(cwd = '.', packageManagerOverride) {
 
   if (fs.existsSync(cwd)) {
     if (fs.readdirSync(cwd).length > 0) {
+      if (yes) {
+        console.error(
+          `${path.resolve(cwd)} is not empty. With --yes, caper create only writes into a new or empty folder.`,
+        );
+        process.exit(1);
+      }
       const force = await p.confirm({
         message: 'Directory not empty. Continue?',
         initialValue: false,
@@ -331,34 +338,37 @@ export async function create(cwd = '.', packageManagerOverride) {
     }
   }
 
-  const options = await p.group({
-    template: () =>
-      p.select({
-        message: 'Which template?',
-        options: fs
-          .readdirSync(dist('templates/app'))
-          .map((dir) => {
-            const meta_file = dist(`templates/app/${dir}/.meta.json`);
-            const { title, description } = JSON.parse(fs.readFileSync(meta_file, 'utf8'));
+  const templates = fs.readdirSync(dist('templates/app'));
+  const options = yes
+    ? { template: `app/${templates.includes('default') ? 'default' : templates[0]}`, plugins: [] }
+    : await p.group({
+        template: () =>
+          p.select({
+            message: 'Which template?',
+            options: fs
+              .readdirSync(dist('templates/app'))
+              .map((dir) => {
+                const meta_file = dist(`templates/app/${dir}/.meta.json`);
+                const { title, description } = JSON.parse(fs.readFileSync(meta_file, 'utf8'));
 
-            return {
-              label: title,
-              hint: description,
-              value: `app/${dir}`,
-            };
-          })
-          .filter(Boolean),
-      }),
-    plugins: () =>
-      p.multiselect({
-        required: false,
-        message: 'Which plugins would you like to add (Enter to skip)?',
-        options: AVAILABLE_PLUGINS.map((plugin) => ({
-          label: `${plugin.displayName} - ${plugin.description}`,
-          value: plugin.name,
-        })),
-      }),
-  });
+                return {
+                  label: title,
+                  hint: description,
+                  value: `app/${dir}`,
+                };
+              })
+              .filter(Boolean),
+          }),
+        plugins: () =>
+          p.multiselect({
+            required: false,
+            message: 'Which plugins would you like to add (Enter to skip)?',
+            options: AVAILABLE_PLUGINS.map((plugin) => ({
+              label: `${plugin.displayName} - ${plugin.description}`,
+              value: plugin.name,
+            })),
+          }),
+      });
 
   // get a name from the cwd provided
   const name = path.basename(path.resolve(cwd));
@@ -372,10 +382,12 @@ export async function create(cwd = '.', packageManagerOverride) {
     .join('');
 
   // ask for a name if the user used "." or didn't provide one
-  let appName = await p.text({
-    message: 'What should we call your project?',
-    placeholder: `(Enter to use '${defaultName}')`,
-  });
+  let appName = yes
+    ? defaultName
+    : await p.text({
+        message: 'What should we call your project?',
+        placeholder: `(Enter to use '${defaultName}')`,
+      });
 
   if (!appName) {
     appName = defaultName;
@@ -401,12 +413,15 @@ export async function create(cwd = '.', packageManagerOverride) {
     plugins: options.plugins,
   });
 
-  const s = p.spinner();
-  s.start(`Installing dependencies...`);
-  const exec = promisify(shell.exec);
-  await exec(`${packageManager} install`, { silent: true, cwd }).catch(() => ({ code: 1 }));
-  // const message = command.code === 0 ? 'Installtion successful' : 'Installation failed';
-  s.stop('Installation complete!');
+  if (install) {
+    // The spinner redraws a terminal line; without one (--yes in a script) plain lines read better.
+    const s = yes ? { start: (msg) => console.log(msg), stop: (msg) => console.log(msg) } : p.spinner();
+    s.start(`Installing dependencies...`);
+    const exec = promisify(shell.exec);
+    await exec(`${packageManager} install`, { silent: true, cwd }).catch(() => ({ code: 1 }));
+    // const message = command.code === 0 ? 'Installtion successful' : 'Installation failed';
+    s.stop('Installation complete!');
+  }
 
   let msg = `Next steps:`;
   let i = 1;
